@@ -6,11 +6,22 @@ rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-description = "THEMIS orchestrator — Band room state machine, JCR Safety Gate (arXiv:2601.08343, INV-15), Prefix Salt Planner, Concurrency Scheduler, 5-agent coordination."
+description = "THEMIS orchestrator — state machine, Band room lifecycle, LlmBackend router, BAAAR kill-switch, Evidence Packet assembly, multi-tenant registry."
 
 [dependencies]
 tokio = { workspace = true }
 sha2 = { workspace = true }
+async-trait = "0.1"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+dashmap = "6"
+uuid = { version = "1", features = ["v4", "v5", "serde"] }
+blake3 = "1"
+hex = "0.4"
+themis-agents = { workspace = true }
+themis-evidence = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

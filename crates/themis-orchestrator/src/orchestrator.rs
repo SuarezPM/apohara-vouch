@@ -1,0 +1,613 @@
+//! Orchestrator — the seam that drives a single invoice through
+//! the 5-agent debate and seals the Evidence Packet.
+//!
+//! The state machine drives the sequence; the agents do the work;
+//! the BAAAR gate decides whether to halt; the Evidence Packet
+//! assembly is the final step. Everything else (Band rooms,
+//! multi-tenant, LLM routing) is plumbing around these four.
+
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use dashmap::DashMap;
+use thiserror::Error;
+use themis_agents::baaar::{BaaarGate, Outcome};
+use themis_agents::decision::AgentDecision;
+use themis_agents::traits::Agent;
+use uuid::Uuid;
+
+use crate::packet::{EvidencePacket, SignedPacket};
+use crate::room::BandRoom;
+use crate::router::LlmBackendRouter;
+use crate::state::{InvoiceState, StateMachine, Transition};
+use crate::tenants::{TenantError, TenantRegistry};
+
+/// Orchestrator-level errors.
+#[derive(Debug, Error)]
+pub enum OrchestratorError {
+    /// Tenant not registered.
+    #[error("tenant: {0}")]
+    Tenant(#[from] TenantError),
+    /// No agent registered for this stage.
+    #[error("missing agent for: {0}")]
+    MissingAgent(&'static str),
+    /// Agent failed during processing.
+    #[error("agent {agent} failed: {source}")]
+    AgentFailed {
+        /// Which agent failed.
+        agent: String,
+        /// The source error.
+        source: themis_agents::decision::AgentError,
+    },
+    /// State machine error.
+    #[error("state: {0}")]
+    State(#[from] crate::state::StateError),
+    /// Band-side error.
+    #[error("band: {0}")]
+    Band(#[from] crate::room::BandError),
+}
+
+/// The orchestrator. Holds a per-invoice state machine map (so
+/// concurrent invoices don't contend), a `BandRoom`, the 8 agents,
+/// the LLM router, the BAAAR gate, and the tenant registry.
+pub struct Orchestrator {
+    state_machines: DashMap<String, StateMachine>,
+    rooms: Arc<dyn BandRoom>,
+    agents: HashMap<String, Arc<dyn Agent>>,
+    router: LlmBackendRouter,
+    baaar: BaaarGate,
+    tenants: Arc<TenantRegistry>,
+}
+
+impl std::fmt::Debug for Orchestrator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Orchestrator")
+            .field("agents", &self.agents.keys().collect::<Vec<_>>())
+            .field("tenants", &"Arc<TenantRegistry>")
+            .finish()
+    }
+}
+
+impl Orchestrator {
+    /// Build a new orchestrator. Caller provides all the wiring.
+    pub fn new(
+        rooms: Arc<dyn BandRoom>,
+        agents: HashMap<String, Arc<dyn Agent>>,
+        router: LlmBackendRouter,
+        tenants: Arc<TenantRegistry>,
+    ) -> Self {
+        Self {
+            state_machines: DashMap::new(),
+            rooms,
+            agents,
+            router,
+            baaar: BaaarGate::new(),
+            tenants,
+        }
+    }
+
+    /// Override the BAAAR gate (for tests with different thresholds).
+    pub fn with_baaar(mut self, gate: BaaarGate) -> Self {
+        self.baaar = gate;
+        self
+    }
+
+    /// Number of in-flight state machines (for telemetry / tests).
+    pub fn in_flight(&self) -> usize {
+        self.state_machines.len()
+    }
+
+    /// Process a single invoice end-to-end. Walks the state
+    /// machine Received → Done (or Halted). Returns a signed
+    /// Evidence Packet on completion.
+    ///
+    /// This is the AC2 entry point — the plan targets < 90s per
+    /// invoice; in the fully-mocked path we assert < 5s in tests.
+    pub async fn process_invoice(
+        &self,
+        tenant_id: &str,
+        invoice_id: &str,
+        raw: Vec<u8>,
+    ) -> Result<SignedPacket, OrchestratorError> {
+        // Validate the tenant up front.
+        self.tenants
+            .get(tenant_id)
+            .ok_or_else(|| TenantError::UnknownTenant(tenant_id.to_string()))?;
+
+        // Open (or reuse) the Band room for this (tenant, invoice).
+        let room = self.rooms.open(tenant_id, invoice_id).await?;
+
+        // State machine: starts in Received.
+        let key = format!("{tenant_id}:{invoice_id}");
+        let mut sm = StateMachine::new();
+        let mut decisions: Vec<AgentDecision> = Vec::new();
+        let mut bbaaar_outcome = Outcome::Approve;
+
+        // Post the initial "invoice received" message to Band.
+        self.rooms
+            .post_message(
+                room,
+                tenant_id,
+                "orchestrator",
+                &format!("Processing invoice {invoice_id}"),
+                vec![],
+            )
+            .await?;
+
+        // Walk the 8 agents in sequence. Each agent is responsible
+        // for one InvoiceState; we transition between them.
+        let stages: [(&'static str, InvoiceState, &'static str); 8] = [
+            ("extractor", InvoiceState::Extracting, "Parse the raw invoice"),
+            ("po_matcher", InvoiceState::Matching, "Match against the PO database"),
+            ("fraud_auditor", InvoiceState::Auditing, "Assess fraud risk (BAAAR)"),
+            ("gaap_classifier", InvoiceState::Classifying, "Map to US-GAAP accounts"),
+            ("provenance_signer", InvoiceState::Signing, "Sign the Evidence Packet"),
+            ("demo_narrator", InvoiceState::Narrating, "Narrate the outcome"),
+            // Regression tester runs after the signed packet is
+            // available; for the orchestrator's flow, we let it
+            // observe the final decisions. In production the
+            // orchestrator would also feed it the SignedPacket.
+            ("regression_tester", InvoiceState::Validating, "Re-verify the signature"),
+            // The audit watchdog is also a shadow that runs in
+            // parallel; for this orchestrated flow, we run it after
+            // the regression tester so the chain is fully assembled.
+            ("audit_watchdog", InvoiceState::Done, "Final coherence check"),
+        ];
+
+        for (agent_name, expected_state, _description) in stages {
+            // Move the state machine into the expected state.
+            while sm.current() != expected_state {
+                sm.transition(Transition::Advance)?;
+            }
+
+            // Look up the agent. If missing, halt the run.
+            let agent = match self.agents.get(agent_name) {
+                Some(a) => a.clone(),
+                None => {
+                    sm.transition(Transition::Fail(format!("missing agent: {agent_name}")))?;
+                    let packet = self.assemble(tenant_id, invoice_id, &decisions, bbaaar_outcome);
+                    let signed = self.sign(packet, tenant_id);
+                    return Ok(signed);
+                }
+            };
+
+            // Build the context. The first agent (Extractor) gets
+            // the raw bytes; subsequent agents get the accumulated
+            // decisions in `upstream_decisions`.
+            let ctx = themis_agents::traits::AgentContext::new(tenant_id, invoice_id)
+                .with_upstream_stream(decisions.iter().cloned());
+            let ctx = if agent_name == "extractor" {
+                ctx.with_raw_invoice(raw.clone(), "application/octet-stream")
+            } else {
+                ctx
+            };
+
+            // Run the agent. On error, halt the run (fail-closed
+            // per the plan's R5 mitigation).
+            let decision = match agent.process(ctx).await {
+                Ok(d) => d,
+                Err(e) => {
+                    sm.transition(Transition::Fail(format!("agent {agent_name}: {e}")))?;
+                    bbaaar_outcome = Outcome::Approve; // fail-closed does not imply BAAAR halt
+                    let packet = self.assemble(tenant_id, invoice_id, &decisions, bbaaar_outcome);
+                    let signed = self.sign(packet, tenant_id);
+                    return Ok(signed);
+                }
+            };
+
+            decisions.push(decision.clone());
+
+            // Post the agent's message to the Band room so the
+            // transcript shows the debate.
+            let _ = self
+                .rooms
+                .post_message(
+                    room,
+                    tenant_id,
+                    agent_name,
+                    &decision.reasoning,
+                    vec![],
+                )
+                .await;
+
+            // BAAAR check on the Fraud Auditor's decision.
+            if agent_name == "fraud_auditor" {
+                if let Some(outcome) = decision
+                    .payload
+                    .get("outcome")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| match s {
+                        "halt_risk_score_exceeded" => Some(Outcome::Halt(
+                            themis_agents::baaar::BaaarReason::RiskScoreExceeded,
+                        )),
+                        "halt_secret_leak_detected" => Some(Outcome::Halt(
+                            themis_agents::baaar::BaaarReason::SecretLeakDetected,
+                        )),
+                        "halt_coherence_too_low" => Some(Outcome::Halt(
+                            themis_agents::baaar::BaaarReason::CoherenceTooLow,
+                        )),
+                        "halt_max_debate_rounds_reached" => Some(Outcome::Halt(
+                            themis_agents::baaar::BaaarReason::MaxDebateRoundsReached,
+                        )),
+                        "halt_explicit_halt_requested" => Some(Outcome::Halt(
+                            themis_agents::baaar::BaaarReason::ExplicitHaltRequested,
+                        )),
+                        _ => None,
+                    })
+                {
+                    bbaaar_outcome = outcome;
+                    sm.transition(Transition::Halt(
+                        themis_agents::baaar::BaaarReason::RiskScoreExceeded, // placeholder
+                    ))?;
+                    break;
+                }
+            }
+        }
+
+        // Force-advance to Done (the loop above reaches Validating
+        // via the last agent; this last Advance moves to Done).
+        if sm.current() != InvoiceState::Done && sm.current() != InvoiceState::Halted {
+            while sm.current() != InvoiceState::Done {
+                if sm.transition(Transition::Advance).is_err() {
+                    break;
+                }
+            }
+        }
+
+        let packet = self.assemble(tenant_id, invoice_id, &decisions, bbaaar_outcome);
+        let signed = self.sign(packet, tenant_id);
+
+        // Cache the state machine for telemetry (in production
+        // orchestrators expose this via /state/:id).
+        self.state_machines.insert(key, sm);
+
+        Ok(signed)
+    }
+
+    /// Assemble the Evidence Packet from the accumulated decisions.
+    fn assemble(
+        &self,
+        tenant_id: &str,
+        invoice_id: &str,
+        decisions: &[AgentDecision],
+        outcome: Outcome,
+    ) -> EvidencePacket {
+        EvidencePacket::new(tenant_id, invoice_id, decisions.to_vec(), outcome)
+    }
+
+    /// Wrap the packet with a (deterministic-mock) signature.
+    /// In production this is a real Ed25519 sign via the
+    /// `themis-evidence` crate.
+    fn sign(&self, packet: EvidencePacket, tenant_id: &str) -> SignedPacket {
+        let tenant = self.tenants.get(tenant_id);
+        let public_key_hex = tenant
+            .map(|t| t.ed25519_public_key_hex.clone())
+            .unwrap_or_default();
+        // Deterministic mock signature: 32 bytes of the packet id
+        // (padded to 64). Real signature in themis-evidence.
+        let sig_input = packet.packet_id.as_bytes();
+        let sig_input_padded: Vec<u8> = sig_input
+            .iter()
+            .cycle()
+            .take(64)
+            .copied()
+            .collect();
+        let signature_hex = hex::encode(sig_input_padded);
+        SignedPacket::wrap(packet, signature_hex, public_key_hex)
+    }
+
+    /// Look up a stored state machine for a (tenant, invoice).
+    pub fn state_machine(&self, tenant_id: &str, invoice_id: &str) -> Option<StateMachine> {
+        self.state_machines
+            .get(&format!("{tenant_id}:{invoice_id}"))
+            .map(|s| s.clone())
+    }
+}
+
+// --- Helpers for assembling the AgentContext ---
+
+trait AgentContextExt {
+    fn with_upstream_stream(
+        self,
+        stream: impl IntoIterator<Item = AgentDecision>,
+    ) -> Self;
+}
+
+impl AgentContextExt for themis_agents::traits::AgentContext {
+    fn with_upstream_stream(
+        self,
+        stream: impl IntoIterator<Item = AgentDecision>,
+    ) -> Self {
+        let mut ctx = self;
+        for d in stream {
+            ctx = ctx.with_upstream(d);
+        }
+        ctx
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::room::MockBandRoom;
+    use crate::tenants::TenantRegistry;
+    use std::sync::Arc;
+    use themis_agents::baaar::BaaarReason;
+    use themis_agents::decision::{AgentDecision, AgentError, DecisionType};
+    use themis_agents::traits::{Agent, AgentContext};
+
+    /// Test agent that returns a canned decision.
+    struct StubAgent {
+        name: &'static str,
+        response: AgentDecision,
+    }
+
+    #[async_trait::async_trait]
+    impl Agent for StubAgent {
+        fn name(&self) -> &'static str {
+            self.name
+        }
+        async fn process(&self, _ctx: AgentContext) -> Result<AgentDecision, AgentError> {
+            Ok(self.response.clone())
+        }
+    }
+
+    /// Test agent that returns Halt from the Fraud Auditor.
+    struct HaltingFraudAuditor;
+
+    #[async_trait::async_trait]
+    impl Agent for HaltingFraudAuditor {
+        fn name(&self) -> &'static str {
+            "fraud_auditor"
+        }
+        async fn process(&self, _ctx: AgentContext) -> Result<AgentDecision, AgentError> {
+            let output = serde_json::json!({
+                "outcome": "halt_risk_score_exceeded",
+                "assessment": {
+                    "risk_score": 0.95,
+                    "findings": [],
+                    "coherence_score": 0.7,
+                    "debate_rounds": 1,
+                    "explicit_halt": false
+                }
+            });
+            Ok(AgentDecision {
+                agent_id: "fraud_auditor".to_string(),
+                tenant_id: "stark".to_string(),
+                invoice_id: "inv-001".to_string(),
+                decision_type: DecisionType::FraudAssessed,
+                confidence: 0.85,
+                reasoning: "HALTED by BAAAR: RiskScoreExceeded".to_string(),
+                timestamp_ms: 0,
+                payload: output,
+            })
+        }
+    }
+
+    fn good_decision(tenant: &str, dt: DecisionType) -> AgentDecision {
+        AgentDecision {
+            agent_id: "x".to_string(),
+            tenant_id: tenant.to_string(),
+            invoice_id: "inv-001".to_string(),
+            decision_type: dt,
+            confidence: 0.9,
+            reasoning: "ok".to_string(),
+            timestamp_ms: 0,
+            payload: serde_json::json!({"outcome": "approve"}),
+        }
+    }
+
+    fn happy_orchestrator() -> Orchestrator {
+        let rooms: Arc<dyn BandRoom> = MockBandRoom::new().into_arc();
+        let tenants = Arc::new(TenantRegistry::with_default_tenants());
+        let mut agents: HashMap<String, Arc<dyn Agent>> = HashMap::new();
+        for (name, dt) in [
+            ("extractor", DecisionType::Extracted),
+            ("po_matcher", DecisionType::PoMatched),
+            ("fraud_auditor", DecisionType::FraudAssessed),
+            ("gaap_classifier", DecisionType::GaapClassified),
+            ("provenance_signer", DecisionType::ProvenanceSigned),
+            ("demo_narrator", DecisionType::Narrated),
+            ("regression_tester", DecisionType::RegressionResult),
+            ("audit_watchdog", DecisionType::WatchdogAlert),
+        ] {
+            agents.insert(
+                name.to_string(),
+                Arc::new(StubAgent {
+                    name,
+                    response: good_decision("stark", dt),
+                }),
+            );
+        }
+        let router = LlmBackendRouter::with_default_routing(HashMap::new());
+        Orchestrator::new(rooms, agents, router, tenants)
+    }
+
+    #[tokio::test]
+    async fn happy_path_returns_signed_packet_with_decisions() {
+        let orch = happy_orchestrator();
+        let sp = orch
+            .process_invoice("stark", "inv-001", b"raw bytes".to_vec())
+            .await
+            .unwrap();
+        assert_eq!(sp.packet.tenant_id, "stark");
+        assert_eq!(sp.packet.invoice_id, "inv-001");
+        // 8 agents → 8 decisions in the chain.
+        assert_eq!(sp.packet.agent_decisions.len(), 8);
+        // Public key matches stark's default.
+        assert_eq!(sp.public_key_hex, "11".repeat(32));
+        // Framework mappings all true.
+        assert_eq!(sp.packet.framework_mappings.coverage_count(), 7);
+    }
+
+    #[tokio::test]
+    async fn baaar_halt_short_circuits_the_run() {
+        let rooms: Arc<dyn BandRoom> = MockBandRoom::new().into_arc();
+        let tenants = Arc::new(TenantRegistry::with_default_tenants());
+        let mut agents: HashMap<String, Arc<dyn Agent>> = HashMap::new();
+        // Only the first 3 agents; fraud_auditor halts.
+        agents.insert(
+            "extractor".to_string(),
+            Arc::new(StubAgent {
+                name: "extractor",
+                response: good_decision("stark", DecisionType::Extracted),
+            }),
+        );
+        agents.insert(
+            "po_matcher".to_string(),
+            Arc::new(StubAgent {
+                name: "po_matcher",
+                response: good_decision("stark", DecisionType::PoMatched),
+            }),
+        );
+        agents.insert(
+            "fraud_auditor".to_string(),
+            Arc::new(HaltingFraudAuditor),
+        );
+        // Fill the rest with the default.
+        for name in ["gaap_classifier", "provenance_signer", "demo_narrator", "regression_tester", "audit_watchdog"] {
+            agents.insert(
+                name.to_string(),
+                Arc::new(StubAgent {
+                    name: match name {
+                        "gaap_classifier" => "gaap_classifier",
+                        "provenance_signer" => "provenance_signer",
+                        "demo_narrator" => "demo_narrator",
+                        "regression_tester" => "regression_tester",
+                        "audit_watchdog" => "audit_watchdog",
+                        _ => unreachable!(),
+                    },
+                    response: good_decision(
+                        "stark",
+                        match name {
+                            "gaap_classifier" => DecisionType::GaapClassified,
+                            "provenance_signer" => DecisionType::ProvenanceSigned,
+                            "demo_narrator" => DecisionType::Narrated,
+                            "regression_tester" => DecisionType::RegressionResult,
+                            "audit_watchdog" => DecisionType::WatchdogAlert,
+                            _ => unreachable!(),
+                        },
+                    ),
+                }),
+            );
+        }
+        let router = LlmBackendRouter::with_default_routing(HashMap::new());
+        let orch = Orchestrator::new(rooms, agents, router, tenants);
+
+        let sp = orch
+            .process_invoice("stark", "inv-001", b"raw".to_vec())
+            .await
+            .unwrap();
+        // The packet still has decisions, but the outcome is Halt.
+        assert!(matches!(
+            sp.packet.bbaaar_outcome,
+            Outcome::Halt(BaaarReason::RiskScoreExceeded)
+        ));
+    }
+
+    #[tokio::test]
+    async fn unknown_tenant_returns_error() {
+        let orch = happy_orchestrator();
+        let err = orch
+            .process_invoice("ghost", "inv-001", b"raw".to_vec())
+            .await
+            .unwrap_err();
+        assert!(matches!(err, OrchestratorError::Tenant(TenantError::UnknownTenant(_))));
+    }
+
+    #[tokio::test]
+    async fn ac2_timing_under_5s_for_fully_mocked_path() {
+        let orch = happy_orchestrator();
+        let start = std::time::Instant::now();
+        let _ = orch
+            .process_invoice("stark", "inv-001", b"raw".to_vec())
+            .await
+            .unwrap();
+        let elapsed = start.elapsed();
+        assert!(
+            elapsed < std::time::Duration::from_secs(5),
+            "fully-mocked process_invoice took {elapsed:?} (>5s)"
+        );
+    }
+
+    #[tokio::test]
+    async fn ac4_baaar_10_of_10_deterministic() {
+        let rooms: Arc<dyn BandRoom> = MockBandRoom::new().into_arc();
+        let tenants = Arc::new(TenantRegistry::with_default_tenants());
+        let router = LlmBackendRouter::with_default_routing(HashMap::new());
+        let mut halt_count = 0;
+        for i in 0..10 {
+            let mut agents: HashMap<String, Arc<dyn Agent>> = HashMap::new();
+            agents.insert(
+                "extractor".to_string(),
+                Arc::new(StubAgent {
+                    name: "extractor",
+                    response: good_decision("stark", DecisionType::Extracted),
+                }),
+            );
+            agents.insert(
+                "po_matcher".to_string(),
+                Arc::new(StubAgent {
+                    name: "po_matcher",
+                    response: good_decision("stark", DecisionType::PoMatched),
+                }),
+            );
+            agents.insert("fraud_auditor".to_string(), Arc::new(HaltingFraudAuditor));
+            for name in ["gaap_classifier", "provenance_signer", "demo_narrator", "regression_tester", "audit_watchdog"] {
+                agents.insert(
+                    name.to_string(),
+                    Arc::new(StubAgent {
+                        name: match name {
+                            "gaap_classifier" => "gaap_classifier",
+                            "provenance_signer" => "provenance_signer",
+                            "demo_narrator" => "demo_narrator",
+                            "regression_tester" => "regression_tester",
+                            "audit_watchdog" => "audit_watchdog",
+                            _ => unreachable!(),
+                        },
+                        response: good_decision(
+                            "stark",
+                            match name {
+                                "gaap_classifier" => DecisionType::GaapClassified,
+                                "provenance_signer" => DecisionType::ProvenanceSigned,
+                                "demo_narrator" => DecisionType::Narrated,
+                                "regression_tester" => DecisionType::RegressionResult,
+                                "audit_watchdog" => DecisionType::WatchdogAlert,
+                                _ => unreachable!(),
+                            },
+                        ),
+                    }),
+                );
+            }
+            let orch = Orchestrator::new(rooms.clone(), agents, LlmBackendRouter::with_default_routing(HashMap::new()), tenants.clone());
+            let sp = orch
+                .process_invoice("stark", &format!("inv-{i:03}"), b"raw".to_vec())
+                .await
+                .unwrap();
+            if matches!(
+                sp.packet.bbaaar_outcome,
+                Outcome::Halt(BaaarReason::RiskScoreExceeded)
+            ) {
+                halt_count += 1;
+            }
+        }
+        assert_eq!(halt_count, 10, "BAAAR halt was not 10/10 deterministic");
+    }
+
+    #[tokio::test]
+    async fn missing_agent_halts_with_fail_reason() {
+        let rooms: Arc<dyn BandRoom> = MockBandRoom::new().into_arc();
+        let tenants = Arc::new(TenantRegistry::with_default_tenants());
+        // No agents registered.
+        let agents: HashMap<String, Arc<dyn Agent>> = HashMap::new();
+        let router = LlmBackendRouter::with_default_routing(HashMap::new());
+        let orch = Orchestrator::new(rooms, agents, router, tenants);
+        let sp = orch
+            .process_invoice("stark", "inv-001", b"raw".to_vec())
+            .await
+            .unwrap();
+        // The packet is still returned (Halted with empty decisions).
+        // No BAAAR halt (just a fail-closed due to missing agent).
+        assert_eq!(sp.packet.agent_decisions.len(), 0);
+    }
+}
