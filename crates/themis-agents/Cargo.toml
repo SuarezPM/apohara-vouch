@@ -1,0 +1,13 @@
+[package]
+name = "themis-agents"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "THEMIS 5 core agents + 3 shadow observers. Each agent implements the Agent trait; LLM-backed via the orchestrator's router."
+
+[dependencies]
+
+[dev-dependencies]

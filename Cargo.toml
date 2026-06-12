@@ -1,0 +1,32 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT"
+authors = ["Pablo M. Suarez <suarezpm@csnat.unt.edu.ar>"]
+repository = "https://github.com/SuarezPM/apohara-themis"
+
+[workspace.dependencies]
+# Internal crates
+themis-compressor = { path = "crates/themis-compressor" }
+themis-orchestrator = { path = "crates/themis-orchestrator" }
+themis-agents = { path = "crates/themis-agents" }
+themis-evidence = { path = "crates/themis-evidence" }
+themis-band-client = { path = "crates/themis-band-client" }
+
+# External deps for orchestrator (US-007 concurrency scheduler)
+tokio = { version = "1.40", features = ["macros", "rt-multi-thread", "time", "sync"] }
+
+# Hashing for Prefix Salt Planner (US-006)
+sha2 = "0.10"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+opt-level = "z"
+strip = "symbols"
+panic = "abort"

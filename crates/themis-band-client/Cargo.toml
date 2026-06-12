@@ -1,0 +1,13 @@
+[package]
+name = "themis-band-client"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "THEMIS Band client — subprocess wrapper around the Band Python SDK 0.2.11. Persistent child process per room, JSON over stdin/stdout for control plane, tokio-tungstenite for WebSocket @mention events."
+
+[dependencies]
+
+[dev-dependencies]

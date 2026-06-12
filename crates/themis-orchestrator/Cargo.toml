@@ -1,0 +1,16 @@
+[package]
+name = "themis-orchestrator"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "THEMIS orchestrator — Band room state machine, JCR Safety Gate (arXiv:2601.08343, INV-15), Prefix Salt Planner, Concurrency Scheduler, 5-agent coordination."
+
+[dependencies]
+tokio = { workspace = true }
+sha2 = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

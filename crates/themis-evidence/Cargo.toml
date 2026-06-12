@@ -1,0 +1,13 @@
+[package]
+name = "themis-evidence"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "THEMIS Evidence Packet — Ed25519 signing, BLAKE3 hash chain, RFC 3161 timestamp, Rekor v2 anchoring. Multi-tenant key isolation (chmod 600)."
+
+[dependencies]
+
+[dev-dependencies]

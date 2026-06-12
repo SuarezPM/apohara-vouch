@@ -1,0 +1,13 @@
+[package]
+name = "themis-compressor"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "THEMIS token-compression crate — Rust port of LLMLingua-2 (ACL 2024). Custom compression coordinator with 4 strategies, 3 variants, auto-select by word count. No PyO3, no Python sidecar."
+
+[dependencies]
+
+[dev-dependencies]
