@@ -1,24 +1,27 @@
-//! themis-band-client — Band SDK wrapper for THEMIS.
+//! themis-band-client — Band client wrapper for THEMIS.
 //!
-//! Subprocess wrapper around the Band Python SDK 0.2.11. Persistent
-//! child process per Band room, JSON over stdin/stdout for control
-//! plane (`create_room`, `get_history`, `post_message`), `tokio-tungstenite`
-//! for WebSocket @mention events. The `BandClient` trait lets the
-//! orchestrator swap in `MockBandClient` for tests without network.
+//! Subprocess wrapper around the Band Python SDK. Persistent child
+//! process per Band room, JSON over stdin/stdout for control
+//! plane (`create_room`, `get_history`, `post_message`), WebSocket
+//! for real-time @mention events.
 //!
-//! Backoff strategy on reconnect: exponential 50ms→100ms→200ms→...→30s
-//! with ±20% jitter, idempotent UUIDs on outgoing messages, best-effort
-//! session resume via `get_history` re-read.
-//!
-//! Real impl arrives in the follow-up sprint (Phase A of the plan).
-//! This crate exists to anchor the workspace layout for US-001.
+//! Production wire is documented in the plan's ADR-001; this
+//! skeleton ships the trait + types + mock + Python subprocess
+//! bridge + WS event stream. The actual `band-sdk[langgraph]==0.2.11`
+//! integration is a follow-up sprint.
 
 #![warn(missing_docs)]
 
-/// Crate version + name. Used by US-001 acceptance test.
+/// Crate version + name.
 pub fn version() -> &'static str {
     "themis-band-client"
 }
+
+pub mod client;
+pub mod error;
+pub mod python_bridge;
+pub mod types;
+pub mod ws;
 
 #[cfg(test)]
 mod tests {

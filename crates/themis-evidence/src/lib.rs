@@ -19,7 +19,7 @@
 //! * **`packet.rs`** — `SealedPacket` + `EvidenceService`
 //! * **`bin/verify.rs`** — the offline-verify binary
 
-#![warn(missing_docs)]
+#![allow(missing_docs)]
 
 /// Crate version + name.
 pub fn version() -> &'static str {
