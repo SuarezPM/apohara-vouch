@@ -32,6 +32,10 @@ use std::future::Future;
 use std::time::Duration;
 use tokio::sync::{Semaphore, SemaphorePermit};
 
+/// Type alias for a boxed, pinned, Send + 'static future. Module-level
+/// (associated type on the impl block is unstable on stable Rust).
+pub type BoxFut<T> = std::pin::Pin<Box<dyn Future<Output = T> + Send + 'static>>;
+
 /// Default cap on concurrent connections to a Featherless-style
 /// serverless backend. Featherless Premium gives 4.
 pub const FEATHERLESS_MAX_CONCURRENT: usize = 4;
@@ -150,12 +154,14 @@ impl ConcurrencyScheduler {
     /// `Pin<Box<dyn Future<Output=T> + Send>>` type — necessary because
     /// Rust can't unify two different `async {}` blocks into one
     /// generic.
-    pub async fn stagger_spawn<T: Send + 'static>(
-        tasks: Vec<(
-            String,
-            std::pin::Pin<Box<dyn Future<Output = T> + Send + 'static>>,
-        )>,
-    ) -> Vec<T> {
+    /// Spawn `tasks` with a `STAGGER_INTERVAL_MS` delay between each
+    /// spawn. Returns the collected results in the input order.
+    ///
+    /// Each tuple is `(label, boxed_future)`. Box the futures at the
+    /// call site so they all share the same `BoxFut<T>` type —
+    /// necessary because Rust can't unify two different `async {}`
+    /// blocks into one generic.
+    pub async fn stagger_spawn<T: Send + 'static>(tasks: Vec<(String, BoxFut<T>)>) -> Vec<T> {
         let mut results: Vec<T> = Vec::with_capacity(tasks.len());
         let mut handles = Vec::with_capacity(tasks.len());
         for (i, (_label, fut)) in tasks.into_iter().enumerate() {
@@ -244,10 +250,7 @@ mod tests {
         let c1 = counter.clone();
         let c2 = counter.clone();
         let c3 = counter.clone();
-        let tasks: Vec<(
-            String,
-            std::pin::Pin<Box<dyn Future<Output = i32> + Send + 'static>>,
-        )> = vec![
+        let tasks: Vec<(String, BoxFut<i32>)> = vec![
             (
                 "a".to_string(),
                 Box::pin(async move {

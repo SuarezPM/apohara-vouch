@@ -91,7 +91,7 @@ pub struct JcrDecision {
 
 /// Return `true` if `role` is a judge-type role per INV-15.
 pub fn is_judge_role(role: &str) -> bool {
-    JUDGE_ROLES.iter().any(|r| *r == role)
+    JUDGE_ROLES.contains(&role)
 }
 
 /// Compute the JCR risk score for the given inputs.
