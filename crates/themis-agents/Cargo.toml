@@ -6,8 +6,19 @@ rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-description = "THEMIS 5 core agents + 3 shadow observers. Each agent implements the Agent trait; LLM-backed via the orchestrator's router."
+description = "THEMIS 5 core + 3 shadow agents. Agent trait + LlmBackend trait + BAAAR kill-switch. Multi-tenant via ProvenanceSigner."
 
 [dependencies]
+async-trait = "0.1"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+blake3 = "1"
+base64 = "0.22"
+hex = "0.4"
+rand = "0.8"
 
 [dev-dependencies]
+tokio = { version = "1.40", features = ["macros", "rt-multi-thread", "time", "sync"] }
