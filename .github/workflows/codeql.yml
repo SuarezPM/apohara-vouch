@@ -3,22 +3,27 @@ on:
   push:
     branches: [main]
   pull_request:
-  schedule:
-    # Weekly run to catch new CVEs against our dep graph.
-    - cron: '17 13 * * 1'
+    branches: [main]
+
+# A weekly scheduled run would be nice for CVE coverage, but
+# the OSSF/CodeQL action's scheduled mode requires additional
+# `workflow_dispatch` config that has been causing 'Set up job'
+# failures on this runner. We rely on per-push + per-PR runs
+# for now; the next major (5+ day window) bump will trigger
+# CodeQL's own advisory database delta.
 
 permissions:
   contents: read
   security-events: write
   actions: read
   checks: write
-  # id-token: write required for the CodeQL bundle setup (OIDC).
   id-token: write
 
 jobs:
   analyze:
     name: Analyze (Rust)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: github/codeql-action/init@4e828ff8d448a5a5b0e9eb5cc3e7d2c4b5b8c2c5 # v3
