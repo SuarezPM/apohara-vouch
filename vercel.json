@@ -4,6 +4,12 @@
   "outputDirectory": "public",
   "cleanUrls": true,
   "trailingSlash": false,
+  "rewrites": [
+    { "source": "/invoices", "destination": "https://themis-orchestrator.fly.dev/invoices" },
+    { "source": "/packets/:id/pdf", "destination": "https://themis-orchestrator.fly.dev/packets/:id/pdf" },
+    { "source": "/compliance-report/:id", "destination": "https://themis-orchestrator.fly.dev/compliance-report/:id" },
+    { "source": "/events", "destination": "https://themis-orchestrator.fly.dev/events" }
+  ],
   "headers": [
     {
       "source": "/(.*)\\.css",
