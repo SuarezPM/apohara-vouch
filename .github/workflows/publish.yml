@@ -1,0 +1,70 @@
+name: Publish to crates.io
+on:
+  workflow_dispatch:
+    inputs:
+      crate:
+        description: 'Which crate to publish (workspace member name)'
+        required: true
+        type: choice
+        options:
+          - themis-evidence
+          - themis-compliance
+          - themis-orchestrator
+          - themis-agents
+          - themis-band-client
+      dry_run:
+        description: 'Dry run (cargo publish --dry-run)'
+        required: false
+        default: 'true'
+        type: boolean
+  # Auto-publish on a tag matching `crates-v*` (manual only via
+  # the workflow_dispatch trigger above for individual crates).
+  push:
+    tags:
+      - 'crates-v*'
+
+permissions:
+  contents: read
+  id-token: write  # Required for OIDC-based trusted publishing (no API token).
+
+jobs:
+  publish:
+    name: publish ${{ inputs.crate || 'auto-tag' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+
+      - name: Determine crate
+        id: which
+        run: |
+          if [ -n "${{ inputs.crate }}" ]; then
+            echo "crate=${{ inputs.crate }}" >> $GITHUB_OUTPUT
+          else
+            # Tag-driven path: the tag is `crates-vX.Y.Z-<crate>`; parse it.
+            TAG=${GITHUB_REF#refs/tags/}
+            CRATE=${TAG#crates-v*-}
+            echo "crate=$CRATE" >> $GITHUB_OUTPUT
+          fi
+          echo "Publishing: $CRATE"
+
+      - name: Verify metadata
+        working-directory: crates/${{ steps.which.outputs.crate }}
+        run: |
+          cargo read-manifest 2>/dev/null || cat Cargo.toml
+          test -f README.md || echo "::warning::No README.md in this crate"
+
+      - name: Dry-run
+        if: inputs.dry_run != 'false' && inputs.dry_run != false
+        working-directory: crates/${{ steps.which.outputs.crate }}
+        run: cargo publish --dry-run --locked
+
+      - name: Publish
+        if: inputs.dry_run == 'false' || inputs.dry_run == false
+        working-directory: crates/${{ steps.which.outputs.crate }}
+        env:
+          # OIDC trusted publishing: the crates.io API trusts this
+          # GitHub workflow identity. No CARGO_REGISTRY_TOKEN needed
+          # (the token is auto-exchanged against the OIDC token).
+        run: cargo publish --locked

@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  fmt:
+    name: rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --check
+
+  clippy:
+    name: clippy (-D warnings)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+
+  deny:
+    name: cargo-deny (licenses + advisories)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+      - name: Install cargo-deny
+        run: cargo install --locked cargo-deny
+      - run: cargo deny check licenses
+      - run: cargo deny check advisories
+
+  ac11:
+    name: AC11 guard (no apohara_* imports)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - run: bash scripts/check-no-apohara.sh
+
+  pre-commit:
+    name: pre-commit hook integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+      - name: Install cargo-deny
+        run: cargo install --locked cargo-deny
+      - run: bash scripts/pre-commit.sh
+
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+      - name: cargo test --workspace
+        run: cargo test --workspace --all-targets
+
+  live-deploy:
+    name: live deploy smoke test
+    runs-on: ubuntu-latest
+    # Only on main, after the rest of CI passes.
+    needs: [fmt, clippy, deny, ac11, test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: GET themis.apohara.dev
+        run: curl -s -o /dev/null -w "HTTP %{http_code} | %{time_total}s\n" https://themis.apohara.dev/
+      - name: POST /invoices via Vercel proxy
+        run: |
+          curl -s -X POST https://themis.apohara.dev/invoices \
+            -H "Content-Type: application/json" \
+            -d '{"tenant_id":"stark","invoice_id":"ci-smoke","raw_b64":""}' \
+            -w "\nHTTP %{http_code} | %{time_total}s\n"
+      - name: GET /packets/:id/pdf via Vercel proxy
+        run: |
+          RESP=$(curl -s -X POST https://themis.apohara.dev/invoices \
+            -H "Content-Type: application/json" \
+            -d '{"tenant_id":"wayne","invoice_id":"ci-pdf-smoke","raw_b64":""}')
+          PID=$(echo "$RESP" | python3 -c "import json,sys; print(json.load(sys.stdin)['packet_id'])")
+          curl -s -o /tmp/ci.pdf https://themis.apohara.dev/packets/$PID/pdf \
+            -w "PDF: HTTP %{http_code} | %{time_total}s | %{size_download} bytes\n"
+          file /tmp/ci.pdf

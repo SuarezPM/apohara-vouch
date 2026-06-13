@@ -1,0 +1,41 @@
+name: Publish to npm
+on:
+  push:
+    tags:
+      - 'npm-v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (npm publish --dry-run)'
+        required: false
+        default: 'true'
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write  # Required for OIDC-based npm trusted publishing.
+
+jobs:
+  publish:
+    name: publish @apohara/themis-frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b # v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org/'
+
+      - name: Build static assets
+        run: bash scripts/vercel-build.sh
+
+      - name: Dry-run
+        if: inputs.dry_run != 'false' && inputs.dry_run != false
+        run: npm publish --dry-run --access public
+
+      - name: Publish
+        if: inputs.dry_run == 'false' || inputs.dry_run == false
+        # OIDC trusted publishing: npm trusts the GitHub workflow
+        # identity. No NODE_AUTH_TOKEN needed (the npm token is
+        # auto-exchanged against the OIDC token by setup-node).
+        run: npm publish --access public

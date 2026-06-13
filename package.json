@@ -1,0 +1,40 @@
+{
+  "name": "@apohara/themis-frontend",
+  "version": "0.1.0",
+  "description": "THEMIS demo UI — vanilla HTML+JS for themis.apohara.dev. Live counter, BAAAR HALT overlay, compliance dashboard.",
+  "license": "MIT",
+  "author": "Pablo M. Suarez (@SuarezPM)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SuarezPM/apohara-themis.git"
+  },
+  "homepage": "https://themis.apohara.dev",
+  "bugs": {
+    "url": "https://github.com/SuarezPM/apohara-themis/issues"
+  },
+  "keywords": [
+    "themis",
+    "apohara",
+    "fintech",
+    "compliance",
+    "dora",
+    "eu-ai-act",
+    "nist-ai-rmf",
+    "owasp-agentic",
+    "fraud-detection",
+    "accounts-payable",
+    "ed25519",
+    "blake3",
+    "rekor",
+    "rust"
+  ],
+  "files": [
+    "public/",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}
