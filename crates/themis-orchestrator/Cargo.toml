@@ -23,6 +23,13 @@ hex = "0.4"
 themis-agents = { workspace = true }
 themis-evidence = { workspace = true }
 themis-compliance = { workspace = true }
+themis-frontend = { workspace = true }
+axum = { version = "0.7", features = ["macros"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["trace", "cors"] }
+hyper = "1"
+base64 = "0.22"
+tokio-stream = { version = "0.1", features = ["sync"] }
 
 [dev-dependencies]
 tokio = { workspace = true }

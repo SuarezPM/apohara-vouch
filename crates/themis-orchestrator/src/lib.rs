@@ -28,6 +28,7 @@ pub fn version() -> &'static str {
 
 pub mod concurrency;
 pub mod events;
+pub mod http;
 pub mod isolation;
 pub mod jcr_gate;
 pub mod kill_switch;
