@@ -1,6 +1,6 @@
 //! DORA (EU Regulation 2022/2554) Art 9/10/17 mapper.
 
-use themis_agents::baaar::Outcome;
+use themis_agents::baaar::{BaaarReason, Outcome};
 use themis_agents::decision::DecisionType;
 
 use crate::framework::{ComplianceMap, ComplianceMapper, EvidencePacket, Framework};
@@ -55,7 +55,19 @@ impl ComplianceMapper for DoraMapper {
 
         // Art 17 — Incident reporting. A HALT outcome is the
         // incident; the Evidence Packet itself is the report.
-        if matches!(packet.bbaaar_outcome, Outcome::Halt(_)) {
+        // R7: populate the incident classification, the DORA
+        // reporting window (72h for major ICT incidents per Art
+        // 17(3)), and the mock recipient (Spanish NCA: NCA-ES)
+        // so the compliance dashboard shows a regulator-ready
+        // report even in the demo.
+        if let Outcome::Halt(reason) = packet.bbaaar_outcome {
+            let incident_classification = match reason {
+                BaaarReason::RiskScoreExceeded => "fraud_suspected",
+                BaaarReason::SecretLeakDetected => "sanctions_match",
+                BaaarReason::CoherenceTooLow => "data_incoherence",
+                BaaarReason::MaxDebateRoundsReached => "policy_violation",
+                BaaarReason::ExplicitHaltRequested => "policy_violation",
+            };
             m.add_field(
                 "art_17_incident_reporting",
                 serde_json::json!({
@@ -63,6 +75,10 @@ impl ComplianceMapper for DoraMapper {
                     "evidence_packet_id": packet.packet_id,
                     "tenant_id": packet.tenant_id,
                     "invoice_id": packet.invoice_id,
+                    "halt_reason": format!("{reason:?}"),
+                    "incident_classification": incident_classification,
+                    "reporting_window_hours": 72,
+                    "mock_recipient": "NCA-ES",
                 }),
             );
         } else {
@@ -70,6 +86,9 @@ impl ComplianceMapper for DoraMapper {
                 "art_17_incident_reporting",
                 serde_json::json!({
                     "outcome": "no_incident",
+                    "incident_classification": "none",
+                    "reporting_window_hours": 0,
+                    "mock_recipient": "NCA-ES",
                     "note": "no HALT in this run; Art 17 reporting N/A",
                 }),
             );
@@ -148,6 +167,38 @@ mod tests {
         assert!(art_17.is_some());
         let val = &art_17.unwrap().1;
         assert_eq!(val["outcome"], "halt");
+        // R7: incident_classification / reporting_window_hours / mock_recipient
+        assert_eq!(val["incident_classification"], "fraud_suspected");
+        assert_eq!(val["reporting_window_hours"], 72);
+        assert_eq!(val["mock_recipient"], "NCA-ES");
+    }
+
+    #[test]
+    fn secret_leak_halt_is_classified_as_sanctions_match() {
+        let m = DoraMapper.map(&ep(
+            "stark",
+            vec![DecisionType::FraudAssessed],
+            Outcome::Halt(BaaarReason::SecretLeakDetected),
+        ));
+        let art_17 = m.fields.iter().find(|(n, _)| *n == "art_17_incident_reporting").unwrap();
+        assert_eq!(art_17.1["incident_classification"], "sanctions_match");
+    }
+
+    #[test]
+    fn approve_outcome_populates_art_17_with_no_incident() {
+        let m = DoraMapper.map(&ep(
+            "wayne",
+            vec![DecisionType::FraudAssessed, DecisionType::WatchdogAlert],
+            Outcome::Approve,
+        ));
+        let art_17 = m.fields.iter().find(|(n, _)| *n == "art_17_incident_reporting").unwrap();
+        assert_eq!(art_17.1["outcome"], "no_incident");
+        assert_eq!(art_17.1["incident_classification"], "none");
+        assert_eq!(art_17.1["reporting_window_hours"], 0);
+        // NCA-ES still populated for the no-incident path (the
+        // regulator hasn't been triggered, but the dashboard
+        // needs the field).
+        assert_eq!(art_17.1["mock_recipient"], "NCA-ES");
     }
 
     #[test]
