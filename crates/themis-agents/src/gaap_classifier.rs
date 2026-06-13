@@ -43,7 +43,8 @@ impl UsGaapTaxonomy {
                 GaapAccount {
                     code: "6100".to_string(),
                     name: "Operating Expenses".to_string(),
-                    description: "General operating expenses (rent, utilities, supplies).".to_string(),
+                    description: "General operating expenses (rent, utilities, supplies)."
+                        .to_string(),
                     parent_code: None,
                 },
                 GaapAccount {
@@ -84,12 +85,7 @@ impl UsGaapTaxonomy {
     pub fn to_prompt_string(&self) -> String {
         let mut out = String::from("US-GAAP 2026 Account Codes:\n");
         for a in &self.accounts {
-            out.push_str(&format!(
-                "- {}: {} — {}\n",
-                a.code,
-                a.name,
-                a.description
-            ));
+            out.push_str(&format!("- {}: {} — {}\n", a.code, a.name, a.description));
         }
         out
     }
@@ -207,7 +203,10 @@ impl Agent for GaapClassifier {
             // Fallback: LLM returned only the per-line-item array.
             GaapClassification {
                 framework: GaapFramework::UsGaap,
-                account_code: arr.first().map(|l| l.account_code.clone()).unwrap_or_default(),
+                account_code: arr
+                    .first()
+                    .map(|l| l.account_code.clone())
+                    .unwrap_or_default(),
                 account_name: arr
                     .first()
                     .and_then(|l| {
@@ -354,7 +353,10 @@ mod tests {
     async fn missing_upstream_extractor_returns_invalid_input() {
         let mock = MockLlmProvider::new("mock");
         let agent = GaapClassifier::new(Arc::new(mock));
-        let err = agent.process(AgentContext::new("stark", "inv-001")).await.unwrap_err();
+        let err = agent
+            .process(AgentContext::new("stark", "inv-001"))
+            .await
+            .unwrap_err();
         assert!(matches!(err, AgentError::InvalidInput(_)));
     }
 

@@ -96,7 +96,11 @@ mod tests {
     #[test]
     fn mock_verify_returns_true() {
         let tsa = MockTimestampAuthority::new("https://mock.tsa.local");
-        let resp = TimestampResponse { time: 1_700_000_000, accuracy_ms: 1000, raw_der: Vec::new() };
+        let resp = TimestampResponse {
+            time: 1_700_000_000,
+            accuracy_ms: 1000,
+            raw_der: Vec::new(),
+        };
         assert!(tsa.verify(&resp, "x"));
     }
 

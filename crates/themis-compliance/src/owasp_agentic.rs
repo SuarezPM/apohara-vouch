@@ -1,8 +1,8 @@
 //! OWASP Agentic 2026 ASI01-ASI10 mapper.
 
-use themis_agents::baaar::{BaaarReason, FindingKind, Outcome};
-use themis_agents::decision::DecisionType;
 use crate::framework::EvidencePacket;
+use themis_agents::baaar::{BaaarReason, Outcome};
+use themis_agents::decision::DecisionType;
 
 use crate::framework::{ComplianceMap, ComplianceMapper, Framework};
 
@@ -42,18 +42,28 @@ impl ComplianceMapper for OwaspAgenticMapper {
                 .get("findings")
                 .and_then(|f| f.as_array())
                 .map(|arr| {
-                    arr.iter().any(|f| {
-                        f.get("kind").and_then(|k| k.as_str()) == Some("secret_leak")
-                    })
+                    arr.iter()
+                        .any(|f| f.get("kind").and_then(|k| k.as_str()) == Some("secret_leak"))
                 })
                 .unwrap_or(false)
         });
-        if secret_leak || matches!(packet.bbaaar_outcome, Outcome::Halt(BaaarReason::SecretLeakDetected)) {
-            m.add_field("ASI02_sensitive_data_exposure", serde_json::json!("triggered"));
+        if secret_leak
+            || matches!(
+                packet.bbaaar_outcome,
+                Outcome::Halt(BaaarReason::SecretLeakDetected)
+            )
+        {
+            m.add_field(
+                "ASI02_sensitive_data_exposure",
+                serde_json::json!("triggered"),
+            );
             triggered.push("ASI02".to_string());
             m.add_note("ASI02 triggered by SecretLeak finding or BAAAR halt");
         } else {
-            m.add_field("ASI02_sensitive_data_exposure", serde_json::json!("mitigated"));
+            m.add_field(
+                "ASI02_sensitive_data_exposure",
+                serde_json::json!("mitigated"),
+            );
         }
 
         // ASI06 — excessive agency: a non-FraudAuditor agent
@@ -104,7 +114,7 @@ impl ComplianceMapper for OwaspAgenticMapper {
             "ASI09_misinformation",
         ];
         for asi in NOT_ASSESSED {
-            m.add_field(*asi, serde_json::json!("not_assessed"));
+            m.add_field(asi, serde_json::json!("not_assessed"));
         }
 
         if !triggered.is_empty() {
@@ -118,9 +128,9 @@ impl ComplianceMapper for OwaspAgenticMapper {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::framework::EvidencePacket;
     use themis_agents::baaar::Outcome;
     use themis_agents::decision::{AgentDecision, DecisionType};
-    use crate::framework::EvidencePacket;
 
     fn dec(dt: DecisionType, payload: serde_json::Value) -> AgentDecision {
         AgentDecision {

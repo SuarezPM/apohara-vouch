@@ -53,7 +53,9 @@ pub enum TenantError {
     #[error("unknown tenant: {0}")]
     UnknownTenant(String),
     /// Cross-tenant access attempted.
-    #[error("cross-tenant access denied: tenant={tenant} tried to access {target_tenant}'s resource")]
+    #[error(
+        "cross-tenant access denied: tenant={tenant} tried to access {target_tenant}'s resource"
+    )]
     CrossTenantAccess {
         /// The tenant that attempted the access.
         tenant: String,
@@ -119,11 +121,7 @@ impl TenantRegistry {
     /// Open (or reuse) a Band room for `(tenant_id, invoice_id)`.
     /// Idempotent: second call for the same pair returns the same
     /// `RoomId`. Cross-tenant access attempts are rejected.
-    pub fn open_room(
-        &self,
-        tenant_id: &str,
-        invoice_id: &str,
-    ) -> Result<RoomId, TenantError> {
+    pub fn open_room(&self, tenant_id: &str, invoice_id: &str) -> Result<RoomId, TenantError> {
         if !self.tenants.contains_key(tenant_id) {
             return Err(TenantError::UnknownTenant(tenant_id.to_string()));
         }

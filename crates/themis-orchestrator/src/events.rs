@@ -137,7 +137,9 @@ mod tests {
         let bus = EventBus::new(16);
         let mut rx1 = bus.subscribe();
         let mut rx2 = bus.subscribe();
-        bus.publish(Event::RunFinished { run_id: Uuid::new_v4() });
+        bus.publish(Event::RunFinished {
+            run_id: Uuid::new_v4(),
+        });
         let e1 = rx1.recv().await.unwrap();
         let e2 = rx2.recv().await.unwrap();
         assert_eq!(e1.type_str(), "run_finished");
@@ -148,7 +150,9 @@ mod tests {
     async fn no_subscribers_publish_does_not_panic() {
         let bus = EventBus::new(16);
         // No subscribers.
-        bus.publish(Event::RunFinished { run_id: Uuid::new_v4() });
+        bus.publish(Event::RunFinished {
+            run_id: Uuid::new_v4(),
+        });
         // No assertion — just verify no panic.
     }
 

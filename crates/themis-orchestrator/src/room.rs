@@ -51,9 +51,13 @@ impl From<TenantError> for BandError {
     fn from(e: TenantError) -> Self {
         match e {
             TenantError::UnknownTenant(_) => BandError::Transport(format!("tenant: {e}")),
-            TenantError::CrossTenantAccess { tenant, target_tenant } => {
-                BandError::CrossTenantPost { tenant, target_tenant }
-            }
+            TenantError::CrossTenantAccess {
+                tenant,
+                target_tenant,
+            } => BandError::CrossTenantPost {
+                tenant,
+                target_tenant,
+            },
         }
     }
 }
@@ -64,11 +68,7 @@ impl From<TenantError> for BandError {
 #[async_trait]
 pub trait BandRoom: Send + Sync + 'static {
     /// Open a room (or reuse an existing one) for the given tenant.
-    async fn open(
-        &self,
-        tenant_id: &str,
-        invoice_id: &str,
-    ) -> Result<RoomId, BandError>;
+    async fn open(&self, tenant_id: &str, invoice_id: &str) -> Result<RoomId, BandError>;
 
     /// Post a message to a room. Returns the message id.
     async fn post_message(
@@ -130,12 +130,10 @@ impl BandRoom for MockBandRoom {
             &namespace,
             format!("{tenant_id}:{invoice_id}").as_bytes(),
         ));
-        self.rooms
-            .entry(room_id)
-            .or_insert(MockRoom {
-                owner_tenant: tenant_id.to_string(),
-                history: Vec::new(),
-            });
+        self.rooms.entry(room_id).or_insert(MockRoom {
+            owner_tenant: tenant_id.to_string(),
+            history: Vec::new(),
+        });
         Ok(room_id)
     }
 
@@ -200,12 +198,24 @@ mod tests {
     async fn post_message_accumulates_history() {
         let m = MockBandRoom::new();
         let room = m.open("stark", "inv-001").await.unwrap();
-        m.post_message(room, "stark", "extractor", "parsed", vec!["po_matcher".to_string()])
-            .await
-            .unwrap();
-        m.post_message(room, "stark", "po_matcher", "matched", vec!["fraud_auditor".to_string()])
-            .await
-            .unwrap();
+        m.post_message(
+            room,
+            "stark",
+            "extractor",
+            "parsed",
+            vec!["po_matcher".to_string()],
+        )
+        .await
+        .unwrap();
+        m.post_message(
+            room,
+            "stark",
+            "po_matcher",
+            "matched",
+            vec!["fraud_auditor".to_string()],
+        )
+        .await
+        .unwrap();
         let h = m.history(room).await.unwrap();
         assert_eq!(h.len(), 2);
         assert_eq!(h[0].from, "extractor");

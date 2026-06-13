@@ -60,11 +60,12 @@ impl Agent for RegressionTester {
                 )
             })?;
 
-        let prov: ProvenanceOutput = serde_json::from_value(signed.payload.clone()).map_err(|e| {
-            AgentError::LlmMalformedPayload(format!(
+        let prov: ProvenanceOutput =
+            serde_json::from_value(signed.payload.clone()).map_err(|e| {
+                AgentError::LlmMalformedPayload(format!(
                 "RegressionTester: upstream ProvenanceSigned payload is not ProvenanceOutput: {e}"
             ))
-        })?;
+            })?;
 
         // 1. Hash check: recompute BLAKE3 over the canonical payload.
         let canonical = hex::decode(&prov.canonical_payload_hex).map_err(|e| {
@@ -115,7 +116,6 @@ impl Agent for RegressionTester {
 }
 
 fn verify_ed25519(public_key_hex: &str, message: &[u8], signature_hex: &str) -> bool {
-
     let pk_bytes = match hex::decode(public_key_hex) {
         Ok(b) => b,
         Err(_) => return false,
@@ -151,17 +151,16 @@ mod tests {
     async fn verifies_a_valid_signature() {
         let kp = Ed25519Keypair::generate("stark");
         let signer = ProvenanceSigner::new(kp.clone());
-        let upstream = AgentContext::new("stark", "inv-001")
-            .with_upstream(AgentDecision {
-                agent_id: "extractor".to_string(),
-                tenant_id: "stark".to_string(),
-                invoice_id: "inv-001".to_string(),
-                decision_type: DecisionType::Extracted,
-                confidence: 0.9,
-                reasoning: "x".to_string(),
-                timestamp_ms: 0,
-                payload: serde_json::json!({"v": 1}),
-            });
+        let upstream = AgentContext::new("stark", "inv-001").with_upstream(AgentDecision {
+            agent_id: "extractor".to_string(),
+            tenant_id: "stark".to_string(),
+            invoice_id: "inv-001".to_string(),
+            decision_type: DecisionType::Extracted,
+            confidence: 0.9,
+            reasoning: "x".to_string(),
+            timestamp_ms: 0,
+            payload: serde_json::json!({"v": 1}),
+        });
         let signed = signer.process(upstream).await.unwrap();
 
         let tester = RegressionTester::new();
@@ -179,23 +178,21 @@ mod tests {
         // simulate tampering.
         let kp = Ed25519Keypair::generate("stark");
         let signer = ProvenanceSigner::new(kp.clone());
-        let upstream = AgentContext::new("stark", "inv-001")
-            .with_upstream(AgentDecision {
-                agent_id: "extractor".to_string(),
-                tenant_id: "stark".to_string(),
-                invoice_id: "inv-001".to_string(),
-                decision_type: DecisionType::Extracted,
-                confidence: 0.9,
-                reasoning: "x".to_string(),
-                timestamp_ms: 0,
-                payload: serde_json::json!({"v": 1}),
-            });
+        let upstream = AgentContext::new("stark", "inv-001").with_upstream(AgentDecision {
+            agent_id: "extractor".to_string(),
+            tenant_id: "stark".to_string(),
+            invoice_id: "inv-001".to_string(),
+            decision_type: DecisionType::Extracted,
+            confidence: 0.9,
+            reasoning: "x".to_string(),
+            timestamp_ms: 0,
+            payload: serde_json::json!({"v": 1}),
+        });
         let signed = signer.process(upstream).await.unwrap();
 
         // Mutate the payload: flip a byte in canonical_payload_hex.
         let mut signed_payload = signed.payload.clone();
-        let mut prov: ProvenanceOutput =
-            serde_json::from_value(signed_payload.clone()).unwrap();
+        let mut prov: ProvenanceOutput = serde_json::from_value(signed_payload.clone()).unwrap();
         let mut bytes = hex::decode(&prov.canonical_payload_hex).unwrap();
         bytes[0] ^= 0x01;
         prov.canonical_payload_hex = hex::encode(&bytes);
@@ -217,17 +214,16 @@ mod tests {
     async fn rejects_bad_signature() {
         let kp = Ed25519Keypair::generate("stark");
         let signer = ProvenanceSigner::new(kp);
-        let upstream = AgentContext::new("stark", "inv-001")
-            .with_upstream(AgentDecision {
-                agent_id: "extractor".to_string(),
-                tenant_id: "stark".to_string(),
-                invoice_id: "inv-001".to_string(),
-                decision_type: DecisionType::Extracted,
-                confidence: 0.9,
-                reasoning: "x".to_string(),
-                timestamp_ms: 0,
-                payload: serde_json::json!({"v": 1}),
-            });
+        let upstream = AgentContext::new("stark", "inv-001").with_upstream(AgentDecision {
+            agent_id: "extractor".to_string(),
+            tenant_id: "stark".to_string(),
+            invoice_id: "inv-001".to_string(),
+            decision_type: DecisionType::Extracted,
+            confidence: 0.9,
+            reasoning: "x".to_string(),
+            timestamp_ms: 0,
+            payload: serde_json::json!({"v": 1}),
+        });
         let mut signed = signer.process(upstream).await.unwrap();
         // Mutate the signature to invalid bytes.
         let mut prov: ProvenanceOutput = serde_json::from_value(signed.payload.clone()).unwrap();
@@ -245,7 +241,10 @@ mod tests {
     #[tokio::test]
     async fn missing_upstream_signer_returns_invalid_input() {
         let tester = RegressionTester::new();
-        let err = tester.process(AgentContext::new("stark", "inv-001")).await.unwrap_err();
+        let err = tester
+            .process(AgentContext::new("stark", "inv-001"))
+            .await
+            .unwrap_err();
         assert!(matches!(err, AgentError::InvalidInput(_)));
     }
 }

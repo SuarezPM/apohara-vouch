@@ -43,7 +43,11 @@ impl Ed25519Keypair {
 
     /// Construct from raw 32-byte private key seed. For loading from
     /// `keys/{tenant}.ed25519` in production.
-    pub fn from_bytes(tenant_id: impl Into<String>, key_id: impl Into<String>, seed: [u8; 32]) -> Self {
+    pub fn from_bytes(
+        tenant_id: impl Into<String>,
+        key_id: impl Into<String>,
+        seed: [u8; 32],
+    ) -> Self {
         let signing_key = SigningKey::from_bytes(&seed);
         Self {
             tenant_id: tenant_id.into(),

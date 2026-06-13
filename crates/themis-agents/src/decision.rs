@@ -179,12 +179,17 @@ mod tests {
         let errs = [
             AgentError::LlmUnavailable("down".to_string()),
             AgentError::LlmMalformedPayload("not json".to_string()),
-            AgentError::RateLimited { retry_after_ms: 5000 },
+            AgentError::RateLimited {
+                retry_after_ms: 5000,
+            },
             AgentError::InvalidInput("empty".to_string()),
             AgentError::Internal("io".to_string()),
         ];
         for e in &errs {
-            assert!(!e.to_string().is_empty(), "AgentError {e:?} has empty Display");
+            assert!(
+                !e.to_string().is_empty(),
+                "AgentError {e:?} has empty Display"
+            );
         }
     }
 
@@ -193,7 +198,9 @@ mod tests {
         let e = AgentError::LlmMalformedPayload("expected field `risk_score`".to_string());
         assert!(e.to_string().contains("expected field `risk_score`"));
 
-        let e = AgentError::RateLimited { retry_after_ms: 1234 };
+        let e = AgentError::RateLimited {
+            retry_after_ms: 1234,
+        };
         assert!(e.to_string().contains("1234"));
     }
 }

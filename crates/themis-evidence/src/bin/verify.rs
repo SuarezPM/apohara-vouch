@@ -125,7 +125,10 @@ fn main() -> ExitCode {
             println!("  invoice_id:    {}", packet.invoice_id);
             println!("  blake3_hash:   {}", packet.blake3_hash_hex);
             println!("  public_key:    {}", packet.public_key_hex);
-            println!("  timestamp_ts:  {} ({} ms accuracy)", packet.timestamp.time, packet.timestamp.accuracy_ms);
+            println!(
+                "  timestamp_ts:  {} ({} ms accuracy)",
+                packet.timestamp.time, packet.timestamp.accuracy_ms
+            );
             println!("  chain_length:  {}", packet.chain_length);
             ExitCode::SUCCESS
         }

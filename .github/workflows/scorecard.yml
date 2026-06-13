@@ -4,19 +4,25 @@ on:
     branches: [main]
   schedule:
     # Weekly run to track supply-chain posture over time.
-    - cron: '17 6 * * 1'
+    # The schedule cron uses UTC; 11 11 = Friday 11:11 UTC.
+    - cron: '11 11 * * 5'
 
 permissions:
   contents: read
   # Scorecard needs to write the SARIF results back to the repo's
-  # code-scanning dashboard.
+  # code-scanning dashboard (the security-events permission).
   security-events: write
+  # Required for scorecard-action to publish results to the API.
   actions: read
 
 jobs:
   analysis:
     name: Scorecard analysis
     runs-on: ubuntu-latest
+    # The scorecard-action uses a PAT (auto-provided by GitHub
+    # when the job has `actions: read`) to call api.securityscorecards.dev.
+    # SARIF results are uploaded via the `github/codeql-action/upload-sarif`
+    # step below, which needs `security-events: write`.
     steps:
       - name: 'Checkout code'
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -30,10 +36,12 @@ jobs:
           results_format: sarif
           publish_results: true
         env:
-          # GitHub PAT is auto-provided by scorecard-action.
-          SCORECARD_APIARGS: '--repo=github.com/SuarezPM/apohara-themis'
+          # The GITHUB_TOKEN env is auto-provided by GitHub Actions
+          # to authenticated requests; scorecard-action uses it
+          # against api.securityscorecards.dev.
+          GITHUB_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 'Upload results'
+      - name: 'Upload SARIF'
         if: always()
         uses: github/codeql-action/upload-sarif@4e828ff8d448a5a5b0e9eb5cc3e7d2c4b5b8c2c5 # v3
         with:

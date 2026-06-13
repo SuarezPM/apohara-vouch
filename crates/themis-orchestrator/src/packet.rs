@@ -242,11 +242,7 @@ mod tests {
     #[test]
     fn signed_packet_carries_hash_and_signature() {
         let p = EvidencePacket::new("stark", "inv-001", vec![], Outcome::Approve);
-        let sp = SignedPacket::wrap(
-            p.clone(),
-            "00".repeat(64),
-            "11".repeat(32),
-        );
+        let sp = SignedPacket::wrap(p.clone(), "00".repeat(64), "11".repeat(32));
         assert_eq!(sp.packet, p);
         assert_eq!(sp.signature_hex, "00".repeat(64));
         assert_eq!(sp.public_key_hex, "11".repeat(32));

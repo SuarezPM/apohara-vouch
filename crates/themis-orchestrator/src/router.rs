@@ -89,11 +89,15 @@ impl LlmBackendRouter {
 
     /// All agents in the default routing table.
     pub fn agents(&self) -> Vec<&'static str> {
-        let mut a: Vec<&'static str> = self.agent_to_model.keys().map(|s| {
-            // Box::leak trick to get 'static from &String — fine for
-            // a small bounded set, populated once.
-            Box::leak(s.clone().into_boxed_str()) as &'static str
-        }).collect();
+        let mut a: Vec<&'static str> = self
+            .agent_to_model
+            .keys()
+            .map(|s| {
+                // Box::leak trick to get 'static from &String — fine for
+                // a small bounded set, populated once.
+                Box::leak(s.clone().into_boxed_str()) as &'static str
+            })
+            .collect();
         a.sort();
         a
     }
@@ -165,14 +169,32 @@ mod tests {
     #[test]
     fn model_id_for_returns_expected_per_agent() {
         let router = LlmBackendRouter::with_default_routing(mock_backends());
-        assert_eq!(router.model_id_for("extractor"), Some("gemini-3.1-flash-lite"));
-        assert_eq!(router.model_id_for("fraud_auditor"), Some("claude-sonnet-4.6"));
+        assert_eq!(
+            router.model_id_for("extractor"),
+            Some("gemini-3.1-flash-lite")
+        );
+        assert_eq!(
+            router.model_id_for("fraud_auditor"),
+            Some("claude-sonnet-4.6")
+        );
         assert_eq!(router.model_id_for("gaap_classifier"), Some("glm-5.1"));
-        assert_eq!(router.model_id_for("provenance_signer"), Some("claude-haiku-4.5"));
+        assert_eq!(
+            router.model_id_for("provenance_signer"),
+            Some("claude-haiku-4.5")
+        );
         assert_eq!(router.model_id_for("po_matcher"), Some("qwen3-coder-30b"));
-        assert_eq!(router.model_id_for("audit_watchdog"), Some("qwen3-coder-30b"));
-        assert_eq!(router.model_id_for("regression_tester"), Some("deepseek-v4-flash"));
-        assert_eq!(router.model_id_for("demo_narrator"), Some("claude-haiku-4.5"));
+        assert_eq!(
+            router.model_id_for("audit_watchdog"),
+            Some("qwen3-coder-30b")
+        );
+        assert_eq!(
+            router.model_id_for("regression_tester"),
+            Some("deepseek-v4-flash")
+        );
+        assert_eq!(
+            router.model_id_for("demo_narrator"),
+            Some("claude-haiku-4.5")
+        );
     }
 
     #[test]
@@ -186,14 +208,32 @@ mod tests {
     fn default_routing_model_ids_match_plan() {
         // Pin the 8 model_ids so a plan change is a deliberate edit.
         let router = LlmBackendRouter::with_default_routing(HashMap::new());
-        assert_eq!(router.model_id_for("extractor"), Some("gemini-3.1-flash-lite"));
+        assert_eq!(
+            router.model_id_for("extractor"),
+            Some("gemini-3.1-flash-lite")
+        );
         assert_eq!(router.model_id_for("po_matcher"), Some("qwen3-coder-30b"));
-        assert_eq!(router.model_id_for("fraud_auditor"), Some("claude-sonnet-4.6"));
+        assert_eq!(
+            router.model_id_for("fraud_auditor"),
+            Some("claude-sonnet-4.6")
+        );
         assert_eq!(router.model_id_for("gaap_classifier"), Some("glm-5.1"));
-        assert_eq!(router.model_id_for("provenance_signer"), Some("claude-haiku-4.5"));
-        assert_eq!(router.model_id_for("audit_watchdog"), Some("qwen3-coder-30b"));
-        assert_eq!(router.model_id_for("regression_tester"), Some("deepseek-v4-flash"));
-        assert_eq!(router.model_id_for("demo_narrator"), Some("claude-haiku-4.5"));
+        assert_eq!(
+            router.model_id_for("provenance_signer"),
+            Some("claude-haiku-4.5")
+        );
+        assert_eq!(
+            router.model_id_for("audit_watchdog"),
+            Some("qwen3-coder-30b")
+        );
+        assert_eq!(
+            router.model_id_for("regression_tester"),
+            Some("deepseek-v4-flash")
+        );
+        assert_eq!(
+            router.model_id_for("demo_narrator"),
+            Some("claude-haiku-4.5")
+        );
     }
 
     #[test]

@@ -144,12 +144,16 @@ impl StateMachine {
         }
 
         let new_state = match t {
-            Transition::Advance => self.state.next().ok_or(StateError::TerminalState(self.state))?,
+            Transition::Advance => self
+                .state
+                .next()
+                .ok_or(StateError::TerminalState(self.state))?,
             Transition::Halt(_) | Transition::Fail(_) => InvoiceState::Halted,
         };
 
         self.state = new_state;
-        self.history.push((new_state, chrono::Utc::now().timestamp_millis()));
+        self.history
+            .push((new_state, chrono::Utc::now().timestamp_millis()));
         Ok(new_state)
     }
 }
@@ -216,7 +220,9 @@ mod tests {
     fn fail_from_any_state_goes_to_halted() {
         let mut sm = StateMachine::new();
         sm.transition(Transition::Advance).unwrap(); // Extracting
-        let new = sm.transition(Transition::Fail("LLM down".to_string())).unwrap();
+        let new = sm
+            .transition(Transition::Fail("LLM down".to_string()))
+            .unwrap();
         assert_eq!(new, InvoiceState::Halted);
     }
 

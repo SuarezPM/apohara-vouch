@@ -141,7 +141,10 @@ impl BaaarGate {
         if a.risk_score > RISK_SCORE_HALT {
             return Outcome::Halt(BaaarReason::RiskScoreExceeded);
         }
-        if a.findings.iter().any(|f| matches!(f.kind, FindingKind::SecretLeak)) {
+        if a.findings
+            .iter()
+            .any(|f| matches!(f.kind, FindingKind::SecretLeak))
+        {
             return Outcome::Halt(BaaarReason::SecretLeakDetected);
         }
         if a.coherence_score < COHERENCE_FLOOR {

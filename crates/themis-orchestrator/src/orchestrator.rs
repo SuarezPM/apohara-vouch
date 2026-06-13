@@ -10,10 +10,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use thiserror::Error;
 use themis_agents::baaar::{BaaarGate, Outcome};
 use themis_agents::decision::AgentDecision;
 use themis_agents::traits::Agent;
+use thiserror::Error;
 
 use crate::packet::{EvidencePacket, SignedPacket};
 use crate::room::BandRoom;
@@ -75,7 +75,10 @@ impl std::fmt::Debug for Orchestrator {
         f.debug_struct("Orchestrator")
             .field("agents", &self.agents.keys().collect::<Vec<_>>())
             .field("tenants", &"Arc<TenantRegistry>")
-            .field("rekor", &self.rekor.as_ref().map(|_| "Some(Arc<RekorClient>)"))
+            .field(
+                "rekor",
+                &self.rekor.as_ref().map(|_| "Some(Arc<RekorClient>)"),
+            )
             .finish()
     }
 }
@@ -164,21 +167,53 @@ impl Orchestrator {
         // Walk the 8 agents in sequence. Each agent is responsible
         // for one InvoiceState; we transition between them.
         let stages: [(&'static str, InvoiceState, &'static str); 8] = [
-            ("extractor", InvoiceState::Extracting, "Parse the raw invoice"),
-            ("po_matcher", InvoiceState::Matching, "Match against the PO database"),
-            ("fraud_auditor", InvoiceState::Auditing, "Assess fraud risk (BAAAR)"),
-            ("gaap_classifier", InvoiceState::Classifying, "Map to US-GAAP accounts"),
-            ("provenance_signer", InvoiceState::Signing, "Sign the Evidence Packet"),
-            ("demo_narrator", InvoiceState::Narrating, "Narrate the outcome"),
+            (
+                "extractor",
+                InvoiceState::Extracting,
+                "Parse the raw invoice",
+            ),
+            (
+                "po_matcher",
+                InvoiceState::Matching,
+                "Match against the PO database",
+            ),
+            (
+                "fraud_auditor",
+                InvoiceState::Auditing,
+                "Assess fraud risk (BAAAR)",
+            ),
+            (
+                "gaap_classifier",
+                InvoiceState::Classifying,
+                "Map to US-GAAP accounts",
+            ),
+            (
+                "provenance_signer",
+                InvoiceState::Signing,
+                "Sign the Evidence Packet",
+            ),
+            (
+                "demo_narrator",
+                InvoiceState::Narrating,
+                "Narrate the outcome",
+            ),
             // Regression tester runs after the signed packet is
             // available; for the orchestrator's flow, we let it
             // observe the final decisions. In production the
             // orchestrator would also feed it the SignedPacket.
-            ("regression_tester", InvoiceState::Validating, "Re-verify the signature"),
+            (
+                "regression_tester",
+                InvoiceState::Validating,
+                "Re-verify the signature",
+            ),
             // The audit watchdog is also a shadow that runs in
             // parallel; for this orchestrated flow, we run it after
             // the regression tester so the chain is fully assembled.
-            ("audit_watchdog", InvoiceState::Done, "Final coherence check"),
+            (
+                "audit_watchdog",
+                InvoiceState::Done,
+                "Final coherence check",
+            ),
         ];
 
         for (agent_name, expected_state, _description) in stages {
@@ -228,13 +263,7 @@ impl Orchestrator {
             // transcript shows the debate.
             let _ = self
                 .rooms
-                .post_message(
-                    room,
-                    tenant_id,
-                    agent_name,
-                    &decision.reasoning,
-                    vec![],
-                )
+                .post_message(room, tenant_id, agent_name, &decision.reasoning, vec![])
                 .await;
 
             // BAAAR check on the Fraud Auditor's decision.
@@ -316,12 +345,7 @@ impl Orchestrator {
         // Deterministic mock signature: 32 bytes of the packet id
         // (padded to 64). Real signature in themis-evidence.
         let sig_input = packet.packet_id.as_bytes();
-        let sig_input_padded: Vec<u8> = sig_input
-            .iter()
-            .cycle()
-            .take(64)
-            .copied()
-            .collect();
+        let sig_input_padded: Vec<u8> = sig_input.iter().cycle().take(64).copied().collect();
         let signature_hex = hex::encode(sig_input_padded);
         SignedPacket::wrap(packet, signature_hex, public_key_hex)
     }
@@ -330,11 +354,7 @@ impl Orchestrator {
     /// the same packet with `rekor_entry` populated. If no Rekor
     /// client is configured or the anchor fails, returns the
     /// input unchanged (graceful degradation for the demo path).
-    async fn anchor_in_rekor(
-        &self,
-        signed: SignedPacket,
-        tenant_id: &str,
-    ) -> SignedPacket {
+    async fn anchor_in_rekor(&self, signed: SignedPacket, tenant_id: &str) -> SignedPacket {
         let Some(rekor) = self.rekor.as_ref() else {
             return signed;
         };
@@ -367,17 +387,11 @@ impl Orchestrator {
 // --- Helpers for assembling the AgentContext ---
 
 trait AgentContextExt {
-    fn with_upstream_stream(
-        self,
-        stream: impl IntoIterator<Item = AgentDecision>,
-    ) -> Self;
+    fn with_upstream_stream(self, stream: impl IntoIterator<Item = AgentDecision>) -> Self;
 }
 
 impl AgentContextExt for themis_agents::traits::AgentContext {
-    fn with_upstream_stream(
-        self,
-        stream: impl IntoIterator<Item = AgentDecision>,
-    ) -> Self {
+    fn with_upstream_stream(self, stream: impl IntoIterator<Item = AgentDecision>) -> Self {
         let mut ctx = self;
         for d in stream {
             ctx = ctx.with_upstream(d);
@@ -520,12 +534,15 @@ mod tests {
                 response: good_decision("stark", DecisionType::PoMatched),
             }),
         );
-        agents.insert(
-            "fraud_auditor".to_string(),
-            Arc::new(HaltingFraudAuditor),
-        );
+        agents.insert("fraud_auditor".to_string(), Arc::new(HaltingFraudAuditor));
         // Fill the rest with the default.
-        for name in ["gaap_classifier", "provenance_signer", "demo_narrator", "regression_tester", "audit_watchdog"] {
+        for name in [
+            "gaap_classifier",
+            "provenance_signer",
+            "demo_narrator",
+            "regression_tester",
+            "audit_watchdog",
+        ] {
             agents.insert(
                 name.to_string(),
                 Arc::new(StubAgent {
@@ -572,7 +589,10 @@ mod tests {
             .process_invoice("ghost", "inv-001", b"raw".to_vec())
             .await
             .unwrap_err();
-        assert!(matches!(err, OrchestratorError::Tenant(TenantError::UnknownTenant(_))));
+        assert!(matches!(
+            err,
+            OrchestratorError::Tenant(TenantError::UnknownTenant(_))
+        ));
     }
 
     #[tokio::test]
@@ -612,7 +632,13 @@ mod tests {
                 }),
             );
             agents.insert("fraud_auditor".to_string(), Arc::new(HaltingFraudAuditor));
-            for name in ["gaap_classifier", "provenance_signer", "demo_narrator", "regression_tester", "audit_watchdog"] {
+            for name in [
+                "gaap_classifier",
+                "provenance_signer",
+                "demo_narrator",
+                "regression_tester",
+                "audit_watchdog",
+            ] {
                 agents.insert(
                     name.to_string(),
                     Arc::new(StubAgent {
@@ -638,7 +664,12 @@ mod tests {
                     }),
                 );
             }
-            let orch = Orchestrator::new(rooms.clone(), agents, LlmBackendRouter::with_default_routing(HashMap::new()), tenants.clone());
+            let orch = Orchestrator::new(
+                rooms.clone(),
+                agents,
+                LlmBackendRouter::with_default_routing(HashMap::new()),
+                tenants.clone(),
+            );
             let sp = orch
                 .process_invoice("stark", &format!("inv-{i:03}"), b"raw".to_vec())
                 .await

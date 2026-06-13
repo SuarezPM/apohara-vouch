@@ -82,11 +82,13 @@ impl Agent for AuditWatchdog {
                 && d.payload
                     .get("outcome")
                     .and_then(|v| match v {
-                        serde_json::Value::String(s) => Some(s == "halt_risk_score_exceeded"
-                            || s == "halt_secret_leak_detected"
-                            || s == "halt_coherence_too_low"
-                            || s == "halt_max_debate_rounds_reached"
-                            || s == "halt_explicit_halt_requested"),
+                        serde_json::Value::String(s) => Some(
+                            s == "halt_risk_score_exceeded"
+                                || s == "halt_secret_leak_detected"
+                                || s == "halt_coherence_too_low"
+                                || s == "halt_max_debate_rounds_reached"
+                                || s == "halt_explicit_halt_requested",
+                        ),
                         _ => None,
                     })
                     .unwrap_or(false)
@@ -199,7 +201,10 @@ mod tests {
     #[tokio::test]
     async fn empty_upstream_returns_invalid_input() {
         let agent = AuditWatchdog::new();
-        let err = agent.process(AgentContext::new("stark", "inv-001")).await.unwrap_err();
+        let err = agent
+            .process(AgentContext::new("stark", "inv-001"))
+            .await
+            .unwrap_err();
         assert!(matches!(err, AgentError::InvalidInput(_)));
     }
 }

@@ -72,7 +72,9 @@ impl PythonBandBridge {
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .spawn()
-            .map_err(|e| BandError::Transport(format!("spawn {python_bin} -m {sdk_module}: {e}")))?;
+            .map_err(|e| {
+                BandError::Transport(format!("spawn {python_bin} -m {sdk_module}: {e}"))
+            })?;
         let stdin = child
             .stdin
             .take()
@@ -134,7 +136,11 @@ impl PythonBandBridge {
         let join = std::thread::spawn(move || {
             let mut buf = String::new();
             let n = reader.read_line(&mut buf);
-            let _ = tx.send(if n.is_ok() && !buf.is_empty() { Some(buf) } else { None });
+            let _ = tx.send(if n.is_ok() && !buf.is_empty() {
+                Some(buf)
+            } else {
+                None
+            });
             // reader dropped here; this implicitly closes the
             // underlying stdout pipe. Return stdout to the
             // bridge for the next call.
@@ -165,11 +171,11 @@ impl PythonBandBridge {
         if let Ok(mut g) = self.child.lock() {
             if let Some(mut child) = g.take() {
                 let _ = child.wait(); // try non-blocking; if child
-                                       // ignores EOF, the next
-                                       // iteration of the test
-                                       // loop will time out and
-                                       // we kill it.
-                // Force-kill if still alive (defensive).
+                                      // ignores EOF, the next
+                                      // iteration of the test
+                                      // loop will time out and
+                                      // we kill it.
+                                      // Force-kill if still alive (defensive).
                 let _ = child.kill();
                 let _ = child.wait();
             }

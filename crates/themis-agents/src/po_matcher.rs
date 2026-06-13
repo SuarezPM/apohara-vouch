@@ -80,8 +80,8 @@ impl Agent for PoMatcher {
                 )
             })?;
 
-        let invoice: ExtractedInvoice = serde_json::from_value(extracted.payload.clone())
-            .map_err(|e| {
+        let invoice: ExtractedInvoice =
+            serde_json::from_value(extracted.payload.clone()).map_err(|e| {
                 AgentError::LlmMalformedPayload(format!(
                     "PO Matcher: upstream Extracted payload is not ExtractedInvoice: {e}"
                 ))
@@ -130,9 +130,8 @@ impl Agent for PoMatcher {
             confidence: 1.0,
             reasoning,
             timestamp_ms: chrono::Utc::now().timestamp_millis(),
-            payload: serde_json::to_value(&result).map_err(|e| {
-                AgentError::Internal(format!("PO Matcher: serialize payload: {e}"))
-            })?,
+            payload: serde_json::to_value(&result)
+                .map_err(|e| AgentError::Internal(format!("PO Matcher: serialize payload: {e}")))?,
         })
     }
 }

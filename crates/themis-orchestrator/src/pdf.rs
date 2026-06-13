@@ -31,12 +31,8 @@ pub enum PdfError {
 pub fn render_packet_pdf(packet: &SignedPacket) -> Result<Vec<u8>, PdfError> {
     use printpdf::{BuiltinFont, Mm, PdfDocument};
 
-    let (doc, page1, layer1) = PdfDocument::new(
-        "THEMIS Evidence Packet",
-        Mm(210.0),
-        Mm(297.0),
-        "Layer 1",
-    );
+    let (doc, page1, layer1) =
+        PdfDocument::new("THEMIS Evidence Packet", Mm(210.0), Mm(297.0), "Layer 1");
     let layer = doc.get_page(page1).get_layer(layer1);
     let font = doc
         .add_builtin_font(BuiltinFont::Helvetica)
@@ -64,7 +60,14 @@ pub fn render_packet_pdf(packet: &SignedPacket) -> Result<Vec<u8>, PdfError> {
 
     write_line(&layer, "THEMIS Evidence Packet", 20.0, y, 18.0, true);
     y -= line_h * 1.5;
-    write_line(&layer, "DORA Art. 17 + EU AI Act Art. 12 compliant receipt", 20.0, y, 9.0, false);
+    write_line(
+        &layer,
+        "DORA Art. 17 + EU AI Act Art. 12 compliant receipt",
+        20.0,
+        y,
+        9.0,
+        false,
+    );
     y -= line_h * 2.0;
 
     // --- Section 1: identifiers ---
@@ -99,10 +102,7 @@ pub fn render_packet_pdf(packet: &SignedPacket) -> Result<Vec<u8>, PdfError> {
     y -= line_h;
     write_line(
         &layer,
-        &format!(
-            "Generated at:      {} ms",
-            packet.packet.generated_at_ms
-        ),
+        &format!("Generated at:      {} ms", packet.packet.generated_at_ms),
         20.0,
         y,
         10.0,
@@ -192,7 +192,10 @@ pub fn render_packet_pdf(packet: &SignedPacket) -> Result<Vec<u8>, PdfError> {
             // Run out of page; stop the agent list here.
             write_line(
                 &layer,
-                &format!("  ... and {} more", packet.packet.agent_decisions.len() - i - 1),
+                &format!(
+                    "  ... and {} more",
+                    packet.packet.agent_decisions.len() - i - 1
+                ),
                 20.0,
                 y,
                 8.0,
@@ -259,9 +262,23 @@ pub fn render_packet_pdf(packet: &SignedPacket) -> Result<Vec<u8>, PdfError> {
 
     // --- Section 6: Rekor anchor (if present) ---
     if let Some(entry) = &packet.rekor_entry {
-        write_line(&layer, "6. Rekor Transparency Log Anchor", 20.0, y, 12.0, true);
+        write_line(
+            &layer,
+            "6. Rekor Transparency Log Anchor",
+            20.0,
+            y,
+            12.0,
+            true,
+        );
         y -= line_h;
-        write_line(&layer, &format!("Rekor UUID:        {}", entry.uuid), 20.0, y, 9.0, false);
+        write_line(
+            &layer,
+            &format!("Rekor UUID:        {}", entry.uuid),
+            20.0,
+            y,
+            9.0,
+            false,
+        );
         y -= line_h;
         write_line(
             &layer,
@@ -281,8 +298,14 @@ pub fn render_packet_pdf(packet: &SignedPacket) -> Result<Vec<u8>, PdfError> {
             false,
         );
         y -= line_h;
-        write_line(&layer, &format!("Bundle URL:        {}", entry.bundle_url), 20.0, y, 8.0, false);
-        y -= line_h;
+        write_line(
+            &layer,
+            &format!("Bundle URL:        {}", entry.bundle_url),
+            20.0,
+            y,
+            8.0,
+            false,
+        );
     }
 
     // --- Footer ---
@@ -299,7 +322,8 @@ pub fn render_packet_pdf(packet: &SignedPacket) -> Result<Vec<u8>, PdfError> {
     let mut buf: Vec<u8> = Vec::new();
     {
         let mut writer = std::io::BufWriter::new(&mut buf);
-        doc.save(&mut writer).map_err(|e| PdfError::Save(format!("{e:?}")))?;
+        doc.save(&mut writer)
+            .map_err(|e| PdfError::Save(format!("{e:?}")))?;
     }
     Ok(buf)
 }
@@ -333,12 +357,8 @@ mod tests {
                 payload: serde_json::json!({}),
             },
         ];
-        let packet = crate::packet::EvidencePacket::new(
-            "stark",
-            "inv-001",
-            decisions,
-            Outcome::Approve,
-        );
+        let packet =
+            crate::packet::EvidencePacket::new("stark", "inv-001", decisions, Outcome::Approve);
         SignedPacket::wrap(packet, "00".repeat(64), "11".repeat(32))
     }
 
@@ -346,7 +366,11 @@ mod tests {
     fn renders_to_non_empty_bytes() {
         let sp = sample_packet();
         let bytes = render_packet_pdf(&sp).expect("render");
-        assert!(bytes.len() > 1024, "PDF should be >1KB, got {}", bytes.len());
+        assert!(
+            bytes.len() > 1024,
+            "PDF should be >1KB, got {}",
+            bytes.len()
+        );
         // Magic bytes for a PDF file.
         assert_eq!(&bytes[..5], b"%PDF-");
     }

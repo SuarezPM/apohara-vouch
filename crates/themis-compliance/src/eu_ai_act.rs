@@ -67,10 +67,7 @@ impl ComplianceMapper for EuAiActMapper {
         };
         m.add_field("art_12_8_hash_chain_prev", serde_json::json!(chain_prev));
 
-        m.add_field(
-            "art_26_deployer_name",
-            serde_json::json!(packet.tenant_id),
-        );
+        m.add_field("art_26_deployer_name", serde_json::json!(packet.tenant_id));
 
         m
     }
@@ -79,9 +76,9 @@ impl ComplianceMapper for EuAiActMapper {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::framework::EvidencePacket;
     use themis_agents::baaar::Outcome;
     use themis_agents::decision::{AgentDecision, DecisionType};
-    use crate::framework::EvidencePacket;
 
     fn dec(tenant: &str, dt: DecisionType, ts: i64) -> AgentDecision {
         AgentDecision {
@@ -112,7 +109,10 @@ mod tests {
             .iter()
             .filter(|(n, _)| n.starts_with("art_12_"))
             .count();
-        assert_eq!(art_12_count, 8, "Art 12 must have 8 fields, got {art_12_count}");
+        assert_eq!(
+            art_12_count, 8,
+            "Art 12 must have 8 fields, got {art_12_count}"
+        );
     }
 
     #[test]
@@ -158,8 +158,16 @@ mod tests {
             ],
             Outcome::Approve,
         ));
-        let s = m.fields.iter().find(|(n, _)| *n == "art_12_1_start_time").unwrap();
-        let e = m.fields.iter().find(|(n, _)| *n == "art_12_2_end_time").unwrap();
+        let s = m
+            .fields
+            .iter()
+            .find(|(n, _)| *n == "art_12_1_start_time")
+            .unwrap();
+        let e = m
+            .fields
+            .iter()
+            .find(|(n, _)| *n == "art_12_2_end_time")
+            .unwrap();
         assert_eq!(s.1, serde_json::json!(100));
         assert_eq!(e.1, serde_json::json!(200));
     }

@@ -145,12 +145,7 @@ async fn verifies_all_5_demo_invoices() {
             String::from_utf8_lossy(&out_t.stderr)
         );
 
-        summary.push((
-            fname.to_string(),
-            valid_exit,
-            tampered_exit,
-            elapsed,
-        ));
+        summary.push((fname.to_string(), valid_exit, tampered_exit, elapsed));
     }
 
     let total = total_start.elapsed();
@@ -175,8 +170,8 @@ async fn verifies_all_5_demo_invoices() {
 
 fn load_extracted(fname: &str) -> ExtractedInvoice {
     let path = fixtures_dir().join(fname);
-    let bytes = std::fs::read(&path)
-        .unwrap_or_else(|e| panic!("failed to read {}: {e}", path.display()));
+    let bytes =
+        std::fs::read(&path).unwrap_or_else(|e| panic!("failed to read {}: {e}", path.display()));
     // The fixture's `extracted` field is the structured invoice;
     // the file itself is the full DemoInvoice fixture (with
     // `expected_verdict` etc.). For the verify test we just need

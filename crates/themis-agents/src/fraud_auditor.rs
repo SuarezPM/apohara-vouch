@@ -162,7 +162,6 @@ mod tests {
         .to_string()
     }
 
-
     fn assessment_with_secret_leak() -> String {
         // Finding kind is a flat string ("secret_leak"), not a
         // tagged enum (no "value" field).
@@ -180,15 +179,20 @@ mod tests {
 
     #[tokio::test]
     async fn approves_when_risk_below_threshold() {
-        let mock = MockLlmProvider::new("mock")
-            .with_response("Assess this", LlmResponse {
+        let mock = MockLlmProvider::new("mock").with_response(
+            "Assess this",
+            LlmResponse {
                 text: assessment_json(0.5),
                 input_tokens: 100,
                 output_tokens: 100,
                 model_id: "mock".to_string(),
-            });
+            },
+        );
         let agent = FraudAuditor::new(Arc::new(mock));
-        let d = agent.process(AgentContext::new("stark", "inv-001")).await.unwrap();
+        let d = agent
+            .process(AgentContext::new("stark", "inv-001"))
+            .await
+            .unwrap();
         assert_eq!(d.decision_type, DecisionType::FraudAssessed);
         let out: FraudAuditorOutput = serde_json::from_value(d.payload).unwrap();
         assert_eq!(out.outcome, Outcome::Approve);
@@ -196,48 +200,60 @@ mod tests {
 
     #[tokio::test]
     async fn halts_on_high_risk_score() {
-        let mock = MockLlmProvider::new("mock")
-            .with_response("Assess this", LlmResponse {
+        let mock = MockLlmProvider::new("mock").with_response(
+            "Assess this",
+            LlmResponse {
                 text: assessment_json(0.95),
                 input_tokens: 100,
                 output_tokens: 100,
                 model_id: "mock".to_string(),
-            });
-        let agent = FraudAuditor::new(Arc::new(mock));
-        let d = agent.process(AgentContext::new("stark", "inv-001")).await.unwrap();
-        let out: FraudAuditorOutput = serde_json::from_value(d.payload).unwrap();
-        assert_eq!(
-            out.outcome,
-            Outcome::Halt(BaaarReason::RiskScoreExceeded)
+            },
         );
+        let agent = FraudAuditor::new(Arc::new(mock));
+        let d = agent
+            .process(AgentContext::new("stark", "inv-001"))
+            .await
+            .unwrap();
+        let out: FraudAuditorOutput = serde_json::from_value(d.payload).unwrap();
+        assert_eq!(out.outcome, Outcome::Halt(BaaarReason::RiskScoreExceeded));
     }
 
     #[tokio::test]
     async fn halts_on_secret_leak_finding() {
-        let mock = MockLlmProvider::new("mock")
-            .with_response("Assess this", LlmResponse {
+        let mock = MockLlmProvider::new("mock").with_response(
+            "Assess this",
+            LlmResponse {
                 text: assessment_with_secret_leak(),
                 input_tokens: 100,
                 output_tokens: 100,
                 model_id: "mock".to_string(),
-            });
+            },
+        );
         let agent = FraudAuditor::new(Arc::new(mock));
-        let d = agent.process(AgentContext::new("stark", "inv-001")).await.unwrap();
+        let d = agent
+            .process(AgentContext::new("stark", "inv-001"))
+            .await
+            .unwrap();
         let out: FraudAuditorOutput = serde_json::from_value(d.payload).unwrap();
         assert_eq!(out.outcome, Outcome::Halt(BaaarReason::SecretLeakDetected));
     }
 
     #[tokio::test]
     async fn malformed_json_returns_malformed_payload() {
-        let mock = MockLlmProvider::new("mock")
-            .with_response("Assess this", LlmResponse {
+        let mock = MockLlmProvider::new("mock").with_response(
+            "Assess this",
+            LlmResponse {
                 text: "garbage".to_string(),
                 input_tokens: 50,
                 output_tokens: 50,
                 model_id: "mock".to_string(),
-            });
+            },
+        );
         let agent = FraudAuditor::new(Arc::new(mock));
-        let err = agent.process(AgentContext::new("stark", "inv-001")).await.unwrap_err();
+        let err = agent
+            .process(AgentContext::new("stark", "inv-001"))
+            .await
+            .unwrap_err();
         assert!(matches!(err, AgentError::LlmMalformedPayload(_)));
     }
 
@@ -248,15 +264,20 @@ mod tests {
             // missing findings, coherence_score, debate_rounds, explicit_halt
         })
         .to_string();
-        let mock = MockLlmProvider::new("mock")
-            .with_response("Assess this", LlmResponse {
+        let mock = MockLlmProvider::new("mock").with_response(
+            "Assess this",
+            LlmResponse {
                 text: bad,
                 input_tokens: 50,
                 output_tokens: 50,
                 model_id: "mock".to_string(),
-            });
+            },
+        );
         let agent = FraudAuditor::new(Arc::new(mock));
-        let err = agent.process(AgentContext::new("stark", "inv-001")).await.unwrap_err();
+        let err = agent
+            .process(AgentContext::new("stark", "inv-001"))
+            .await
+            .unwrap_err();
         assert!(matches!(err, AgentError::LlmMalformedPayload(_)));
     }
 
@@ -265,7 +286,10 @@ mod tests {
         // Mock with no responses registered.
         let mock = MockLlmProvider::new("mock");
         let agent = FraudAuditor::new(Arc::new(mock));
-        let err = agent.process(AgentContext::new("stark", "inv-001")).await.unwrap_err();
+        let err = agent
+            .process(AgentContext::new("stark", "inv-001"))
+            .await
+            .unwrap_err();
         assert!(matches!(err, AgentError::LlmUnavailable(_)));
     }
 }

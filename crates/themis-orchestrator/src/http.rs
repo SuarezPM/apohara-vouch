@@ -18,9 +18,7 @@ use std::time::Duration;
 use axum::body::Body;
 use axum::extract::{Path, State};
 use axum::http::{header, StatusCode};
-use axum::response::{
-    IntoResponse, Response, Sse,
-};
+use axum::response::{IntoResponse, Response, Sse};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use dashmap::DashMap;
@@ -151,7 +149,10 @@ async fn post_invoices(
     });
     let packet = {
         let orch = state.orchestrator.lock().await;
-        match orch.process_invoice(&req.tenant_id, &req.invoice_id, raw).await {
+        match orch
+            .process_invoice(&req.tenant_id, &req.invoice_id, raw)
+            .await
+        {
             Ok(p) => p,
             Err(e) => {
                 return Err((
@@ -169,7 +170,9 @@ async fn post_invoices(
     );
     let report = state.compliance.report(&compliance_packet);
     state.reports.insert(run_id, report.clone());
-    state.packets.insert(packet.packet.packet_id, packet.clone());
+    state
+        .packets
+        .insert(packet.packet.packet_id, packet.clone());
     state.event_bus.publish(Event::EvidenceSealed {
         run_id,
         packet_id: packet.packet.packet_id,
@@ -217,7 +220,10 @@ fn css_response(s: &str) -> Response {
 fn js_response(s: &str) -> Response {
     Response::builder()
         .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
+        .header(
+            header::CONTENT_TYPE,
+            "application/javascript; charset=utf-8",
+        )
         .body(Body::from(s.to_string()))
         .unwrap()
 }
@@ -234,12 +240,16 @@ async fn get_packet_pdf(
     State(state): State<Arc<AppState>>,
     Path(packet_id): Path<uuid::Uuid>,
 ) -> Result<Response, (StatusCode, String)> {
-    let packet = state
-        .packets
-        .get(&packet_id)
-        .ok_or((StatusCode::NOT_FOUND, format!("packet {packet_id} not found")))?;
-    let bytes = pdf::render_packet_pdf(&packet)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("PDF render: {e}")))?;
+    let packet = state.packets.get(&packet_id).ok_or((
+        StatusCode::NOT_FOUND,
+        format!("packet {packet_id} not found"),
+    ))?;
+    let bytes = pdf::render_packet_pdf(&packet).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("PDF render: {e}"),
+        )
+    })?;
     Ok(Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "application/pdf")
@@ -296,14 +306,38 @@ mod tests {
         let tenants = Arc::new(TenantRegistry::with_default_tenants());
         let mut agents: HashMap<String, Arc<dyn Agent>> = HashMap::new();
         for (n, dt) in [
-            ("extractor", themis_agents::decision::DecisionType::Extracted),
-            ("po_matcher", themis_agents::decision::DecisionType::PoMatched),
-            ("fraud_auditor", themis_agents::decision::DecisionType::FraudAssessed),
-            ("gaap_classifier", themis_agents::decision::DecisionType::GaapClassified),
-            ("provenance_signer", themis_agents::decision::DecisionType::ProvenanceSigned),
-            ("demo_narrator", themis_agents::decision::DecisionType::Narrated),
-            ("regression_tester", themis_agents::decision::DecisionType::RegressionResult),
-            ("audit_watchdog", themis_agents::decision::DecisionType::WatchdogAlert),
+            (
+                "extractor",
+                themis_agents::decision::DecisionType::Extracted,
+            ),
+            (
+                "po_matcher",
+                themis_agents::decision::DecisionType::PoMatched,
+            ),
+            (
+                "fraud_auditor",
+                themis_agents::decision::DecisionType::FraudAssessed,
+            ),
+            (
+                "gaap_classifier",
+                themis_agents::decision::DecisionType::GaapClassified,
+            ),
+            (
+                "provenance_signer",
+                themis_agents::decision::DecisionType::ProvenanceSigned,
+            ),
+            (
+                "demo_narrator",
+                themis_agents::decision::DecisionType::Narrated,
+            ),
+            (
+                "regression_tester",
+                themis_agents::decision::DecisionType::RegressionResult,
+            ),
+            (
+                "audit_watchdog",
+                themis_agents::decision::DecisionType::WatchdogAlert,
+            ),
         ] {
             agents.insert(n.to_string(), Arc::new(StubAgent(n, dt)));
         }
@@ -331,7 +365,12 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
-        let ct = resp.headers().get("content-type").unwrap().to_str().unwrap();
+        let ct = resp
+            .headers()
+            .get("content-type")
+            .unwrap()
+            .to_str()
+            .unwrap();
         assert!(ct.starts_with("text/html"));
         let body = to_bytes(resp.into_body(), 1024 * 1024).await.unwrap();
         let s = String::from_utf8_lossy(&body);
@@ -353,7 +392,12 @@ mod tests {
                 .await
                 .unwrap();
             assert_eq!(resp.status(), StatusCode::OK, "path={path}");
-            let ct = resp.headers().get("content-type").unwrap().to_str().unwrap();
+            let ct = resp
+                .headers()
+                .get("content-type")
+                .unwrap()
+                .to_str()
+                .unwrap();
             assert!(ct.starts_with(expected_type), "path={path} ct={ct}");
         }
     }
@@ -392,7 +436,8 @@ mod tests {
     async fn post_invoices_publishes_events_to_eventbus() {
         let state = build_state();
         let mut rx = state.event_bus.subscribe();
-        let body = serde_json::json!({"tenant_id": "stark", "invoice_id": "inv-001", "raw_b64": ""});
+        let body =
+            serde_json::json!({"tenant_id": "stark", "invoice_id": "inv-001", "raw_b64": ""});
         let app = build_router(state.clone());
         let _ = app
             .oneshot(
@@ -447,7 +492,8 @@ mod tests {
         let state = build_state();
         let app = build_router(state.clone());
         // First POST to populate a report.
-        let body = serde_json::json!({"tenant_id": "stark", "invoice_id": "inv-001", "raw_b64": ""});
+        let body =
+            serde_json::json!({"tenant_id": "stark", "invoice_id": "inv-001", "raw_b64": ""});
         let resp = app
             .clone()
             .oneshot(
@@ -460,10 +506,9 @@ mod tests {
             )
             .await
             .unwrap();
-        let v: serde_json::Value = serde_json::from_slice(
-            &to_bytes(resp.into_body(), 1024 * 1024).await.unwrap(),
-        )
-        .unwrap();
+        let v: serde_json::Value =
+            serde_json::from_slice(&to_bytes(resp.into_body(), 1024 * 1024).await.unwrap())
+                .unwrap();
         let run_id = v["run_id"].as_str().unwrap();
         // Then GET the report.
         let resp = app

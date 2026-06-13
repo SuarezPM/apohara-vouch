@@ -59,11 +59,7 @@ object: {\"summary\": \"<text>\"}.";
             ctx.tenant_id,
             ctx.upstream_decisions
                 .iter()
-                .map(|d| format!(
-                    "- {}: {}",
-                    d.decision_type.as_str(),
-                    d.reasoning
-                ))
+                .map(|d| format!("- {}: {}", d.decision_type.as_str(), d.reasoning))
                 .collect::<Vec<_>>()
                 .join("\n")
         );
@@ -209,7 +205,10 @@ mod tests {
     async fn empty_upstream_returns_invalid_input() {
         let mock = MockLlmProvider::new("mock");
         let agent = DemoNarrator::new(Arc::new(mock));
-        let err = agent.process(AgentContext::new("stark", "inv-001")).await.unwrap_err();
+        let err = agent
+            .process(AgentContext::new("stark", "inv-001"))
+            .await
+            .unwrap_err();
         assert!(matches!(err, AgentError::InvalidInput(_)));
     }
 }

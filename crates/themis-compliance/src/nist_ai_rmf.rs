@@ -1,7 +1,7 @@
 //! NIST AI RMF 1.0 (Govern / Map / Measure / Manage) mapper.
 
-use themis_agents::decision::DecisionType;
 use crate::framework::EvidencePacket;
+use themis_agents::decision::DecisionType;
 
 use crate::framework::{ComplianceMap, ComplianceMapper, Framework};
 
@@ -42,7 +42,11 @@ impl ComplianceMapper for NistAiRmfMapper {
         let avg_confidence: f32 = if packet.agent_decisions.is_empty() {
             0.0
         } else {
-            packet.agent_decisions.iter().map(|d| d.confidence).sum::<f32>()
+            packet
+                .agent_decisions
+                .iter()
+                .map(|d| d.confidence)
+                .sum::<f32>()
                 / packet.agent_decisions.len() as f32
         };
         m.add_field(
@@ -58,10 +62,12 @@ impl ComplianceMapper for NistAiRmfMapper {
 
         // Manage — the Regression Tester re-verifies the
         // signature, the Provenance Signer seals the packet.
-        let has_manage_evidence = packet
-            .agent_decisions
-            .iter()
-            .any(|d| matches!(d.decision_type, DecisionType::RegressionResult | DecisionType::ProvenanceSigned));
+        let has_manage_evidence = packet.agent_decisions.iter().any(|d| {
+            matches!(
+                d.decision_type,
+                DecisionType::RegressionResult | DecisionType::ProvenanceSigned
+            )
+        });
         if has_manage_evidence {
             m.add_field(
                 "manage",
@@ -81,9 +87,9 @@ impl ComplianceMapper for NistAiRmfMapper {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::framework::EvidencePacket;
     use themis_agents::baaar::Outcome;
     use themis_agents::decision::{AgentDecision, DecisionType};
-    use crate::framework::EvidencePacket;
 
     fn dec(dt: DecisionType, conf: f32) -> AgentDecision {
         AgentDecision {

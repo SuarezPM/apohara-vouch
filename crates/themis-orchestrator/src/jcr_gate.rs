@@ -181,7 +181,11 @@ mod tests {
         };
         let d = decide(&input, DEFAULT_JCR_THRESHOLD);
         assert!(d.use_dense);
-        assert!((d.risk_score - 1.0).abs() < 0.01, "expected cap 1.0, got {}", d.risk_score);
+        assert!(
+            (d.risk_score - 1.0).abs() < 0.01,
+            "expected cap 1.0, got {}",
+            d.risk_score
+        );
     }
 
     #[test]
@@ -194,7 +198,10 @@ mod tests {
             layout_shuffled: true,
         };
         let d = decide(&input, DEFAULT_JCR_THRESHOLD);
-        assert!(!d.use_dense, "non-judge must never be forced to dense (INV-15 only protects judges)");
+        assert!(
+            !d.use_dense,
+            "non-judge must never be forced to dense (INV-15 only protects judges)"
+        );
         // Risk is 0.1 + 0.3 + 0.2 + 0.15 = 0.75 — but use_dense is false because not a judge.
         assert!((d.risk_score - 0.75).abs() < 0.01);
     }

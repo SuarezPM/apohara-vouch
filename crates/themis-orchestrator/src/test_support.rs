@@ -20,14 +20,14 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
+use crate::orchestrator::Orchestrator;
+use crate::room::MockBandRoom;
+use crate::tenants::TenantRegistry;
 use serde::{Deserialize, Serialize};
 use themis_agents::decision::{AgentDecision, AgentError, DecisionType};
 use themis_agents::llm::{LlmBackend, LlmRequest, LlmResponse, MockLlmProvider};
 use themis_agents::traits::{Agent, AgentContext};
 use themis_evidence::rekor::RekorClient;
-use crate::orchestrator::Orchestrator;
-use crate::room::MockBandRoom;
-use crate::tenants::TenantRegistry;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DemoInvoice {
@@ -154,10 +154,7 @@ impl Agent for LlmStubAgent {
     fn name(&self) -> &'static str {
         self.name
     }
-    async fn process(
-        &self,
-        ctx: AgentContext,
-    ) -> Result<AgentDecision, AgentError> {
+    async fn process(&self, ctx: AgentContext) -> Result<AgentDecision, AgentError> {
         let (system_prompt, user_prompt) = if self.name == "fraud_auditor" {
             (
                 "fraud_auditor_agent".to_string(),
@@ -266,12 +263,15 @@ pub fn build_orchestrator(
                     model_id: "mock-test".to_string(),
                 },
             )
-            .with_response("assess_fraud_risk", LlmResponse {
-                text: fraud_auditor_payload(f),
-                input_tokens: 256,
-                output_tokens: 64,
-                model_id: "mock-test".to_string(),
-            })
+            .with_response(
+                "assess_fraud_risk",
+                LlmResponse {
+                    text: fraud_auditor_payload(f),
+                    input_tokens: 256,
+                    output_tokens: 64,
+                    model_id: "mock-test".to_string(),
+                },
+            )
             .with_default(stub_default_response("mock-test")),
     );
     let agents = build_stub_agents(mock_llm, counter);

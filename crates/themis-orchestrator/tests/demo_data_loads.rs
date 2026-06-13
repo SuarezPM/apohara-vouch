@@ -10,11 +10,9 @@
 
 use std::sync::Arc;
 
-use themis_orchestrator::orchestrator::Orchestrator;
-use themis_orchestrator::test_support::{
-    build_orchestrator, expected_outcome_string, DemoInvoice,
-};
 use themis_evidence::rekor::MockRekorClient;
+use themis_orchestrator::orchestrator::Orchestrator;
+use themis_orchestrator::test_support::{build_orchestrator, expected_outcome_string, DemoInvoice};
 
 /// Build an orchestrator WITHOUT a Rekor client. Used by the
 /// original 7 fixture contract tests (US-D01) — these don't care
@@ -27,8 +25,7 @@ fn orchestrator_for(fixture: &DemoInvoice) -> Orchestrator {
 /// wire-up tests (US-R02). The mock is deterministic (UUID derived
 /// from BLAKE3 hash) so the assertions are stable.
 fn orchestrator_with_rekor(fixture: &DemoInvoice) -> (Orchestrator, Arc<MockRekorClient>) {
-    let rekor: Arc<dyn themis_evidence::rekor::RekorClient> =
-        Arc::new(MockRekorClient::new());
+    let rekor: Arc<dyn themis_evidence::rekor::RekorClient> = Arc::new(MockRekorClient::new());
     // Recover the inner Arc to expose the log_index counter in
     // tests; the dyn-trait API doesn't give us back the concrete
     // type, so we re-create one for the counter.
@@ -164,7 +161,10 @@ async fn distribution_4_halt_1_approved() {
         }
     }
     assert_eq!(halts, 4, "expected 4 HALT verdicts across the 5 fixtures");
-    assert_eq!(approves, 1, "expected 1 APPROVED verdict across the 5 fixtures");
+    assert_eq!(
+        approves, 1,
+        "expected 1 APPROVED verdict across the 5 fixtures"
+    );
 }
 
 // Reference the helper to keep it from being dead-code in case the
@@ -248,14 +248,16 @@ async fn rekor_anchors_all_5_fixtures_end_to_end() {
         let sp = orch
             .process_invoice(&f.tenant_id, &f.invoice_id, b"raw".to_vec())
             .await
-        .unwrap();
+            .unwrap();
         assert!(
             sp.rekor_entry.is_some(),
             "fixture {name} should produce a SignedPacket with rekor_entry populated"
         );
         let entry = sp.rekor_entry.as_ref().unwrap();
         assert!(
-            entry.bundle_url.contains(&format!("tenant={}", f.tenant_id)),
+            entry
+                .bundle_url
+                .contains(&format!("tenant={}", f.tenant_id)),
             "fixture {name}: bundle_url should embed tenant={}",
             f.tenant_id
         );
@@ -285,14 +287,22 @@ async fn pdf_render_under_2s_for_each_fixture() {
             .await
             .unwrap();
         let start = Instant::now();
-        let bytes = themis_orchestrator::pdf::render_packet_pdf(&sp)
-            .expect("PDF render should succeed");
+        let bytes =
+            themis_orchestrator::pdf::render_packet_pdf(&sp).expect("PDF render should succeed");
         let elapsed = start.elapsed();
         assert!(
             elapsed.as_secs_f64() < 2.0,
             "PDF render for {name} took {elapsed:?} (>2s)"
         );
-        assert!(bytes.len() > 1024, "PDF for {name} is too small: {} bytes", bytes.len());
-        assert_eq!(&bytes[..5], b"%PDF-", "PDF for {name} has wrong magic bytes");
+        assert!(
+            bytes.len() > 1024,
+            "PDF for {name} is too small: {} bytes",
+            bytes.len()
+        );
+        assert_eq!(
+            &bytes[..5],
+            b"%PDF-",
+            "PDF for {name} has wrong magic bytes"
+        );
     }
 }

@@ -25,7 +25,10 @@ mod tests {
         fn name(&self) -> &'static str {
             self.0
         }
-        async fn process(&self, ctx: AgentContext) -> Result<AgentDecision, themis_agents::decision::AgentError> {
+        async fn process(
+            &self,
+            ctx: AgentContext,
+        ) -> Result<AgentDecision, themis_agents::decision::AgentError> {
             Ok(AgentDecision {
                 agent_id: self.0.to_string(),
                 tenant_id: ctx.tenant_id.clone(),
@@ -99,7 +102,10 @@ mod tests {
         let registry = TenantRegistry::with_default_tenants();
         registry.open_room("stark", "inv-001").unwrap();
         let err = registry.get_room("wayne", "stark", "inv-001").unwrap_err();
-        assert!(matches!(err, crate::tenants::TenantError::CrossTenantAccess { .. }));
+        assert!(matches!(
+            err,
+            crate::tenants::TenantError::CrossTenantAccess { .. }
+        ));
     }
 
     #[tokio::test]
@@ -117,7 +123,10 @@ mod tests {
             .await
             .unwrap();
         // Same number of decisions (8).
-        assert_eq!(stark.packet.agent_decisions.len(), wayne.packet.agent_decisions.len());
+        assert_eq!(
+            stark.packet.agent_decisions.len(),
+            wayne.packet.agent_decisions.len()
+        );
         // But the per-decision tenant_id differs.
         for (s, w) in stark
             .packet

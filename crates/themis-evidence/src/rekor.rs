@@ -62,10 +62,7 @@ pub enum RekorError {
     #[error("`cosign` binary not found on PATH; install sigstore cosign or use MockRekorClient")]
     CosignMissing,
     #[error("`cosign` exited {code:?}: {stderr}")]
-    CosignFailed {
-        code: Option<i32>,
-        stderr: String,
-    },
+    CosignFailed { code: Option<i32>, stderr: String },
 }
 
 /// The trait every Rekor backend implements.
@@ -228,10 +225,7 @@ impl RekorClient for CosignRekorClient {
                 .and_then(|x| x.as_str())
                 .unwrap_or_default()
                 .to_string(),
-            log_index: v
-                .get("logIndex")
-                .and_then(|x| x.as_u64())
-                .unwrap_or(0),
+            log_index: v.get("logIndex").and_then(|x| x.as_u64()).unwrap_or(0),
             body_b64: v
                 .get("body")
                 .and_then(|x| x.as_str())

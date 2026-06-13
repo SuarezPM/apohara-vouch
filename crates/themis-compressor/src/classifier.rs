@@ -137,11 +137,8 @@ pub fn select_words_to_keep<'a>(
     // for stability. Drop the tail to satisfy the rate.
     let keep_count = ((1.0 - rate) * non_force.len() as f32).round() as usize;
     non_force.sort_by(|a, b| b.1.len().cmp(&a.1.len()).then(a.0.cmp(&b.0)));
-    let kept_non_force: std::collections::BTreeSet<usize> = non_force
-        .iter()
-        .take(keep_count)
-        .map(|(i, _)| *i)
-        .collect();
+    let kept_non_force: std::collections::BTreeSet<usize> =
+        non_force.iter().take(keep_count).map(|(i, _)| *i).collect();
 
     // Walk the original document in order, keep force positions and
     // the selected non-force positions, drop the rest.
@@ -220,7 +217,9 @@ mod tests {
         assert_eq!(kept.len(), 10);
         // Tie-break by length then position: "w0".."w9" are 2 chars,
         // "w10".."w19" are 3 chars. Longer (3-char) ones win.
-        for w in &["w10", "w11", "w12", "w13", "w14", "w15", "w16", "w17", "w18", "w19"] {
+        for w in &[
+            "w10", "w11", "w12", "w13", "w14", "w15", "w16", "w17", "w18", "w19",
+        ] {
             assert!(kept.contains(w), "expected {w} to be kept");
         }
         words.clear();

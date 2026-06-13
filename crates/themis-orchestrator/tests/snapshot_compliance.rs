@@ -23,7 +23,7 @@ use themis_orchestrator::http::{build_router, AppState};
 use themis_orchestrator::orchestrator::Orchestrator;
 use themis_orchestrator::room::MockBandRoom;
 use themis_orchestrator::tenants::TenantRegistry;
-use themis_orchestrator::test_support::{build_orchestrator, DemoInvoice};
+use themis_orchestrator::test_support::DemoInvoice;
 
 fn router_for(f: &DemoInvoice) -> axum::Router {
     let mock_llm: Arc<dyn themis_agents::llm::LlmBackend> = Arc::new(
@@ -37,22 +37,25 @@ fn router_for(f: &DemoInvoice) -> axum::Router {
                     model_id: "snapshot-mock".to_string(),
                 },
             )
-            .with_response("assess_fraud_risk", LlmResponse {
-                text: serde_json::json!({
-                    "assessment": {
-                        "risk_score": f.fraud_assessment.risk_score,
-                        "findings": [],
-                        "coherence_score": f.fraud_assessment.coherence_score,
-                        "debate_rounds": f.fraud_assessment.debate_rounds,
-                        "explicit_halt": f.fraud_assessment.explicit_halt,
-                    },
-                    "outcome": themis_orchestrator::test_support::expected_outcome_string(f),
-                })
-                .to_string(),
-                input_tokens: 256,
-                output_tokens: 64,
-                model_id: "snapshot-mock".to_string(),
-            })
+            .with_response(
+                "assess_fraud_risk",
+                LlmResponse {
+                    text: serde_json::json!({
+                        "assessment": {
+                            "risk_score": f.fraud_assessment.risk_score,
+                            "findings": [],
+                            "coherence_score": f.fraud_assessment.coherence_score,
+                            "debate_rounds": f.fraud_assessment.debate_rounds,
+                            "explicit_halt": f.fraud_assessment.explicit_halt,
+                        },
+                        "outcome": themis_orchestrator::test_support::expected_outcome_string(f),
+                    })
+                    .to_string(),
+                    input_tokens: 256,
+                    output_tokens: 64,
+                    model_id: "snapshot-mock".to_string(),
+                },
+            )
             .with_default(LlmResponse {
                 text: serde_json::json!({"stub":"ok"}).to_string(),
                 input_tokens: 64,
@@ -63,7 +66,8 @@ fn router_for(f: &DemoInvoice) -> axum::Router {
     let agents = themis_orchestrator::test_support::build_stub_agents(mock_llm, None);
     let rooms: Arc<dyn themis_orchestrator::room::BandRoom> = MockBandRoom::new().into_arc();
     let tenants = Arc::new(TenantRegistry::with_default_tenants());
-    let router = themis_orchestrator::router::LlmBackendRouter::with_default_routing(HashMap::new());
+    let router =
+        themis_orchestrator::router::LlmBackendRouter::with_default_routing(HashMap::new());
     let orch = Orchestrator::new_with_rekor(
         rooms,
         agents,
@@ -83,8 +87,7 @@ fn router_for(f: &DemoInvoice) -> axum::Router {
 
 fn load_fixture(name: &str) -> DemoInvoice {
     let path = themis_orchestrator::test_support::fixtures_dir().join(name);
-    let bytes = std::fs::read(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let bytes = std::fs::read(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
     serde_json::from_slice(&bytes).unwrap()
 }
 
@@ -122,7 +125,9 @@ async fn approved_compliance_report_shape() {
 
     // compliance.frameworks: 4 frameworks, each with a 'framework'
     // name + 'fields' Vec<[name, value]>.
-    let frameworks = top["compliance"]["frameworks"].as_array().expect("frameworks is array");
+    let frameworks = top["compliance"]["frameworks"]
+        .as_array()
+        .expect("frameworks is array");
     assert_eq!(frameworks.len(), 4, "4 framework mappers");
     let framework_names: Vec<String> = frameworks
         .iter()
@@ -141,13 +146,20 @@ async fn approved_compliance_report_shape() {
     assert!(compliance["ac8_pass"].is_boolean());
     assert!(compliance["total_fields"].is_u64());
     assert!(compliance["total_populated"].is_u64());
-    assert!(compliance["total_populated"].as_u64().unwrap() <= compliance["total_fields"].as_u64().unwrap());
+    assert!(
+        compliance["total_populated"].as_u64().unwrap()
+            <= compliance["total_fields"].as_u64().unwrap()
+    );
 
     // Each framework: at least 3 fields populated, all are
     // [name, value] pairs.
     for fw in frameworks {
         let fields = fw["fields"].as_array().expect("framework.fields is array");
-        assert!(fields.len() >= 3, "framework {} has < 3 fields", fw["framework"]);
+        assert!(
+            fields.len() >= 3,
+            "framework {} has < 3 fields",
+            fw["framework"]
+        );
         for entry in fields {
             let arr = entry.as_array().expect("field is [name, value]");
             assert_eq!(arr.len(), 2, "field must be a 2-tuple");
@@ -206,8 +218,13 @@ async fn halted_compliance_report_has_art17_with_halt_outcome() {
     // incident_classification is one of the 4 halt-derived values
     let cls = art17["incident_classification"].as_str().unwrap();
     assert!(
-        ["fraud_suspected", "sanctions_match", "data_incoherence", "policy_violation"]
-            .contains(&cls),
+        [
+            "fraud_suspected",
+            "sanctions_match",
+            "data_incoherence",
+            "policy_violation"
+        ]
+        .contains(&cls),
         "unexpected incident_classification: {cls}"
     );
 }

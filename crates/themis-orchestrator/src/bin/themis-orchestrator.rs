@@ -34,7 +34,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Log effective config (no secrets).
     eprintln!("[themis-orchestrator] starting on {bind}");
-    eprintln!("[themis-orchestrator] build = {}", env!("CARGO_PKG_VERSION"));
+    eprintln!(
+        "[themis-orchestrator] build = {}",
+        env!("CARGO_PKG_VERSION")
+    );
 
     // Tenant registry: 2 baked-in tenants (stark, wayne) from
     // TenantRegistry::with_default_tenants(). The Ed25519 pubkeys
@@ -44,8 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Mock LLM (the demo path). A real deployment would wire
     // AnthropicBackend / OpenAiCompatBackend per the LlmBackend
     // router; that's a follow-up requiring the secrets to be set.
-    let llm: Arc<dyn themis_agents::llm::LlmBackend> =
-        Arc::new(MockLlmProvider::new("mock-demo"));
+    let llm: Arc<dyn themis_agents::llm::LlmBackend> = Arc::new(MockLlmProvider::new("mock-demo"));
 
     // Build the 8 demo agents (extractor, po_matcher,
     // fraud_auditor, gaap_classifier, provenance_signer,
@@ -75,7 +77,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // process_invoice run anchors its BLAKE3 hash in the
     // transparency log (US-R02 end-to-end).
     let rooms: Arc<dyn themis_orchestrator::room::BandRoom> = MockBandRoom::new().into_arc();
-    let router = themis_orchestrator::router::LlmBackendRouter::with_default_routing(HashMap::new());
+    let router =
+        themis_orchestrator::router::LlmBackendRouter::with_default_routing(HashMap::new());
     let orch = Orchestrator::new_with_rekor(
         rooms,
         agents,
@@ -128,8 +131,7 @@ impl themis_agents::traits::Agent for StubAgent {
     async fn process(
         &self,
         ctx: themis_agents::traits::AgentContext,
-    ) -> Result<themis_agents::decision::AgentDecision, themis_agents::decision::AgentError>
-    {
+    ) -> Result<themis_agents::decision::AgentDecision, themis_agents::decision::AgentError> {
         use themis_agents::decision::{AgentDecision, DecisionType};
         let decision_type = match self.name {
             "extractor" => DecisionType::Extracted,

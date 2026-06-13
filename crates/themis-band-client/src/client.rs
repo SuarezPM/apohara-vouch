@@ -31,10 +31,7 @@ pub trait BandClient: Send + Sync + 'static {
 
     /// Subscribe to real-time @mention events. Returns a channel
     /// that the orchestrator can poll or `.recv()` on.
-    async fn watch_mentions(
-        &self,
-        room: &RoomId,
-    ) -> Result<mpsc::Receiver<Message>, BandError>;
+    async fn watch_mentions(&self, room: &RoomId) -> Result<mpsc::Receiver<Message>, BandError>;
 }
 
 /// In-memory mock for tests. DashMap-backed rooms + per-room
@@ -70,9 +67,7 @@ impl BandClient for MockBandClient {
             None => format!("room:{}", uuid::Uuid::new_v4()),
         };
         let room_id = RoomId::new(id);
-        self.rooms
-            .entry(room_id.clone())
-            .or_default();
+        self.rooms.entry(room_id.clone()).or_default();
         Ok(room_id)
     }
 
@@ -109,10 +104,7 @@ impl BandClient for MockBandClient {
         Ok(id)
     }
 
-    async fn watch_mentions(
-        &self,
-        room: &RoomId,
-    ) -> Result<mpsc::Receiver<Message>, BandError> {
+    async fn watch_mentions(&self, room: &RoomId) -> Result<mpsc::Receiver<Message>, BandError> {
         let mut entry = self
             .rooms
             .get_mut(room)
@@ -162,10 +154,7 @@ mod tests {
     #[tokio::test]
     async fn mock_unknown_room_returns_error() {
         let c = MockBandClient::new();
-        let err = c
-            .get_history(&RoomId::new("nope"))
-            .await
-            .unwrap_err();
+        let err = c.get_history(&RoomId::new("nope")).await.unwrap_err();
         assert!(matches!(err, BandError::Transport(_)));
     }
 }

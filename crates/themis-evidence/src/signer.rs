@@ -193,10 +193,7 @@ mod tests {
         let s1 = SignerService::from_seed("stark", [1u8; 32]);
         let s2 = SignerService::from_seed("stark", [1u8; 32]);
         assert_eq!(s1.public_key_hex(), s2.public_key_hex());
-        assert_eq!(
-            s1.sign_hex(b"hello"),
-            s2.sign_hex(b"hello"),
-        );
+        assert_eq!(s1.sign_hex(b"hello"), s2.sign_hex(b"hello"),);
     }
 
     #[test]

@@ -2,12 +2,12 @@
 //! single ComplianceReport. Closes AC8 (5 frameworks mapped) and
 //! AC15 (EU AI Act Art 12 >= 7/8).
 
-use serde::Serialize;
 use crate::framework::EvidencePacket;
+use serde::Serialize;
 
 use crate::dora::DoraMapper;
 use crate::eu_ai_act::EuAiActMapper;
-use crate::framework::{ComplianceMap, ComplianceMapper, Framework};
+use crate::framework::{ComplianceMap, ComplianceMapper};
 use crate::nist_ai_rmf::NistAiRmfMapper;
 use crate::owasp_agentic::OwaspAgenticMapper;
 
@@ -38,7 +38,14 @@ impl std::fmt::Debug for ComplianceService {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ComplianceService")
             .field("mapper_count", &self.mappers.len())
-            .field("frameworks", &self.mappers.iter().map(|m| m.framework()).collect::<Vec<_>>())
+            .field(
+                "frameworks",
+                &self
+                    .mappers
+                    .iter()
+                    .map(|m| m.framework())
+                    .collect::<Vec<_>>(),
+            )
             .finish()
     }
 }
@@ -117,9 +124,9 @@ impl ComplianceService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::framework::EvidencePacket;
     use themis_agents::baaar::Outcome;
     use themis_agents::decision::{AgentDecision, DecisionType};
-    use crate::framework::EvidencePacket;
 
     fn dec(tenant: &str, dt: DecisionType) -> AgentDecision {
         AgentDecision {
@@ -204,6 +211,9 @@ mod tests {
             vec![],
             Outcome::Approve,
         ));
-        assert!(r.ac8_pass, "AC8 should pass on empty packet (DORA + OWASP + NIST all populate from metadata)");
+        assert!(
+            r.ac8_pass,
+            "AC8 should pass on empty packet (DORA + OWASP + NIST all populate from metadata)"
+        );
     }
 }

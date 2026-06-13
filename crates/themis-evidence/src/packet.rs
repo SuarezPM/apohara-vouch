@@ -93,11 +93,7 @@ impl EvidenceService {
     }
 
     /// In-memory service (no key file IO). For tests.
-    pub fn from_seed(
-        tenant_id: &str,
-        seed: [u8; 32],
-        tsa: Arc<dyn TimestampAuthority>,
-    ) -> Self {
+    pub fn from_seed(tenant_id: &str, seed: [u8; 32], tsa: Arc<dyn TimestampAuthority>) -> Self {
         Self {
             signer: SignerService::from_seed(tenant_id, seed),
             chain: HashChain::new(),
@@ -122,9 +118,8 @@ impl EvidenceService {
         // 1. Serialize the payload (the "canonical JSON" for the
         //    demo is just serde_json; production would use a
         //    canonical-JSON crate for cross-platform determinism).
-        let payload_canonical_json = serde_json::to_vec(payload).map_err(|e| {
-            EvError::VerifyFailed(format!("serialize payload: {e}"))
-        })?;
+        let payload_canonical_json = serde_json::to_vec(payload)
+            .map_err(|e| EvError::VerifyFailed(format!("serialize payload: {e}")))?;
 
         // 2. Hash it.
         let hash = blake3::hash(&payload_canonical_json);
@@ -211,9 +206,8 @@ impl EvidenceService {
         use ed25519_dalek::Verifier;
         // The signer signed the RAW 32 bytes of the BLAKE3 hash;
         // reconstruct from the hex string before verifying.
-        let raw_hash = hex::decode(&packet.blake3_hash_hex).map_err(|e| {
-            EvError::VerifyFailed(format!("decode blake3 hash: {e}"))
-        })?;
+        let raw_hash = hex::decode(&packet.blake3_hash_hex)
+            .map_err(|e| EvError::VerifyFailed(format!("decode blake3 hash: {e}")))?;
         pk.verify(&raw_hash, &sig)
             .map_err(|e| EvError::VerifyFailed(format!("signature: {e}")))?;
 

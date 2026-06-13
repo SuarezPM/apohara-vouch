@@ -27,18 +27,18 @@ pub fn version() -> &'static str {
     "themis-agents"
 }
 
-pub mod traits;
-pub mod llm;
-pub mod decision;
+pub mod audit_watchdog;
 pub mod baaar;
+pub mod decision;
+pub mod demo_narrator;
 pub mod extractor;
-pub mod po_matcher;
 pub mod fraud_auditor;
 pub mod gaap_classifier;
+pub mod llm;
+pub mod po_matcher;
 pub mod provenance_signer;
-pub mod audit_watchdog;
 pub mod regression_tester;
-pub mod demo_narrator;
+pub mod traits;
 
 #[cfg(test)]
 mod tests {

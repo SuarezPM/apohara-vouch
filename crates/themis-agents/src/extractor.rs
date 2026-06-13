@@ -122,9 +122,8 @@ impl Agent for ExtractorAgent {
                 parsed.line_items.len()
             ),
             timestamp_ms: chrono::Utc::now().timestamp_millis(),
-            payload: serde_json::to_value(&parsed).map_err(|e| {
-                AgentError::Internal(format!("Extractor: serialize payload: {e}"))
-            })?,
+            payload: serde_json::to_value(&parsed)
+                .map_err(|e| AgentError::Internal(format!("Extractor: serialize payload: {e}")))?,
         })
     }
 }
@@ -182,13 +181,15 @@ mod tests {
 
     #[tokio::test]
     async fn happy_path_returns_extracted_decision() {
-        let mock = MockLlmProvider::new("mock")
-            .with_response("Parse this", LlmResponse {
+        let mock = MockLlmProvider::new("mock").with_response(
+            "Parse this",
+            LlmResponse {
                 text: good_invoice_json(),
                 input_tokens: 100,
                 output_tokens: 200,
                 model_id: "mock".to_string(),
-            });
+            },
+        );
         let agent = ExtractorAgent::new(Arc::new(mock));
         let ctx = AgentContext::new("stark", "inv-001")
             .with_raw_invoice(b"raw invoice bytes".to_vec(), "application/pdf");
@@ -284,12 +285,15 @@ mod tests {
     async fn rate_limit_propagates_without_coercion() {
         // with_rate_limit_after(0) means rate-limit the FIRST call.
         let mock = MockLlmProvider::new("mock")
-            .with_response("Parse this", LlmResponse {
-                text: good_invoice_json(),
-                input_tokens: 100,
-                output_tokens: 200,
-                model_id: "mock".to_string(),
-            })
+            .with_response(
+                "Parse this",
+                LlmResponse {
+                    text: good_invoice_json(),
+                    input_tokens: 100,
+                    output_tokens: 200,
+                    model_id: "mock".to_string(),
+                },
+            )
             .with_rate_limit_after(0);
         let agent = ExtractorAgent::new(Arc::new(mock));
         let ctx = AgentContext::new("stark", "inv-001")

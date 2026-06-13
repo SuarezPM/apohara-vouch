@@ -94,11 +94,7 @@ impl MockLlmProvider {
     /// Register a canned response for requests whose `user_prompt`
     /// contains the given substring. The first substring that
     /// matches wins.
-    pub fn with_response(
-        self,
-        prompt_substring: impl Into<String>,
-        response: LlmResponse,
-    ) -> Self {
+    pub fn with_response(self, prompt_substring: impl Into<String>, response: LlmResponse) -> Self {
         self.responses
             .lock()
             .expect("MockLlmProvider responses mutex poisoned")
@@ -326,8 +322,7 @@ mod tests {
 
     #[tokio::test]
     async fn mock_returns_response_by_substring() {
-        let mock = MockLlmProvider::new("mock")
-            .with_response("hello", resp("world"));
+        let mock = MockLlmProvider::new("mock").with_response("hello", resp("world"));
         let out = mock.complete(req("say hello")).await.unwrap();
         assert_eq!(out.text, "world");
         assert_eq!(mock.call_count(), 1);
@@ -351,8 +346,7 @@ mod tests {
 
     #[tokio::test]
     async fn mock_default_response_when_no_substring_match() {
-        let mock = MockLlmProvider::new("mock")
-            .with_default(resp("default"));
+        let mock = MockLlmProvider::new("mock").with_default(resp("default"));
         let out = mock.complete(req("anything")).await.unwrap();
         assert_eq!(out.text, "default");
     }
@@ -382,8 +376,7 @@ mod tests {
 
     #[tokio::test]
     async fn mock_substring_match_in_system_prompt() {
-        let mock = MockLlmProvider::new("mock")
-            .with_response("classify", resp("gaap"));
+        let mock = MockLlmProvider::new("mock").with_response("classify", resp("gaap"));
         let r = LlmRequest {
             system_prompt: "you classify accounts".to_string(),
             user_prompt: "what is 6100".to_string(),
@@ -397,12 +390,27 @@ mod tests {
 
     #[test]
     fn stub_backends_have_correct_model_ids() {
-        assert_eq!(AnthropicBackend::new("claude-sonnet-4.6").model_id(), "claude-sonnet-4.6");
-        assert_eq!(AnthropicBackend::new("claude-haiku-4.5").model_id(), "claude-haiku-4.5");
-        assert_eq!(OpenAiCompatBackend::new("deepseek-v4-flash").model_id(), "deepseek-v4-flash");
-        assert_eq!(OpenAiCompatBackend::new("qwen3-coder-30b").model_id(), "qwen3-coder-30b");
+        assert_eq!(
+            AnthropicBackend::new("claude-sonnet-4.6").model_id(),
+            "claude-sonnet-4.6"
+        );
+        assert_eq!(
+            AnthropicBackend::new("claude-haiku-4.5").model_id(),
+            "claude-haiku-4.5"
+        );
+        assert_eq!(
+            OpenAiCompatBackend::new("deepseek-v4-flash").model_id(),
+            "deepseek-v4-flash"
+        );
+        assert_eq!(
+            OpenAiCompatBackend::new("qwen3-coder-30b").model_id(),
+            "qwen3-coder-30b"
+        );
         assert_eq!(ZaiBackend::new("glm-5.1").model_id(), "glm-5.1");
-        assert_eq!(GoogleBackend::new("gemini-3.1-flash-lite").model_id(), "gemini-3.1-flash-lite");
+        assert_eq!(
+            GoogleBackend::new("gemini-3.1-flash-lite").model_id(),
+            "gemini-3.1-flash-lite"
+        );
     }
 
     #[tokio::test]

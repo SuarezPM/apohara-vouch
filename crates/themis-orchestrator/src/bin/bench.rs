@@ -76,10 +76,7 @@ fn load_fixtures() -> Vec<DemoInvoice> {
         .collect()
 }
 
-fn orchestrator_for(
-    f: &DemoInvoice,
-    counter: Arc<AtomicU32>,
-) -> (Orchestrator, Arc<AtomicU32>) {
+fn orchestrator_for(f: &DemoInvoice, counter: Arc<AtomicU32>) -> (Orchestrator, Arc<AtomicU32>) {
     let mock_llm: Arc<dyn LlmBackend> = Arc::new(
         MockLlmProvider::new("mock-bench")
             .with_response(
@@ -105,7 +102,8 @@ fn orchestrator_for(
     let agents = build_stub_agents(mock_llm, Some(counter.clone()));
     let rooms: Arc<dyn themis_orchestrator::room::BandRoom> = MockBandRoom::new().into_arc();
     let tenants = Arc::new(TenantRegistry::with_default_tenants());
-    let router = themis_orchestrator::router::LlmBackendRouter::with_default_routing(HashMap::new());
+    let router =
+        themis_orchestrator::router::LlmBackendRouter::with_default_routing(HashMap::new());
     (Orchestrator::new(rooms, agents, router, tenants), counter)
 }
 

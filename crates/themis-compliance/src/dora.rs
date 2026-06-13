@@ -19,10 +19,12 @@ impl ComplianceMapper for DoraMapper {
         // Art 9 — ICT risk management. The state machine and the
         // BAAAR gate (5 conditions, deterministic thresholds)
         // together constitute the risk-management process.
-        let has_risk_management = packet
-            .agent_decisions
-            .iter()
-            .any(|d| matches!(d.decision_type, DecisionType::FraudAssessed | DecisionType::WatchdogAlert));
+        let has_risk_management = packet.agent_decisions.iter().any(|d| {
+            matches!(
+                d.decision_type,
+                DecisionType::FraudAssessed | DecisionType::WatchdogAlert
+            )
+        });
         if has_risk_management {
             m.add_field(
                 "art_9_ict_risk_management",
@@ -128,6 +130,7 @@ mod tests {
         }
     }
 
+    #[allow(dead_code)]
     fn dec(dt: DecisionType, conf: f32) -> AgentDecision {
         AgentDecision {
             agent_id: "x".to_string(),
@@ -163,7 +166,10 @@ mod tests {
             vec![DecisionType::FraudAssessed],
             Outcome::Halt(BaaarReason::RiskScoreExceeded),
         ));
-        let art_17 = m.fields.iter().find(|(n, _)| *n == "art_17_incident_reporting");
+        let art_17 = m
+            .fields
+            .iter()
+            .find(|(n, _)| *n == "art_17_incident_reporting");
         assert!(art_17.is_some());
         let val = &art_17.unwrap().1;
         assert_eq!(val["outcome"], "halt");
@@ -180,7 +186,11 @@ mod tests {
             vec![DecisionType::FraudAssessed],
             Outcome::Halt(BaaarReason::SecretLeakDetected),
         ));
-        let art_17 = m.fields.iter().find(|(n, _)| *n == "art_17_incident_reporting").unwrap();
+        let art_17 = m
+            .fields
+            .iter()
+            .find(|(n, _)| *n == "art_17_incident_reporting")
+            .unwrap();
         assert_eq!(art_17.1["incident_classification"], "sanctions_match");
     }
 
@@ -191,7 +201,11 @@ mod tests {
             vec![DecisionType::FraudAssessed, DecisionType::WatchdogAlert],
             Outcome::Approve,
         ));
-        let art_17 = m.fields.iter().find(|(n, _)| *n == "art_17_incident_reporting").unwrap();
+        let art_17 = m
+            .fields
+            .iter()
+            .find(|(n, _)| *n == "art_17_incident_reporting")
+            .unwrap();
         assert_eq!(art_17.1["outcome"], "no_incident");
         assert_eq!(art_17.1["incident_classification"], "none");
         assert_eq!(art_17.1["reporting_window_hours"], 0);

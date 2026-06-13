@@ -27,7 +27,7 @@ use themis_orchestrator::http::{build_router, AppState};
 use themis_orchestrator::orchestrator::Orchestrator;
 use themis_orchestrator::room::MockBandRoom;
 use themis_orchestrator::tenants::TenantRegistry;
-use themis_orchestrator::test_support::{build_orchestrator, DemoInvoice};
+use themis_orchestrator::test_support::DemoInvoice;
 
 const MAX_BODY: usize = 1024 * 1024;
 
@@ -47,22 +47,25 @@ fn router_for(f: &DemoInvoice) -> axum::Router {
                     model_id: "e2e-mock".to_string(),
                 },
             )
-            .with_response("assess_fraud_risk", LlmResponse {
-                text: serde_json::json!({
-                    "assessment": {
-                        "risk_score": f.fraud_assessment.risk_score,
-                        "findings": [],
-                        "coherence_score": f.fraud_assessment.coherence_score,
-                        "debate_rounds": f.fraud_assessment.debate_rounds,
-                        "explicit_halt": f.fraud_assessment.explicit_halt,
-                    },
-                    "outcome": themis_orchestrator::test_support::expected_outcome_string(f),
-                })
-                .to_string(),
-                input_tokens: 256,
-                output_tokens: 64,
-                model_id: "e2e-mock".to_string(),
-            })
+            .with_response(
+                "assess_fraud_risk",
+                LlmResponse {
+                    text: serde_json::json!({
+                        "assessment": {
+                            "risk_score": f.fraud_assessment.risk_score,
+                            "findings": [],
+                            "coherence_score": f.fraud_assessment.coherence_score,
+                            "debate_rounds": f.fraud_assessment.debate_rounds,
+                            "explicit_halt": f.fraud_assessment.explicit_halt,
+                        },
+                        "outcome": themis_orchestrator::test_support::expected_outcome_string(f),
+                    })
+                    .to_string(),
+                    input_tokens: 256,
+                    output_tokens: 64,
+                    model_id: "e2e-mock".to_string(),
+                },
+            )
             .with_default(LlmResponse {
                 text: serde_json::json!({"stub":"ok"}).to_string(),
                 input_tokens: 64,
@@ -73,7 +76,8 @@ fn router_for(f: &DemoInvoice) -> axum::Router {
     let agents = themis_orchestrator::test_support::build_stub_agents(mock_llm, None);
     let rooms: Arc<dyn themis_orchestrator::room::BandRoom> = MockBandRoom::new().into_arc();
     let tenants = Arc::new(TenantRegistry::with_default_tenants());
-    let router = themis_orchestrator::router::LlmBackendRouter::with_default_routing(HashMap::new());
+    let router =
+        themis_orchestrator::router::LlmBackendRouter::with_default_routing(HashMap::new());
     let orch = Orchestrator::new_with_rekor(
         rooms,
         agents,
@@ -94,8 +98,7 @@ fn router_for(f: &DemoInvoice) -> axum::Router {
 
 fn load_fixture(name: &str) -> DemoInvoice {
     let path = themis_orchestrator::test_support::fixtures_dir().join(name);
-    let bytes = std::fs::read(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let bytes = std::fs::read(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
     serde_json::from_slice(&bytes).unwrap()
 }
 
@@ -207,7 +210,11 @@ async fn e2e_get_packet_pdf_after_post() {
         "content-type must be application/pdf"
     );
     let pdf_bytes = to_bytes(pdf_resp.into_body(), MAX_BODY).await.unwrap();
-    assert!(pdf_bytes.len() > 1024, "PDF must be >1KB, got {}", pdf_bytes.len());
+    assert!(
+        pdf_bytes.len() > 1024,
+        "PDF must be >1KB, got {}",
+        pdf_bytes.len()
+    );
     assert_eq!(&pdf_bytes[..5], b"%PDF-", "PDF magic bytes");
 
     // 3. GET /compliance-report/{run_id}
@@ -319,9 +326,18 @@ async fn e2e_post_invoices_then_download_via_real_proxy_paths() {
 async fn e2e_halting_fixtures_produce_halted_packet() {
     // The 4 halting fixtures should each produce a packet with
     // outcome=='halt' in the dora Art 17 field.
-    for name in ["stark-001.json", "stark-002.json", "stark-003.json", "wayne-001.json"] {
+    for name in [
+        "stark-001.json",
+        "stark-002.json",
+        "stark-003.json",
+        "wayne-001.json",
+    ] {
         let app = router_for(&load_fixture(name));
-        let tenant = if name.starts_with("stark") { "stark" } else { "wayne" };
+        let tenant = if name.starts_with("stark") {
+            "stark"
+        } else {
+            "wayne"
+        };
         let resp = app
             .oneshot(
                 Request::builder()
