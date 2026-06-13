@@ -1,13 +1,13 @@
 {
   "ac2_per_invoice_ms": {
-    "stark-001": 0.041739,
-    "wayne-002": 0.061828999999999995,
-    "wayne-001": 0.032422,
-    "stark-002": 0.039604999999999994,
-    "stark-003": 0.030358
+    "stark-001": 0.044155,
+    "wayne-002": 0.07365100000000001,
+    "stark-003": 0.036389,
+    "stark-002": 0.032272,
+    "wayne-001": 0.03167
   },
-  "ac2_avg_ms": 0.0411906,
-  "ac2_p95_ms": 0.061828999999999995,
+  "ac2_avg_ms": 0.043627400000000004,
+  "ac2_p95_ms": 0.07365100000000001,
   "ac4_halt_distribution": {
     "Halt(SecretLeakDetected)": 1,
     "Halt(CoherenceTooLow)": 1,
@@ -17,27 +17,27 @@
   "ac7_input_tokens_per_invoice": {
     "stark-001": 576,
     "stark-002": 576,
-    "stark-003": 576,
     "wayne-001": 576,
+    "stark-003": 576,
     "wayne-002": 896
   },
   "ac7_total_input_tokens": 3200,
   "ac8_total_usd_cents": 0.16,
   "ac9_distinct_pubkeys": true,
   "ac10_halt_latency_ms": {
-    "stark-003": 0.030358,
-    "stark-002": 0.039604999999999994,
-    "wayne-001": 0.032422,
-    "stark-001": 0.041739
+    "stark-002": 0.032272,
+    "stark-003": 0.036389,
+    "stark-001": 0.044155,
+    "wayne-001": 0.03167
   },
   "ac13_verify_exit_code_per_invoice": {
     "wayne-001": 0,
-    "wayne-002": 0,
     "stark-003": 0,
     "stark-002": 0,
-    "stark-001": 0
+    "stark-001": 0,
+    "wayne-002": 0
   },
-  "ac13_verify_avg_ms": 3.2037394,
-  "total_wall_clock_ms": 17.553293,
-  "measured_at": "2026-06-13T14:27:27.746492937+00:00"
+  "ac13_verify_avg_ms": 3.1874224,
+  "total_wall_clock_ms": 17.383824999999998,
+  "measured_at": "2026-06-13T14:41:40.266788799+00:00"
 }
