@@ -10,6 +10,8 @@ on:
 permissions:
   contents: read
   security-events: write
+  # CodeQL needs id-token for the SARIF upload step.
+  id-token: write
 
 jobs:
   analyze:

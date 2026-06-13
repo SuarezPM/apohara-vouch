@@ -12,7 +12,10 @@ permissions:
   # Scorecard needs to write the SARIF results back to the repo's
   # code-scanning dashboard (the security-events permission).
   security-events: write
-  # Required for scorecard-action to publish results to the API.
+  # Required for scorecard-action to publish results to the API
+  # (it calls api.securityscorecards.dev with OIDC).
+  id-token: write
+  # Required so the action can read the workflow run metadata.
   actions: read
 
 jobs:
