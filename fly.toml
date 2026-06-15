@@ -75,3 +75,12 @@ primary_region = "cdg"  # Paris — closest active EU region to Madrid (mad is d
     enabled = true
     min_machines_running = 0
     stop_machines = "stop"
+
+[deploy]
+  # Pin to 1 machine. The in-memory DashMap that holds
+  # SignedPackets is per-process; with N>1 machines, a POST
+  # on machine A and a GET on machine B would 404. We accept
+  # the availability hit in exchange for consistent state.
+  # A follow-up sprint can move to Supabase or Redis for
+  # cross-instance state.
+  count = 1
