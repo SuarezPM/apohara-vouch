@@ -450,4 +450,63 @@ async fn e2e_halting_fixtures_produce_halted_packet() {
             "fixture {name} should produce halted Art 17"
         );
     }
+
+    /// Body larger than the 4 MiB cap must be rejected with 413.
+    /// This is the demo's DoS protection (C-4).
+    #[tokio::test]
+    async fn post_invoices_rejects_5mb_body_with_413() {
+        let f = load_fixture("wayne-002.json");
+        let app = router_for(&f);
+        // 5 MiB of base64-padding payload — well over the 4 MiB cap.
+        let big_b64 = "A".repeat(5 * 1024 * 1024);
+        let body = format!(
+            r#"{{"tenant_id":"wayne","invoice_id":"big","raw_b64":"{big_b64}"}}"#
+        );
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/invoices")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        // 413 = Payload Too Large. The RequestBodyLimitLayer
+        // returns this when the body exceeds the cap.
+        assert_eq!(
+            resp.status(),
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "5 MiB body should be rejected with 413"
+        );
+    }
+
+    /// Body at exactly the 4 MiB cap should succeed (boundary
+    /// check). The cap is inclusive — 4 MiB - 1 byte is fine.
+    #[tokio::test]
+    async fn post_invoices_accepts_just_under_4mb() {
+        let f = load_fixture("wayne-002.json");
+        let app = router_for(&f);
+        // Build a body that's safely under 4 MiB after JSON
+        // wrapping. ~3.5 MiB of base64 padding is comfortably
+        // under the cap.
+        let big_b64 = "A".repeat(3_500_000);
+        let body = format!(
+            r#"{{"tenant_id":"wayne","invoice_id":"small","raw_b64":"{big_b64}"}}"#
+        );
+        assert!(body.len() < 4 * 1024 * 1024);
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/invoices")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
 }

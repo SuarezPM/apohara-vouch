@@ -70,6 +70,17 @@ pub struct AppState {
 /// POST→GET state hand-off in tests).
 pub fn build_router(state: AppState) -> Router {
     let state = Arc::new(state);
+    // 4 MiB body limit on the POST /invoices endpoint.
+    // `RequestBodyLimitLayer` from tower-http rejects with 413
+    // when the body exceeds the cap, preventing multi-GB uploads
+    // from exhausting memory on the public demo. The default
+    // axum body limit (2 MiB) is also enforced; we set it
+    // explicitly to 4 MiB to match the spec's "small JSON +
+    // base64-encoded raw invoice" envelope.
+    const BODY_LIMIT: usize = 4 * 1024 * 1024;
+    let invoices_route = Router::new()
+        .route("/invoices", post(post_invoices))
+        .layer(tower_http::limit::RequestBodyLimitLayer::new(BODY_LIMIT));
     Router::new()
         .route("/", get(get_index))
         .route("/compliance", get(get_compliance_dashboard))
@@ -77,7 +88,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/static/app.css", get(get_app_css))
         .route("/static/app.js", get(get_app_js))
         .route("/events", get(get_events_sse))
-        .route("/invoices", post(post_invoices))
+        .merge(invoices_route)
         .route(
             "/compliance-report/:run_id",
             get(get_compliance_report_json),
