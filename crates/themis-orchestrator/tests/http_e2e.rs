@@ -53,7 +53,18 @@ fn router_for(f: &DemoInvoice) -> axum::Router {
                     text: serde_json::json!({
                         "assessment": {
                             "risk_score": f.fraud_assessment.risk_score,
-                            "findings": [],
+                            "findings": [{
+                                "kind": match f.expected_halt_reason.as_str() {
+                                    "secret_leak_detected" => "secret_leak",
+                                    "risk_score_exceeded" => "price_anomaly",
+                                    "coherence_too_low" => "duplicate",
+                                    "max_debate_rounds_reached" => "math_fraud",
+                                    "explicit_halt_requested" => "phantom_vendor",
+                                    _ => "other",
+                                },
+                                "value": "fixture",
+                                "description": f.halt_reason_human.clone().unwrap_or_default(),
+                            }],
                             "coherence_score": f.fraud_assessment.coherence_score,
                             "debate_rounds": f.fraud_assessment.debate_rounds,
                             "explicit_halt": f.fraud_assessment.explicit_halt,

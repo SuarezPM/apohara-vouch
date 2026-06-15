@@ -127,6 +127,74 @@ const MAX_DEBATE_ROUNDS: u32 = 5;
 #[derive(Debug, Default, Clone, Copy)]
 pub struct BaaarGate;
 
+impl FraudAssessment {
+    /// Best-effort construction from an LLM decision's `payload`
+    /// (`serde_json::Value`). Missing fields default to safe
+    /// values: risk_score=0.0, findings=empty, coherence=1.0,
+    /// debate_rounds=0, explicit_halt=false. A missing
+    /// `findings` field is treated as "no SecretLeak", which is
+    /// the safe interpretation (the gate only halts on
+    /// SecretLeak if the LLM claims one).
+    pub fn from_decision_payload(payload: &serde_json::Value) -> Self {
+        // The FraudAuditor emits a nested `{"assessment": {...}}`
+        // payload. Older / external agents may emit the fields
+        // flat at the top level. Accept both shapes — check the
+        // `assessment` nested object first, then fall back to
+        // top-level keys.
+        let inner = payload.get("assessment").unwrap_or(payload);
+        let risk_score = inner
+            .get("risk_score")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0) as f32;
+        let coherence_score = inner
+            .get("coherence_score")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(1.0) as f32;
+        let debate_rounds = inner
+            .get("debate_rounds")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as u32;
+        let explicit_halt = inner
+            .get("explicit_halt")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        let findings: Vec<Finding> = inner
+            .get("findings")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|item| {
+                        let kind_str = item.get("kind")?.as_str()?;
+                        let kind = match kind_str {
+                            "secret_leak" => FindingKind::SecretLeak,
+                            "price_anomaly" => FindingKind::PriceAnomaly,
+                            "phantom_vendor" => FindingKind::PhantomVendor,
+                            "math_fraud" => FindingKind::MathFraud,
+                            "duplicate" => FindingKind::Duplicate,
+                            other => FindingKind::Other(other.to_string()),
+                        };
+                        Some(Finding {
+                            kind,
+                            description: item
+                                .get("description")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string(),
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        Self {
+            risk_score,
+            findings,
+            coherence_score,
+            debate_rounds,
+            explicit_halt,
+        }
+    }
+}
+
 impl BaaarGate {
     /// New gate (no state; const-fn construction is fine).
     pub fn new() -> Self {

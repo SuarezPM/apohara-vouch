@@ -313,34 +313,22 @@ impl Orchestrator {
                 .await;
 
             // BAAAR check on the Fraud Auditor's decision.
+            // The deterministic `BaaarGate::check` evaluates the 5
+            // halt conditions (risk_score > 0.85, secret leak,
+            // coherence < 0.3, debate_rounds >= 5, explicit_halt).
+            // The gate is the source of truth — not the LLM's
+            // chosen outcome string. This restores AC11 (BAAAR
+            // HALT determinism) and makes the demo's "kill-switch
+            // fires visibly" claim real.
             if agent_name == "fraud_auditor" {
-                if let Some(outcome) = decision
-                    .payload
-                    .get("outcome")
-                    .and_then(|v| v.as_str())
-                    .and_then(|s| match s {
-                        "halt_risk_score_exceeded" => Some(Outcome::Halt(
-                            themis_agents::baaar::BaaarReason::RiskScoreExceeded,
-                        )),
-                        "halt_secret_leak_detected" => Some(Outcome::Halt(
-                            themis_agents::baaar::BaaarReason::SecretLeakDetected,
-                        )),
-                        "halt_coherence_too_low" => Some(Outcome::Halt(
-                            themis_agents::baaar::BaaarReason::CoherenceTooLow,
-                        )),
-                        "halt_max_debate_rounds_reached" => Some(Outcome::Halt(
-                            themis_agents::baaar::BaaarReason::MaxDebateRoundsReached,
-                        )),
-                        "halt_explicit_halt_requested" => Some(Outcome::Halt(
-                            themis_agents::baaar::BaaarReason::ExplicitHaltRequested,
-                        )),
-                        _ => None,
-                    })
-                {
+                let assessment =
+                    themis_agents::baaar::FraudAssessment::from_decision_payload(
+                        &decision.payload,
+                    );
+                let outcome = self.baaar.check(&assessment);
+                if let Outcome::Halt(reason) = outcome {
                     bbaaar_outcome = outcome;
-                    sm.transition(Transition::Halt(
-                        themis_agents::baaar::BaaarReason::RiskScoreExceeded, // placeholder
-                    ))?;
+                    sm.transition(Transition::Halt(reason))?;
                     break;
                 }
             }

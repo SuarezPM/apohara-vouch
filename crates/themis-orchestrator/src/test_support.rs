@@ -94,17 +94,25 @@ pub fn expected_outcome_string(f: &DemoInvoice) -> &'static str {
 
 /// Build the `FraudAuditorOutput` JSON the mock LLM should return.
 /// This is the typed contract the orchestrator parses (see
-/// `orchestrator.rs` lines 218-240).
+/// `orchestrator.rs` lines 218-240). The `kind` of the finding
+/// is derived from `expected_halt_reason` (the canonical "what
+/// should the gate halt on" signal), not from a fragile bool,
+/// because the `BaaarGate::check` reads the findings array
+/// directly — a wrong kind here means the gate never halts.
 pub fn fraud_auditor_payload(f: &DemoInvoice) -> String {
+    let finding_kind = match f.expected_halt_reason.as_str() {
+        "secret_leak_detected" => "secret_leak",
+        "risk_score_exceeded" => "price_anomaly",
+        "coherence_too_low" => "duplicate",
+        "max_debate_rounds_reached" => "math_fraud",
+        "explicit_halt_requested" => "phantom_vendor",
+        _ => "other",
+    };
     serde_json::json!({
         "assessment": {
             "risk_score": f.fraud_assessment.risk_score,
             "findings": [{
-                "kind": if f.fraud_assessment.secret_leak {
-                    "secret_leak"
-                } else {
-                    "other"
-                },
+                "kind": finding_kind,
                 "value": "fixture",
                 "description": f.halt_reason_human.clone().unwrap_or_default(),
             }],
