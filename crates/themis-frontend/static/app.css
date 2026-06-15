@@ -95,8 +95,7 @@
  * slop-test gate 68 (sticky bleed). */
 .n6 {
   position: sticky; top: 80px; z-index: var(--z-sticky);
-  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center; gap: var(--space-md);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-md);
   padding: var(--space-sm) var(--space-lg);
   background: oklch(8% 0.01 260 / 92%);
   backdrop-filter: blur(20px) saturate(160%);
@@ -104,7 +103,7 @@
   border-bottom: 1px solid var(--hairline);
   min-width: 0;
 }
-.n6__brand { display: flex; align-items: baseline; gap: var(--space-sm); min-width: 0; }
+.n6__brand { display: flex; align-items: baseline; gap: var(--space-sm); min-width: 0; flex: 0 0 auto; }
 .n6__brand-mark {
   font-family: var(--font-display); font-size: var(--text-lg);
   color: var(--accent); letter-spacing: 0;
@@ -121,7 +120,7 @@
   display: flex; align-items: center; gap: var(--space-sm);
   padding: var(--space-xs) var(--space-sm);
   border: 1px solid var(--hairline); border-radius: var(--radius-md);
-  background: var(--panel); min-width: 0;
+  background: var(--panel); min-width: 0; margin: 0 auto;
 }
 .n6__tenant-label {
   font-family: var(--font-mono); font-size: var(--text-xs);
@@ -141,7 +140,7 @@
 }
 .n6__live {
   display: flex; align-items: center; gap: var(--space-xs);
-  justify-self: end;
+  flex: 0 0 auto;
   font-family: var(--font-mono); font-size: var(--text-xs);
   color: var(--ink-muted); min-width: 0;
 }
@@ -189,7 +188,7 @@ header.hero {
 }
 .lede b { color: var(--ink); font-weight: 500; }
 .badges {
-  display: flex; flex-wrap: wrap; gap: 12px;
+  display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;
   margin-top: var(--space-xl); padding-top: var(--space-lg);
   border-top: 1px solid var(--hairline);
 }
