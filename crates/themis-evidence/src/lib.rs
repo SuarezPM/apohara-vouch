@@ -29,6 +29,7 @@ pub fn version() -> &'static str {
 
 pub mod chain;
 pub mod packet;
+pub mod persistence;
 pub mod rekor;
 pub mod signer;
 pub mod timestamp;

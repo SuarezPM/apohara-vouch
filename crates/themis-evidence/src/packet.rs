@@ -101,6 +101,35 @@ impl EvidenceService {
         }
     }
 
+    /// Service using the compile-time baked key for the given
+    /// tenant. The 2 fixture tenants (`stark`, `wayne`) have keys
+    /// committed in `keys/{tenant}.ed25519` and embedded via
+    /// `include_bytes!`. Returns `EvError::Signer(UnknownTenant)`
+    /// for any other id.
+    pub fn for_tenant(
+        tenant_id: &str,
+        tsa: Arc<dyn TimestampAuthority>,
+    ) -> Result<Self, EvError> {
+        let signer = SignerService::for_tenant(tenant_id)?;
+        Ok(Self {
+            signer,
+            chain: HashChain::new(),
+            tsa,
+        })
+    }
+
+    /// Replace the internal chain (used at startup to restore
+    /// from `ChainStore`). Caller is responsible for verifying
+    /// the chain before handing it over.
+    pub fn restore_chain(&mut self, chain: HashChain) {
+        self.chain = chain;
+    }
+
+    /// Borrow the chain (for tests + the persistence layer).
+    pub fn chain(&self) -> &HashChain {
+        &self.chain
+    }
+
     /// The current chain length.
     pub fn chain_length(&self) -> usize {
         self.chain.len()

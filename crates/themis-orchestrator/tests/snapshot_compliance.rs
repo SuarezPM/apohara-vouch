@@ -81,6 +81,7 @@ fn router_for(f: &DemoInvoice) -> axum::Router {
         compliance: Arc::new(themis_compliance::service::ComplianceService::new()),
         reports: dashmap::DashMap::new(),
         packets: dashmap::DashMap::new(),
+        sealed: dashmap::DashMap::new(),
     };
     build_router(state)
 }

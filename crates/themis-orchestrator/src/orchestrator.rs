@@ -13,6 +13,7 @@ use dashmap::DashMap;
 use themis_agents::baaar::{BaaarGate, Outcome};
 use themis_agents::decision::AgentDecision;
 use themis_agents::traits::Agent;
+use themis_evidence::packet::{EvidenceService, SealedPacket};
 use thiserror::Error;
 
 use crate::packet::{EvidencePacket, SignedPacket};
@@ -44,6 +45,9 @@ pub enum OrchestratorError {
     /// Band-side error.
     #[error("band: {0}")]
     Band(#[from] crate::room::BandError),
+    /// Evidence-service / SealedPacket construction error.
+    #[error("evidence: {0}")]
+    Evidence(String),
 }
 
 /// The orchestrator. Holds a per-invoice state machine map (so
@@ -68,6 +72,14 @@ pub struct Orchestrator {
     /// If `None`, the anchor step is skipped (back-compat for
     /// tests / mock-only paths that don't need the log).
     rekor: Option<Arc<dyn themis_evidence::rekor::RekorClient>>,
+    /// Optional per-tenant evidence service. If `Some`, every
+    /// `process_invoice` run additionally calls `seal()` on the
+    /// tenant's service to produce a `SealedPacket` (the shape
+    /// `themis-verify` consumes), and the orchestrator returns
+    /// `(SignedPacket, SealedPacket)` via `process_invoice_sealed`.
+    /// `process_invoice` (legacy) returns just the `SignedPacket`
+    /// when this is `None` — back-compat for all existing tests.
+    evidence: Option<tokio::sync::Mutex<HashMap<String, EvidenceService>>>,
 }
 
 impl std::fmt::Debug for Orchestrator {
@@ -113,6 +125,31 @@ impl Orchestrator {
             baaar: BaaarGate::new(),
             tenants,
             rekor,
+            evidence: None,
+        }
+    }
+
+    /// Build a new orchestrator that additionally produces a
+    /// `SealedPacket` per run. The `evidence` map is keyed by
+    /// tenant id; the orchestrator uses the right `EvidenceService`
+    /// for each invoice.
+    pub fn with_evidence(
+        rooms: Arc<dyn BandRoom>,
+        agents: HashMap<String, Arc<dyn Agent>>,
+        router: LlmBackendRouter,
+        tenants: Arc<TenantRegistry>,
+        rekor: Option<Arc<dyn themis_evidence::rekor::RekorClient>>,
+        evidence: HashMap<String, EvidenceService>,
+    ) -> Self {
+        Self {
+            state_machines: DashMap::new(),
+            rooms,
+            agents,
+            router,
+            baaar: BaaarGate::new(),
+            tenants,
+            rekor,
+            evidence: Some(tokio::sync::Mutex::new(evidence)),
         }
     }
 
@@ -125,6 +162,15 @@ impl Orchestrator {
     /// Number of in-flight state machines (for telemetry / tests).
     pub fn in_flight(&self) -> usize {
         self.state_machines.len()
+    }
+
+    /// True iff this orchestrator was built with an evidence
+    /// service. When `true`, `process_invoice_sealed` is
+    /// available and produces a `SealedPacket` per run. When
+    /// `false`, callers should use `process_invoice` (returns
+    /// only the `SignedPacket` — the demo / mock-only path).
+    pub fn has_evidence(&self) -> bool {
+        self.evidence.is_some()
     }
 
     /// Process a single invoice end-to-end. Walks the state
@@ -374,6 +420,52 @@ impl Orchestrator {
                 signed
             }
         }
+    }
+
+    /// Process a single invoice and additionally produce a
+    /// `SealedPacket` via the per-tenant `EvidenceService`. The
+    /// returned tuple: `(SignedPacket, SealedPacket)`. The
+    /// `SealedPacket`'s `chain_length` reflects the chain state
+    /// **after** the seal (so the second invoice gets
+    /// `chain_length=1`, etc.).
+    ///
+    /// Returns `Err` if no evidence service is registered for
+    /// the tenant. Use `with_evidence` at construction to enable
+    /// this path.
+    pub async fn process_invoice_sealed(
+        &self,
+        tenant_id: &str,
+        invoice_id: &str,
+        raw: Vec<u8>,
+    ) -> Result<(SignedPacket, Option<SealedPacket>), OrchestratorError> {
+        let evidence_lock = self.evidence.as_ref().ok_or_else(|| {
+            OrchestratorError::Evidence(
+                "no evidence service configured; use with_evidence() at construction".to_string(),
+            )
+        })?;
+
+        // Run the regular flow (returns the SignedPacket with the
+        // mock signature that the PDF renderer uses today).
+        let signed = self.process_invoice(tenant_id, invoice_id, raw).await?;
+
+        // Build the payload to seal. We use the canonical JSON
+        // of the SignedPacket (which is what the PDF already
+        // embeds) so JSON verifier and PDF renderer both trust
+        // the same bytes.
+        let payload = serde_json::to_string(&signed.packet).map_err(|e| {
+            OrchestratorError::Evidence(format!("serialize packet for seal: {e}"))
+        })?;
+
+        // Acquire the per-tenant EvidenceService, seal, return.
+        let mut map = evidence_lock.lock().await;
+        let svc = map.get_mut(tenant_id).ok_or_else(|| {
+            OrchestratorError::Evidence(format!("no evidence service for tenant {tenant_id}"))
+        })?;
+        let sealed = svc
+            .seal(invoice_id, &payload)
+            .await
+            .map_err(|e| OrchestratorError::Evidence(format!("seal: {e}")))?;
+        Ok((signed, Some(sealed)))
     }
 
     /// Look up a stored state machine for a (tenant, invoice).

@@ -148,10 +148,8 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const nowMs = () => Date.now();
 
-  // --- Capture the most recent run's packet_id + run_id for downloads ---
+  // --- Capture the most recent run's packet_id for downloads ---
   let lastPacketId = null;
-  let lastRunId = null;
-  let lastCompliance = null;
   let lastTenant = null;
   let lastInvoice = null;
 
@@ -218,8 +216,6 @@
     }
     const data = await resp.json();
     lastPacketId = data.packet_id;
-    lastRunId = data.run_id;
-    lastCompliance = data.compliance;
     lastTenant = tenant;
     lastInvoice = invoice;
 
@@ -312,30 +308,35 @@
 
   const downloadJson = async () => {
     if (!lastPacketId) return;
-    // The backend doesn't expose a JSON endpoint for the packet yet;
-    // we serialize the compliance report from the POST response plus
-    // a small packet summary. This is a *compliant-shape* JSON, not
-    // the same as the offline SealedPacket (which themis-verify
-    // ingests). For the demo, the compliance report JSON is enough.
-    const payload = {
-      schema: 'themis.evidence-packet.v1',
-      run_id: lastRunId,
-      packet_id: lastPacketId,
-      tenant: lastTenant,
-      invoice: lastInvoice,
-      generated_at_ms: Date.now(),
-      compliance: lastCompliance,
-      note: 'Compliance report JSON. For full offline-verifiable SealedPacket (Ed25519 sig + BLAKE3 hash + RFC 3161 + Rekor), use the PDF download which contains the same evidence + the PDF renderer preserves the cryptographic anchors.',
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `themis-${lastTenant}-${lastInvoice}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const btn = $('#download-json-btn');
+    setButtonState(btn, 'loading', 'Fetching…');
+    try {
+      // Fetch the strict SealedPacket (the shape that
+      // `themis-verify <file.json> <sig.hex>` consumes). Filename
+      // comes from Content-Disposition so the saved file matches
+      // what the backend served.
+      const resp = await fetch(`/packets/${lastPacketId}/json`);
+      if (!resp.ok) throw new Error(`backend ${resp.status}`);
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      // Best-effort: backend sets a Content-Disposition with the
+      // canonical filename, but we already have lastTenant /
+      // lastInvoice in memory, so fall back to those if the
+      // response header is missing (mock-mode path).
+      const cd = resp.headers.get('content-disposition') || '';
+      const m = cd.match(/filename="?([^";]+)"?/);
+      a.download = m ? m[1] : `themis-${lastTenant}-${lastInvoice}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setButtonState(btn, 'success', 'Downloaded');
+    } catch (e) {
+      alert(`JSON download failed: ${e}`);
+      setButtonState(btn, 'default', 'Download JSON');
+    }
   };
 
   const downloadReceipt = downloadJson; // halt overlay reuses the same JSON

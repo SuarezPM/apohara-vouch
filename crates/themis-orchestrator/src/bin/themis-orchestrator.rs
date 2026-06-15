@@ -73,23 +73,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
 
-    // Wire the orchestrator WITH a MockRekorClient so every
-    // process_invoice run anchors its BLAKE3 hash in the
-    // transparency log (US-R02 end-to-end).
+    // Mock Timestamp Authority (real FreeTSA is a follow-up).
+    let tsa: Arc<dyn themis_evidence::timestamp::TimestampAuthority> =
+        Arc::new(MockTimestampAuthority::new("https://mock.tsa.local"));
+
+    // Build the evidence service for each baked tenant. The
+    // orchestrator sels into a per-tenant HashChain so the
+    // SealedPacket served by /packets/:id/json carries a
+    // monotonically-growing chain_length and themis-verify can
+    // replay the chain offline.
+    let mut evidence_map: HashMap<String, themis_evidence::packet::EvidenceService> =
+        HashMap::new();
+    for tenant in ["stark", "wayne"] {
+        let svc = themis_evidence::packet::EvidenceService::for_tenant(tenant, tsa.clone())
+            .expect("baked tenant must have a key");
+        evidence_map.insert(tenant.to_string(), svc);
+    }
+
+    // Wire the orchestrator WITH a MockRekorClient + the evidence
+    // service map, so every process_invoice run anchors its
+    // BLAKE3 hash in the transparency log AND produces a
+    // SealedPacket for the /json endpoint.
     let rooms: Arc<dyn themis_orchestrator::room::BandRoom> = MockBandRoom::new().into_arc();
     let router =
         themis_orchestrator::router::LlmBackendRouter::with_default_routing(HashMap::new());
-    let orch = Orchestrator::new_with_rekor(
+    let orch = Orchestrator::with_evidence(
         rooms,
         agents,
         router,
         tenants,
         Some(Arc::new(MockRekorClient::new()) as Arc<dyn themis_evidence::rekor::RekorClient>),
+        evidence_map,
     );
-
-    // Mock Timestamp Authority (real FreeTSA is a follow-up).
-    let tsa: Arc<dyn themis_evidence::timestamp::TimestampAuthority> =
-        Arc::new(MockTimestampAuthority::new("https://mock.tsa.local"));
 
     let state = AppState {
         orchestrator: Arc::new(tokio::sync::Mutex::new(orch)),
@@ -97,6 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         compliance: Arc::new(themis_compliance::service::ComplianceService::new()),
         reports: dashmap::DashMap::new(),
         packets: dashmap::DashMap::new(),
+        sealed: dashmap::DashMap::new(),
     };
 
     // Touch tsa so the unused-warning stays out of release builds

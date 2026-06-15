@@ -5,10 +5,11 @@
 //! chain; a single tampered entry fails `verify()` and reports the
 //! sequence number where the mismatch was detected.
 
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// A single entry in the hash chain.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ChainEntry {
     /// Monotonically increasing sequence number (0 for genesis).
     pub sequence: u64,
@@ -36,9 +37,12 @@ pub enum ChainError {
 }
 
 /// The hash chain. Append-only; no remove, no mutate.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct HashChain {
-    entries: Vec<ChainEntry>,
+    /// All entries, in order. `pub` to allow serde derive and the
+    /// `persistence` tests to tamper with entries. The struct itself
+    /// stays append-only via the public API (`append`, `verify`).
+    pub entries: Vec<ChainEntry>,
 }
 
 impl HashChain {

@@ -25,6 +25,7 @@ use dashmap::DashMap;
 use serde::Deserialize;
 use serde_json::json;
 use themis_compliance::service::ComplianceReport;
+use themis_evidence::packet::SealedPacket;
 use themis_frontend::{APP_CSS, APP_JS, COMPLIANCE_HTML, INDEX_HTML, TOKENS_CSS};
 use tokio_stream::{wrappers::BroadcastStream, StreamExt};
 
@@ -51,6 +52,12 @@ pub struct AppState {
     /// run_id) so the PDF is reachable from the demo URL the
     /// frontend hands to the judge.
     pub packets: DashMap<uuid::Uuid, SignedPacket>,
+    /// Per-packet-id → SealedPacket (populated when the orchestrator
+    /// is built with an evidence service — the `SealedPacket` is the
+    /// shape that `themis-verify` consumes). The `/packets/:id/json`
+    /// endpoint serves this directly. Empty when the binary is built
+    /// without the evidence wiring (mock-only path).
+    pub sealed: DashMap<uuid::Uuid, SealedPacket>,
 }
 
 /// Build the axum Router with all routes.
@@ -76,6 +83,7 @@ pub fn build_router(state: AppState) -> Router {
             get(get_compliance_report_json),
         )
         .route("/packets/:packet_id/pdf", get(get_packet_pdf))
+        .route("/packets/:packet_id/json", get(get_packet_json))
         .with_state(state)
 }
 
@@ -147,18 +155,33 @@ async fn post_invoices(
         run_id,
         agent: "extractor".to_string(),
     });
-    let packet = {
+    let (packet, sealed) = {
         let orch = state.orchestrator.lock().await;
-        match orch
-            .process_invoice(&req.tenant_id, &req.invoice_id, raw)
-            .await
-        {
-            Ok(p) => p,
-            Err(e) => {
-                return Err((
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({"error": format!("{e:?}")})),
-                ));
+        if orch.has_evidence() {
+            match orch
+                .process_invoice_sealed(&req.tenant_id, &req.invoice_id, raw)
+                .await
+            {
+                Ok(p) => p,
+                Err(e) => {
+                    return Err((
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({"error": format!("{e:?}")})),
+                    ));
+                }
+            }
+        } else {
+            match orch
+                .process_invoice(&req.tenant_id, &req.invoice_id, raw)
+                .await
+            {
+                Ok(p) => (p, None),
+                Err(e) => {
+                    return Err((
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({"error": format!("{e:?}")})),
+                    ));
+                }
             }
         }
     };
@@ -173,6 +196,13 @@ async fn post_invoices(
     state
         .packets
         .insert(packet.packet.packet_id, packet.clone());
+    if let Some(s) = sealed {
+        // Key by the SignedPacket's packet_id (the id the
+        // frontend already knows), not the SealedPacket's
+        // internal id (which is a fresh UUIDv4 minted by
+        // EvidenceService::seal).
+        state.sealed.insert(packet.packet.packet_id, s);
+    }
     state.event_bus.publish(Event::EvidenceSealed {
         run_id,
         packet_id: packet.packet.packet_id,
@@ -258,6 +288,39 @@ async fn get_packet_pdf(
             format!(
                 "attachment; filename=\"themis-{}-{}.pdf\"",
                 packet.packet.tenant_id, packet.packet.invoice_id
+            ),
+        )
+        .body(Body::from(bytes))
+        .unwrap())
+}
+
+/// `GET /packets/:packet_id/json` — return the strict `SealedPacket`
+/// JSON that `themis-verify` consumes. The frontend's "Download JSON"
+/// button hits this endpoint. Returns 404 if the binary was built
+/// without the evidence service (mock-only path) or if the packet
+/// is unknown.
+async fn get_packet_json(
+    State(state): State<Arc<AppState>>,
+    Path(packet_id): Path<uuid::Uuid>,
+) -> Result<Response, (StatusCode, String)> {
+    let sealed = state.sealed.get(&packet_id).ok_or((
+        StatusCode::NOT_FOUND,
+        format!("sealed packet {packet_id} not found"),
+    ))?;
+    let bytes = serde_json::to_vec_pretty(&*sealed).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("serialize SealedPacket: {e}"),
+        )
+    })?;
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/json")
+        .header(
+            header::CONTENT_DISPOSITION,
+            format!(
+                "attachment; filename=\"themis-{}-{}.json\"",
+                sealed.tenant_id, sealed.invoice_id
             ),
         )
         .body(Body::from(bytes))
@@ -353,6 +416,7 @@ mod tests {
             compliance: std::sync::Arc::new(themis_compliance::service::ComplianceService::new()),
             reports: DashMap::new(),
             packets: DashMap::new(),
+            sealed: DashMap::new(),
         }
     }
 

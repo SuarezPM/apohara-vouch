@@ -92,6 +92,7 @@ fn router_for(f: &DemoInvoice) -> axum::Router {
         compliance: Arc::new(themis_compliance::service::ComplianceService::new()),
         reports: dashmap::DashMap::new(),
         packets: dashmap::DashMap::new(),
+        sealed: dashmap::DashMap::new(),
     };
     build_router(state)
 }
@@ -242,6 +243,69 @@ async fn e2e_get_packet_pdf_unknown_id_returns_404() {
         .oneshot(
             Request::builder()
                 .uri("/packets/00000000-0000-0000-0000-000000000000/pdf")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn e2e_get_packet_json_after_post() {
+    // Smoke for /packets/:id/json — the strict SealedPacket
+    // shape that `themis-verify` consumes. The test router does
+    // NOT wire the evidence service (the production binary
+    // does), so this exercises the 404 path and asserts the
+    // 404 message identifies the missing sealed packet.
+    let app = router_for(&load_fixture("wayne-002.json"));
+    let post_resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/invoices")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"tenant_id":"wayne","invoice_id":"e2e-json","raw_b64":""}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(post_resp.status(), StatusCode::OK);
+    let body = to_bytes(post_resp.into_body(), MAX_BODY).await.unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let packet_id = json["packet_id"].as_str().unwrap().to_string();
+
+    let json_resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/packets/{packet_id}/json"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    // No evidence service in this test router → 404, but the
+    // route is wired and the message is precise.
+    assert_eq!(json_resp.status(), StatusCode::NOT_FOUND);
+    let body = to_bytes(json_resp.into_body(), MAX_BODY).await.unwrap();
+    let body_str = std::str::from_utf8(&body).unwrap();
+    assert!(
+        body_str.contains("sealed packet"),
+        "expected 'sealed packet' in 404 body, got: {body_str}"
+    );
+}
+
+#[tokio::test]
+async fn e2e_get_packet_json_unknown_id_returns_404() {
+    let app = router_for(&load_fixture("wayne-002.json"));
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/packets/00000000-0000-0000-0000-000000000000/json")
                 .body(Body::empty())
                 .unwrap(),
         )
