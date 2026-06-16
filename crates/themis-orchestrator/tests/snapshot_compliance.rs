@@ -17,12 +17,16 @@ use axum::http::Request;
 use tower::ServiceExt;
 
 use themis_agents::llm::{LlmResponse, MockLlmProvider};
+use themis_agents::decision::{AgentDecision, DecisionType};
 use themis_evidence::rekor::MockRekorClient;
 use themis_orchestrator::http::{build_router, AppState};
 use themis_orchestrator::orchestrator::Orchestrator;
+use themis_orchestrator::packet::{EvidencePacket, SignedPacket};
+use themis_orchestrator::pdf::render_packet_pdf;
 use themis_orchestrator::room::MockBandRoom;
 use themis_orchestrator::tenants::TenantRegistry;
 use themis_orchestrator::test_support::DemoInvoice;
+use themis_agents::baaar::Outcome;
 
 fn router_for(f: &DemoInvoice) -> axum::Router {
     let mock_llm: Arc<dyn themis_agents::llm::LlmBackend> = Arc::new(
@@ -225,4 +229,186 @@ async fn halted_compliance_report_has_art17_with_halt_outcome() {
         .contains(&cls),
         "unexpected incident_classification: {cls}"
     );
+}
+
+/// Build a representative sample packet with 8 agent decisions so
+/// the page-2 trace has enough variety to exercise. The framework
+/// booleans are left at their default (all true) which means all
+/// 26 fields render with [x] markers.
+fn pdf_sample_packet() -> SignedPacket {
+    let mk = |agent: &str, dt: DecisionType, conf: f32, reason: &str| AgentDecision {
+        agent_id: agent.to_string(),
+        tenant_id: "stark".to_string(),
+        invoice_id: "inv-pdf".to_string(),
+        decision_type: dt,
+        confidence: conf,
+        reasoning: reason.to_string(),
+        timestamp_ms: 0,
+        payload: serde_json::json!({}),
+    };
+    let decisions = vec![
+        mk("extractor", DecisionType::Extracted, 0.95, "extracted line items from invoice text"),
+        mk("po_matcher", DecisionType::PoMatched, 0.88, "matched PO 4500123456"),
+        mk("fraud_auditor", DecisionType::FraudAssessed, 0.42, "risk_score=0.42 below threshold"),
+        mk("audit_watchdog", DecisionType::WatchdogAlert, 0.91, "coherence within bounds"),
+        mk("gaap_classifier", DecisionType::GaapClassified, 0.83, "expense / office supplies"),
+        mk("regression_tester", DecisionType::RegressionResult, 1.0, "signature verified ok"),
+        mk("provenance_signer", DecisionType::ProvenanceSigned, 1.0, "Ed25519 signature sealed"),
+        mk("narrator", DecisionType::Narrated, 0.97, "policy version themis@2026-06-12 matched"),
+    ];
+    let packet = EvidencePacket::new("stark", "inv-pdf", decisions, Outcome::Approve);
+    SignedPacket::wrap(packet, "00".repeat(64), "11".repeat(32))
+}
+
+#[test]
+fn pdf_has_two_pages() {
+    // US-06 acceptance: rendered PDF must have 2 pages.
+    // printpdf 0.7 emits the /Count object in the Pages dictionary
+    // as plain text, e.g. "/Count 2". A byte search for "/Count 2"
+    // in the PDF body verifies 2 pages were emitted.
+    let sp = pdf_sample_packet();
+    let bytes = render_packet_pdf(&sp).expect("render");
+    assert_eq!(&bytes[..5], b"%PDF-", "PDF magic");
+    let body = String::from_utf8_lossy(&bytes);
+    assert!(
+        body.contains("/Count 2"),
+        "PDF should declare /Count 2 (2 pages)"
+    );
+}
+
+/// Decode all hex-string literals (`<...>`) in a PDF body into a
+/// single UTF-8 string. printpdf 0.7 emits text in content streams
+/// as hex literals like `<5448454D4953>`; raw bytes of the field
+/// names won't match without decoding. We also concatenate the
+/// outer (non-stream) PDF text so any unencoded content (e.g. the
+/// /Count 2 marker) is also searchable.
+fn decode_pdf_text(pdf: &[u8]) -> String {
+    let mut out = String::with_capacity(pdf.len());
+    let mut i = 0;
+    while i < pdf.len() {
+        if pdf[i] == b'<' && i + 1 < pdf.len() && (pdf[i + 1].is_ascii_hexdigit()) {
+            // hex string literal
+            let mut j = i + 1;
+            while j < pdf.len() && pdf[j] != b'>' {
+                j += 1;
+            }
+            if j >= pdf.len() {
+                break;
+            }
+            let hex = &pdf[i + 1..j];
+            if hex.len() % 2 == 0 {
+                let mut decoded = Vec::with_capacity(hex.len() / 2);
+                let mut k = 0;
+                while k + 1 < hex.len() {
+                    let pair = std::str::from_utf8(&hex[k..k + 2]).unwrap_or("");
+                    if let Ok(b) = u8::from_str_radix(pair, 16) {
+                        decoded.push(b);
+                    }
+                    k += 2;
+                }
+                out.push_str(&String::from_utf8_lossy(&decoded));
+            }
+            i = j + 1;
+        } else {
+            // pass through printable ASCII (so /Count and other markers are found)
+            let c = pdf[i];
+            if (0x20..=0x7e).contains(&c) {
+                out.push(c as char);
+            }
+            i += 1;
+        }
+    }
+    out
+}
+
+#[test]
+fn pdf_page2_contains_all_26_compliance_field_names() {
+    // US-06 acceptance: page 2 must list all 26 populated fields.
+    // The 26 field names are hardcoded into the page-2 grid. We
+    // verify the field-name strings appear in the decoded PDF
+    // content (printpdf emits text as hex-encoded `<...>` literals,
+    // so the raw bytes don't match without decoding).
+    let sp = pdf_sample_packet();
+    let bytes = render_packet_pdf(&sp).expect("render");
+    let decoded = decode_pdf_text(&bytes);
+    let required_fields = [
+        // DORA (3)
+        "art_9_ict_risk_management",
+        "art_10_incident_detection",
+        "art_17_incident_reporting",
+        // EU AI Act (9: 8 Art.12 + 1 Art.26)
+        "art_12_1_start_time",
+        "art_12_2_end_time",
+        "art_12_3_reference_database",
+        "art_12_4_input_data",
+        "art_12_5_natural_person_id",
+        "art_12_6_decision_id",
+        "art_12_7_policy_version",
+        "art_12_8_hash_chain_prev",
+        "art_26_deployer_name",
+        // NIST AI RMF (4)
+        "govern",
+        "map",
+        "measure",
+        "manage",
+        // OWASP Agentic 2026 (10)
+        "ASI01_prompt_injection",
+        "ASI02_sensitive_data_exposure",
+        "ASI03_supply_chain",
+        "ASI04_data_and_model_poisoning",
+        "ASI05_improper_output_handling",
+        "ASI06_excessive_agency",
+        "ASI07_system_prompt_leakage",
+        "ASI08_vector_and_embedding_weaknesses",
+        "ASI09_misinformation",
+        "ASI10_rogue_agents",
+    ];
+    assert_eq!(
+        required_fields.len(),
+        26,
+        "26-field grid must contain exactly 26 names"
+    );
+    for name in &required_fields {
+        assert!(
+            decoded.contains(name),
+            "PDF page 2 should contain field name '{name}' (decoded content stream missing it)"
+        );
+    }
+}
+
+#[test]
+fn pdf_page2_contains_agent_decision_trace() {
+    // US-06 acceptance: page 2 must include the agent decision trace
+    // with reasoning truncated to 120 chars. We assert the agent_id
+    // strings appear in the decoded PDF text, plus a "Page 2"
+    // header and the "8 agents" trace count.
+    let sp = pdf_sample_packet();
+    let bytes = render_packet_pdf(&sp).expect("render");
+    let decoded = decode_pdf_text(&bytes);
+    // Page 2 header
+    assert!(
+        decoded.contains("Page 2"),
+        "PDF should declare 'Page 2' header on the auditor page"
+    );
+    // Agent trace count
+    assert!(
+        decoded.contains("8 agents"),
+        "PDF should declare '8 agents' in the trace section"
+    );
+    // Each agent id from the sample packet
+    for agent in &[
+        "extractor",
+        "po_matcher",
+        "fraud_auditor",
+        "audit_watchdog",
+        "gaap_classifier",
+        "regression_tester",
+        "provenance_signer",
+        "narrator",
+    ] {
+        assert!(
+            decoded.contains(agent),
+            "PDF should reference agent_id '{agent}' in the decision trace"
+        );
+    }
 }

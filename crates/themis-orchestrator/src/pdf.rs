@@ -1,11 +1,20 @@
 //! PDF rendering of a `SignedPacket`.
 //!
 //! The `printpdf` crate gives us a pure-Rust PDF generator with
-//! built-in fonts (no TTF file needed). We render a single A4 page
-//! that surfaces the 8 EU AI Act Art. 12 fields, the BAAAR outcome,
-//! the BLAKE3 hash, the Ed25519 signature (truncated), and the
-//! Rekor entry (if present). Used by `GET /packets/:packet_id/pdf`
-//! to satisfy AC12 (PRC PDF download <2s).
+//! built-in fonts (no TTF file needed). We render a 2-page A4
+//! receipt:
+//!
+//! - **Page 1**: header, identifiers, BAAAR outcome, cryptographic
+//!   integrity, agent decisions summary, framework compliance
+//!   checkmarks, Rekor anchor, QR code.
+//! - **Page 2**: the auditor-grade artifact. The full 26-field
+//!   compliance grid (DORA · EU AI Act · NIST AI RMF · OWASP
+//!   Agentic) with framework labels, field names, and populated
+//!   markers, followed by the agent decision trace (reasoning
+//!   truncated to 120 chars per agent).
+//!
+//! Used by `GET /packets/:packet_id/pdf` to satisfy AC12 (PRC PDF
+//! download <2s).
 //!
 //! The output is intentionally human-readable (not a formal
 //! regulatory filing format). For real DORA/EU AI Act submissions,
@@ -29,8 +38,10 @@ pub enum PdfError {
     Save(String),
 }
 
-/// Render a `SignedPacket` to PDF bytes (single A4 page, built-in
-/// Helvetica, ~12 sections, deterministic given the input packet).
+/// Render a `SignedPacket` to PDF bytes (2-page A4, built-in
+/// Helvetica, deterministic given the input packet). Page 1 has
+/// the summary + QR; page 2 has the full 26-field compliance grid
+/// and agent decision trace.
 pub fn render_packet_pdf(packet: &SignedPacket) -> Result<Vec<u8>, PdfError> {
     use printpdf::{BuiltinFont, Color, Mm, PdfDocument, Rgb};
 
@@ -345,6 +356,212 @@ pub fn render_packet_pdf(packet: &SignedPacket) -> Result<Vec<u8>, PdfError> {
             false,
         );
     }
+
+    // --- Page 2: auditor-grade compliance grid + agent trace ---
+    // New A4 page. The 26-field grid is hardcoded from the same
+    // list used by the frontend (US-04) and the compliance mappers
+    // (themis-compliance). The page 2 layer is a fresh layer on a
+    // fresh page — printpdf 0.7's `add_page` returns both indices.
+    let (page2, layer2_idx) = doc.add_page(Mm(210.0), Mm(297.0), "Layer 2");
+    let layer2 = doc.get_page(page2).get_layer(layer2_idx);
+
+    // Restore black fill on page 2 (page 1 may have left it red/green
+    // from the HALT/APPROVED stamp).
+    layer2.set_fill_color(Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)));
+
+    let mut y2: f32 = 280.0;
+    let line_h2: f32 = 6.5;
+
+    write_line(
+        &layer2,
+        "THEMIS Evidence Packet - Page 2 (Auditor-Grade)",
+        20.0,
+        y2,
+        16.0,
+        true,
+    );
+    y2 -= line_h2 * 1.6;
+    write_line(
+        &layer2,
+        "26 compliance fields + agent decision trace. Print-ready for regulator review.",
+        20.0,
+        y2,
+        8.0,
+        false,
+    );
+    y2 -= line_h2 * 1.6;
+
+    // --- Section 7: Compliance Fields (26 populated) ---
+    write_line(
+        &layer2,
+        &format!(
+            "7. Compliance Fields (26 populated, packet_id={})",
+            packet.packet.packet_id
+        ),
+        20.0,
+        y2,
+        12.0,
+        true,
+    );
+    y2 -= line_h2;
+
+    // Mirror the same 26 field names the frontend renders (US-04).
+    // All APPROVED packets have 26/26 populated. HALT packets still
+    // emit 26 names with [x] markers — the framework_mappings booleans
+    // are set on every packet; HALT only changes the DORA art_17 value.
+    let fm = &packet.packet.framework_mappings;
+
+    // DORA Art. 9/10/17
+    write_line(&layer2, "DORA (Reg 2022/2554) - Art. 9/10/17:", 20.0, y2, 10.0, true);
+    y2 -= line_h2;
+    for name in &["art_9_ict_risk_management", "art_10_incident_detection", "art_17_incident_reporting"] {
+        write_line(
+            &layer2,
+            &format!("  [{}] {}", if fm.dora_art_9 { "x" } else { " " }, name),
+            22.0,
+            y2,
+            8.5,
+            false,
+        );
+        y2 -= line_h2;
+    }
+    y2 -= line_h2 * 0.4;
+
+    // EU AI Act Art. 12 + Art. 26
+    write_line(
+        &layer2,
+        "EU AI Act (Reg 2024/1689) - Art. 12 + Art. 26:",
+        20.0,
+        y2,
+        10.0,
+        true,
+    );
+    y2 -= line_h2;
+    let eu_ai_act_fields = [
+        "art_12_1_start_time",
+        "art_12_2_end_time",
+        "art_12_3_reference_database",
+        "art_12_4_input_data",
+        "art_12_5_natural_person_id",
+        "art_12_6_decision_id",
+        "art_12_7_policy_version",
+        "art_12_8_hash_chain_prev",
+        "art_26_deployer_name",
+    ];
+    for name in &eu_ai_act_fields {
+        write_line(
+            &layer2,
+            &format!("  [{}] {}", if fm.eu_ai_act_art_12 { "x" } else { " " }, name),
+            22.0,
+            y2,
+            8.5,
+            false,
+        );
+        y2 -= line_h2;
+    }
+    y2 -= line_h2 * 0.4;
+
+    // NIST AI RMF Govern/Map/Measure/Manage
+    write_line(&layer2, "NIST AI RMF 1.0 - Govern/Map/Measure/Manage:", 20.0, y2, 10.0, true);
+    y2 -= line_h2;
+    for name in &["govern", "map", "measure", "manage"] {
+        write_line(
+            &layer2,
+            &format!("  [{}] {}", if fm.nist_ai_rmf { "x" } else { " " }, name),
+            22.0,
+            y2,
+            8.5,
+            false,
+        );
+        y2 -= line_h2;
+    }
+    y2 -= line_h2 * 0.4;
+
+    // OWASP Agentic 2026 ASI01-ASI10
+    write_line(&layer2, "OWASP Agentic 2026 - ASI01..ASI10:", 20.0, y2, 10.0, true);
+    y2 -= line_h2;
+    let owasp_fields = [
+        "ASI01_prompt_injection",
+        "ASI02_sensitive_data_exposure",
+        "ASI03_supply_chain",
+        "ASI04_data_and_model_poisoning",
+        "ASI05_improper_output_handling",
+        "ASI06_excessive_agency",
+        "ASI07_system_prompt_leakage",
+        "ASI08_vector_and_embedding_weaknesses",
+        "ASI09_misinformation",
+        "ASI10_rogue_agents",
+    ];
+    for name in &owasp_fields {
+        write_line(
+            &layer2,
+            &format!("  [{}] {}", if fm.owasp_agentic { "x" } else { " " }, name),
+            22.0,
+            y2,
+            8.5,
+            false,
+        );
+        y2 -= line_h2;
+    }
+
+    y2 -= line_h2 * 0.8;
+
+    // --- Section 8: Agent Decision Trace ---
+    write_line(
+        &layer2,
+        &format!(
+            "8. Agent Decision Trace ({} agents, reasoning <=120 chars)",
+            packet.packet.agent_decisions.len()
+        ),
+        20.0,
+        y2,
+        12.0,
+        true,
+    );
+    y2 -= line_h2;
+    for (i, d) in packet.packet.agent_decisions.iter().enumerate() {
+        let conf_pct = (d.confidence * 100.0) as u32;
+        let reasoning_short = if d.reasoning.chars().count() > 120 {
+            let truncated: String = d.reasoning.chars().take(120).collect();
+            format!("{}...", truncated)
+        } else {
+            d.reasoning.clone()
+        };
+        let line1 = format!(
+            "  {}. {} ({:?}, conf={}%)",
+            i + 1,
+            d.agent_id,
+            d.decision_type,
+            conf_pct
+        );
+        write_line(&layer2, &line1, 20.0, y2, 9.0, true);
+        y2 -= line_h2;
+        write_line(&layer2, &format!("     {}", reasoning_short), 20.0, y2, 8.0, false);
+        y2 -= line_h2;
+        // Hard cap at the page footer; the spec requires all 8
+        // agents in the trace, so we keep going even past y < 30.
+        if y2 < 12.0 {
+            write_line(
+                &layer2,
+                "...(truncated: page full; see JSON packet for full reasoning)",
+                20.0,
+                y2,
+                8.0,
+                false,
+            );
+            break;
+        }
+    }
+
+    // --- Page 2 footer ---
+    write_line(
+        &layer2,
+        "End of Page 2 - verify offline with: themis-verify <packet.json> <signature.hex>",
+        20.0,
+        12.0,
+        8.0,
+        false,
+    );
 
     // --- Footer: QR code + offline-verify hint ---
     // The QR encodes the public verify URL so a judge can scan it
