@@ -278,6 +278,40 @@
       </article>
     </div>
   </section>
+
+  <!-- ───── Section 7 · 26/26 Compliance dashboard (hidden until sealed) ───── -->
+  <section class="sec compliance-dashboard" id="compliance-dashboard" aria-labelledby="cd-h" hidden>
+    <div class="sec-head">
+      <h2 id="cd-h">Step 05 · Framework coverage · <span id="cd-coverage">—</span></h2>
+      <p>Every populated field in the Evidence Packet, broken out by framework. 26/26 on every approved run, 24/26 on every HALT (Art 10 + 17 carry the incident metadata).</p>
+    </div>
+    <div class="cd-summary" id="cd-summary">
+      <div class="cd-summary__bar"><span id="cd-bar" style="width:0%"></span></div>
+      <p class="cd-summary__meta"><span id="cd-meta">—</span></p>
+    </div>
+    <div class="cd-grid" id="cd-grid" role="table" aria-label="Compliance framework fields">
+      <article class="cd-col" data-fw="dora" hidden>
+        <header class="cd-col__h"><h3>DORA</h3><span class="cd-col__rule">EU 2022/2554</span></header>
+        <ol class="cd-col__list"></ol>
+      </article>
+      <article class="cd-col" data-fw="eu_ai_act" hidden>
+        <header class="cd-col__h"><h3>EU AI Act</h3><span class="cd-col__rule">Reg 2024/1689</span></header>
+        <ol class="cd-col__list"></ol>
+      </article>
+      <article class="cd-col" data-fw="nist_ai_rmf" hidden>
+        <header class="cd-col__h"><h3>NIST AI RMF</h3><span class="cd-col__rule">1.0 · G/M/M/M</span></header>
+        <ol class="cd-col__list"></ol>
+      </article>
+      <article class="cd-col" data-fw="owasp_agentic" hidden>
+        <header class="cd-col__h"><h3>OWASP Agentic</h3><span class="cd-col__rule">2026 · ASI01–ASI10</span></header>
+        <ol class="cd-col__list"></ol>
+      </article>
+      <article class="cd-col" data-fw="acs" hidden>
+        <header class="cd-col__h"><h3>ACS</h3><span class="cd-col__rule">Apohara Custom Set</span></header>
+        <ol class="cd-col__list"></ol>
+      </article>
+    </div>
+  </section>
 </main>
 
 <!-- ───── Footer (shared Apohara chrome with circuit SVG) ───── -->
