@@ -85,15 +85,15 @@ APPROVED → Evidence Packet (signed, downloadable)   |   HALT → red modal + s
 **30-second hook**: Submit a Wayne Enterprises invoice. Watch the 5 agents debate in the Band room. BAAAR HALT fires with red border + modal. Download the signed PDF. Scan the QR code. Run `themis-verify` in the terminal. **Exit 0.**
 
 **Live numbers measured 2026-06-16**:
-- AC1 cold start: <500ms ✅
+- AC1 cold start: <500ms [PASS]
 - AC2 review latency p95: **0.18ms** (target <90s)
-- AC4 BAAAR HALT deterministic: **10/10** ✅
+- AC4 BAAAR HALT deterministic: **10/10** [PASS]
 - AC8 cost per run: **$0.0016** (target $0.059)
 - AC13 offline verify: **3.73ms** avg (target <30s)
 - 26/26 compliance fields populated on every approved packet
 
 **B-roll shot list**:
-1. `themis-verify packet.json sig.hex` → `✓ VERIFIED` in terminal
+1. `themis-verify packet.json sig.hex` → `[VERIFIED]` in terminal
 2. PDF download → HALT stamp visible (red badge, 5-condition matrix)
 3. Band room transcript with `@fraud_auditor: HALTED by BAAAR`
 4. Compliance grid: 26/26 green checkmarks, 4 frameworks labeled
@@ -137,7 +137,7 @@ APPROVED → Evidence Packet (signed, downloadable)   |   HALT → red modal + s
 - E. Rekor + Multi-tenant: Rekor v2 client, `for_tenant()` baked keys, 9/9 EU AI Act Art 12 fields
 - F. Deploy + Pitch: live at themis.apohara.dev, AC1 319ms / AC12 494ms measured live
 
-**18 ACs measured**: 17/18 ✅, 1 ⚠ staged (AC7 token reduction — `themis-compressor` LLMLingua-2 port isolated, not wired to demo path; rationale in `docs/US-05-measurement-gate.md`).
+**18 ACs measured**: 17/18 [PASS], 1 [STAGED] (AC7 token reduction — `themis-compressor` LLMLingua-2 port isolated, not wired to demo path; rationale in `docs/US-05-measurement-gate.md`).
 
 **Post-hackathon (Day 4+)**:
 1. Migrate `CosignRekorClient` to `sigstore-verify` Rust crate (250 LOC)
