@@ -4,6 +4,8 @@
  *   · disabled · loading · error · success
  *
  * DOM contract (must not break — wired from crates/themis-frontend/static/app.js):
+ *   #playground-form, #fixture-select, #custom-invoice, #custom-invoice-wrap,
+ *   #playground-submit, #playground-selected
  *   #submit-form, #invoice-fixture, #tenant-switch, #submit-btn
  *   #cell-{extractor,po_matcher,fraud_auditor,gaap_classifier,provenance_signer,total}
  *     .cell__dl [data-k="in|out|cost"] + data-state="default|running|done|halted"
@@ -238,7 +240,48 @@ header.hero {
 @media (max-width: 760px) { .stat-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 @media (max-width: 480px) { .stat-row { grid-template-columns: minmax(0, 1fr); } }
 
-/* ───── Section 2 · Submit ───── */
+/* ───── Section 2 · Playground (judge-facing interactive 5-agent pipeline) ─────
+ * The dropdown + Run Audit button is the visible "wow moment" entry
+ * point. The fixture list is fetched from GET /fixtures on page load
+ * (5 Stanford InvoiceNet-shaped invoices, 4 HALT + 1 APPROVED). */
+.playground__form {
+  display: flex; flex-direction: column; gap: var(--space-md);
+  max-width: 720px;
+}
+.playground__row {
+  display: flex; flex-wrap: wrap; align-items: end;
+  gap: var(--space-md);
+}
+.playground__row .field { flex: 1 1 320px; }
+.playground__help {
+  font-family: var(--font-ui); font-size: var(--text-xs);
+  color: var(--ink-faint); padding-bottom: 12px;
+}
+.playground__help code {
+  font-family: var(--font-mono); font-size: 0.95em;
+  color: var(--accent); background: var(--well);
+  padding: 1px 6px; border-radius: 4px;
+}
+.field--textarea { width: 100%; }
+.field__input--textarea {
+  font-family: var(--font-mono); font-size: var(--text-sm);
+  line-height: 1.45; resize: vertical; min-height: 140px;
+  appearance: none; cursor: text;
+  white-space: pre; tab-size: 2;
+}
+.playground__actions {
+  display: flex; align-items: center; gap: var(--space-md);
+  flex-wrap: wrap;
+}
+.playground__selected {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  color: var(--ink-faint);
+}
+.playground__selected strong { color: var(--ink); font-weight: 500; }
+.playground__selected--halt { color: var(--danger); }
+.playground__selected--approve { color: var(--success); }
+
+/* ───── Section 3 · Submit ───── */
 .submit__form {
   display: flex; flex-wrap: wrap; align-items: end;
   gap: var(--space-md); max-width: 720px;

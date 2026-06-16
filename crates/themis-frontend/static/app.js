@@ -263,7 +263,7 @@
     const fx = FIXTURES[fixtureId];
     if (!fx) return;
     const tenant = $('#tenant-switch').value;
-    const btn = $('#submit-btn');
+    const btn = $('#playground-submit') || $('#submit-btn');
     setButtonState(btn, 'loading', 'Running…');
     resetUi();
     // Drive the cells + transcript
@@ -343,7 +343,7 @@
 
   // --- Live backend run (the real path) ---
   const runLiveAudit = async (tenant, invoice, rawB64) => {
-    const btn = $('#submit-btn');
+    const btn = $('#playground-submit') || $('#submit-btn');
     setButtonState(btn, 'loading', 'Running live…');
     resetUi();
     setCell('extractor', {}, 'running');
@@ -517,6 +517,157 @@
 
   const downloadReceipt = downloadJson; // halt overlay reuses the same JSON
 
+  // --- Playground (judge-facing interactive 5-agent pipeline) ---
+  // Fetches the 5 demo fixtures from GET /fixtures on page load,
+  // populates the <select> with one <option> per fixture + a
+  // "Custom JSON" entry, and routes the submit button through
+  // runLiveAudit() so the rest of the UI (cells, transcript,
+  // HALT overlay, compliance dashboard, downloads) updates
+  // identically to a real backend run.
+  const CUSTOM_OPTION_VALUE = '__custom__';
+  const FIXTURE_NONE = '__loading__';
+  let cachedFixtures = []; // [{ tenant_id, invoice_id, label, expected_verdict, expected_halt_reason, raw_b64 }]
+
+  const setSelectedSummary = (text, cls) => {
+    const el = $('#playground-selected');
+    if (!el) return;
+    el.textContent = '';
+    if (text) {
+      el.innerHTML = text;
+      el.className = `playground__selected ${cls || ''}`.trim();
+    } else {
+      el.className = 'playground__selected';
+    }
+  };
+
+  const populateFixtureDropdown = (fixtures) => {
+    const sel = $('#fixture-select');
+    if (!sel) return;
+    sel.innerHTML = '';
+    for (const f of fixtures) {
+      const opt = document.createElement('option');
+      opt.value = f.invoice_id;
+      opt.textContent = f.label;
+      opt.dataset.tenantId = f.tenant_id;
+      opt.dataset.invoiceId = f.invoice_id;
+      opt.dataset.expectedVerdict = f.expected_verdict;
+      opt.dataset.expectedHaltReason = f.expected_halt_reason || '';
+      opt.dataset.haltReasonHuman = f.halt_reason_human || '';
+      opt.dataset.rawB64 = f.raw_b64;
+      sel.appendChild(opt);
+    }
+    const customOpt = document.createElement('option');
+    customOpt.value = CUSTOM_OPTION_VALUE;
+    customOpt.textContent = '— Custom JSON —';
+    sel.appendChild(customOpt);
+    // Default: pick the APPROVED fixture (first in the list).
+    sel.value = fixtures[0]?.invoice_id || CUSTOM_OPTION_VALUE;
+    sel.disabled = false;
+    $('#playground-submit').disabled = false;
+  };
+
+  const updateSelectedSummary = () => {
+    const sel = $('#fixture-select');
+    if (!sel) return;
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt || !opt.value || opt.value === FIXTURE_NONE) {
+      setSelectedSummary('No fixture selected.');
+      return;
+    }
+    if (opt.value === CUSTOM_OPTION_VALUE) {
+      setSelectedSummary('Custom JSON · paste an invoice below and run.');
+      return;
+    }
+    const verdict = opt.dataset.expectedVerdict;
+    if (verdict === 'HALT') {
+      const reason = (opt.dataset.expectedHaltReason || '').replace(/_/g, ' ');
+      const human = opt.dataset.haltReasonHuman || 'BAAAR kill-switch fired';
+      setSelectedSummary(
+        `<strong>${opt.textContent}</strong> · expected HALT · ${reason} · ${human}`,
+        'playground__selected--halt',
+      );
+    } else {
+      setSelectedSummary(
+        `<strong>${opt.textContent}</strong> · expected APPROVED · all 5 agents converge.`,
+        'playground__selected--approve',
+      );
+    }
+  };
+
+  const loadFixtures = async () => {
+    try {
+      const resp = await fetch('/fixtures');
+      if (!resp.ok) throw new Error(`backend ${resp.status}`);
+      const data = await resp.json();
+      const fixtures = (data && data.fixtures) || [];
+      if (fixtures.length === 0) throw new Error('no fixtures returned');
+      cachedFixtures = fixtures;
+      populateFixtureDropdown(fixtures);
+      updateSelectedSummary();
+    } catch (e) {
+      const sel = $('#fixture-select');
+      if (sel) {
+        sel.innerHTML = '';
+        const opt = document.createElement('option');
+        opt.value = FIXTURE_NONE;
+        opt.textContent = '— fixtures unavailable (backend offline) —';
+        sel.appendChild(opt);
+        sel.disabled = true;
+      }
+      $('#playground-submit').disabled = true;
+      setSelectedSummary(
+        `Could not load fixtures from <code>/fixtures</code> · ${e.message}`,
+      );
+    }
+  };
+
+  const handlePlaygroundChange = () => {
+    const sel = $('#fixture-select');
+    if (!sel) return;
+    const v = sel.value;
+    const wrap = $('#custom-invoice-wrap');
+    const isCustom = v === CUSTOM_OPTION_VALUE;
+    if (wrap) wrap.hidden = !isCustom;
+    updateSelectedSummary();
+  };
+
+  const handlePlaygroundSubmit = (e) => {
+    e.preventDefault();
+    const sel = $('#fixture-select');
+    if (!sel) return;
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt || !opt.value || opt.value === FIXTURE_NONE) {
+      setSelectedSummary('Pick a fixture first.');
+      return;
+    }
+    const tenant = $('#tenant-switch')?.value || 'stark';
+    let invoice, rawB64;
+    if (opt.value === CUSTOM_OPTION_VALUE) {
+      const text = ($('#custom-invoice')?.value || '').trim();
+      if (!text) {
+        setSelectedSummary('Custom JSON is empty — paste an invoice object.');
+        return;
+      }
+      // Validate that the textarea is parseable JSON.
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch (err) {
+        setSelectedSummary(`Invalid JSON: ${err.message}`);
+        return;
+      }
+      const tid = parsed.tenant_id || tenant;
+      const iid = parsed.invoice_id || `custom-${Date.now()}`;
+      // Re-stringify so the orchestrator receives a clean, normalized payload.
+      rawB64 = btoa(unescape(encodeURIComponent(JSON.stringify(parsed))));
+      runLiveAudit(tid, iid, rawB64);
+      return;
+    }
+    invoice = opt.dataset.invoiceId;
+    rawB64 = opt.dataset.rawB64 || '';
+    runLiveAudit(tenant, invoice, rawB64);
+  };
+
   // --- Wire up ---
   const form = $('#submit-form');
   form.addEventListener('submit', (e) => {
@@ -532,6 +683,17 @@
     // demos if the backend is unreachable.
     runLiveAudit(tenant, invoice, '');
   });
+
+  // Playground wiring
+  const playgroundForm = $('#playground-form');
+  if (playgroundForm) {
+    playgroundForm.addEventListener('submit', handlePlaygroundSubmit);
+  }
+  const fixtureSelect = $('#fixture-select');
+  if (fixtureSelect) {
+    fixtureSelect.addEventListener('change', handlePlaygroundChange);
+  }
+  loadFixtures();
 
   $('#halt-dismiss-btn').addEventListener('click', hideHalt);
   $('#download-pdf-btn').addEventListener('click', downloadPdf);

@@ -30,6 +30,7 @@ use themis_frontend::{APP_CSS, APP_JS, COMPLIANCE_HTML, INDEX_HTML, TOKENS_CSS};
 use tokio_stream::{wrappers::BroadcastStream, StreamExt};
 
 use crate::events::{Event, EventBus};
+use crate::fixtures::load_all;
 use crate::orchestrator::Orchestrator;
 use crate::packet::SignedPacket;
 use crate::pdf;
@@ -92,6 +93,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/static/app.css", get(get_app_css))
         .route("/static/app.js", get(get_app_js))
         .route("/events", get(get_events_sse))
+        .route("/fixtures", get(get_fixtures))
         .merge(invoices_route)
         .route(
             "/compliance-report/:run_id",
@@ -146,6 +148,16 @@ async fn get_events_sse(
             .interval(Duration::from_secs(15))
             .text("keep-alive"),
     )
+}
+
+/// `GET /fixtures` — return the 5 demo invoice fixtures for the
+/// playground dropdown. The frontend calls this on page load to
+/// populate the `<select>` and to know which `raw_b64` to POST
+/// when the user picks a fixture. The `Custom JSON` option in
+/// the dropdown is rendered client-side; it does not need an
+/// entry here.
+async fn get_fixtures() -> Json<serde_json::Value> {
+    Json(json!({ "fixtures": load_all() }))
 }
 
 /// Request body for `POST /invoices` — kicks off a `process_invoice` run.
@@ -608,5 +620,53 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn get_fixtures_returns_5_well_formed_entries() {
+        let state = build_state();
+        let app = build_router(state);
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/fixtures")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let ct = resp
+            .headers()
+            .get("content-type")
+            .unwrap()
+            .to_str()
+            .unwrap();
+        assert!(ct.starts_with("application/json"), "ct={ct}");
+        let v: serde_json::Value =
+            serde_json::from_slice(&to_bytes(resp.into_body(), 1024 * 1024).await.unwrap())
+                .unwrap();
+        let fixtures = v["fixtures"].as_array().expect("fixtures array");
+        assert_eq!(fixtures.len(), 5, "expected 5 demo fixtures");
+        // Every fixture has the contract fields the frontend needs.
+        let mut halts = 0;
+        let mut approves = 0;
+        for (i, f) in fixtures.iter().enumerate() {
+            assert!(!f["tenant_id"].as_str().unwrap().is_empty(), "i={i}");
+            assert!(!f["invoice_id"].as_str().unwrap().is_empty(), "i={i}");
+            assert!(!f["label"].as_str().unwrap().is_empty(), "i={i}");
+            assert!(!f["raw_b64"].as_str().unwrap().is_empty(), "i={i}");
+            let v = f["expected_verdict"].as_str().unwrap();
+            assert!(v == "HALT" || v == "APPROVED", "i={i} verdict={v}");
+            if v == "HALT" {
+                halts += 1;
+            } else {
+                approves += 1;
+            }
+        }
+        assert_eq!(halts, 4);
+        assert_eq!(approves, 1);
+        // First entry is the APPROVED fixture (default selection).
+        assert_eq!(fixtures[0]["expected_verdict"], "APPROVED");
     }
 }

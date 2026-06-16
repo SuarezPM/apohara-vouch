@@ -129,7 +129,38 @@
     </div>
   </section>
 
-  <!-- ───── Section 2 · Submit ───── -->
+  <!-- ───── Section 2 · Playground (judge-facing: live 5-agent pipeline) ───── -->
+  <section class="sec playground" aria-labelledby="playground-h">
+    <div class="sec-head">
+      <h2 id="playground-h">Step 01 · Interactive playground</h2>
+      <p>Pick a fixture invoice — or paste your own JSON — and watch the 5-agent debate run live. The default selection is the clean APPROVED run; switch to any HALT fixture to see BAAAR fire in real time.</p>
+    </div>
+    <form id="playground-form" class="playground__form" novalidate>
+      <div class="playground__row">
+        <label class="field">
+          <span class="field__label">Fixture</span>
+          <select id="fixture-select" class="field__input" aria-describedby="playground-help">
+            <option value="">— loading fixtures… —</option>
+          </select>
+        </label>
+        <span id="playground-help" class="playground__help">5 Stanford InvoiceNet-shaped fixtures · 4 HALT + 1 APPROVED</span>
+      </div>
+      <label class="field field--textarea" id="custom-invoice-wrap" hidden>
+        <span class="field__label">Custom invoice JSON</span>
+        <textarea id="custom-invoice" class="field__input field__input--textarea" rows="6" spellcheck="false" placeholder='{ "invoice_id": "demo-001", "tenant_id": "stark", "extracted": { ... }, "fraud_assessment": { ... } }'></textarea>
+        <span class="playground__help">Raw JSON. The orchestrator will base64-encode it and POST it to <code>/invoices</code>.</span>
+      </label>
+      <div class="playground__actions">
+        <button type="submit" class="btn btn--primary" id="playground-submit" data-state="default" disabled>
+          <span class="btn__label">Run audit</span>
+          <span class="btn__spinner" aria-hidden="true"></span>
+        </button>
+        <span class="playground__selected" id="playground-selected" aria-live="polite">No fixture selected.</span>
+      </div>
+    </form>
+  </section>
+
+  <!-- ───── Section 3 · Submit ───── -->
   <section class="sec submit" aria-labelledby="submit-h">
     <div class="sec-head">
       <h2 id="submit-h">Step 01 · Submit</h2>
@@ -153,7 +184,7 @@
     </form>
   </section>
 
-  <!-- ───── Section 3 · Live counter + status ───── -->
+  <!-- ───── Section 4 · Live counter + status ───── -->
   <section class="sec counter" aria-labelledby="counter-h">
     <div class="sec-head">
       <h2 id="counter-h">Step 02 · Per-agent cost and token spend</h2>
@@ -217,7 +248,7 @@
     </div>
   </section>
 
-  <!-- ───── Section 4 · Band transcript ───── -->
+  <!-- ───── Section 5 · Band transcript ───── -->
   <section class="sec transcript" aria-labelledby="transcript-h">
     <div class="sec-head">
       <h2 id="transcript-h">Step 03 · Band transcript</h2>
@@ -254,7 +285,7 @@
     </div>
   </div>
 
-  <!-- ───── Section 6 · Evidence download + Compliance dashboard ───── -->
+  <!-- ───── Section 7 · Evidence download + Compliance dashboard ───── -->
   <section class="sec evidence" aria-labelledby="evidence-h">
     <div class="sec-head">
       <h2 id="evidence-h">Step 04 · Evidence</h2>
@@ -279,7 +310,7 @@
     </div>
   </section>
 
-  <!-- ───── Section 7 · 26/26 Compliance dashboard (hidden until sealed) ───── -->
+  <!-- ───── Section 8 · 26/26 Compliance dashboard (hidden until sealed) ───── -->
   <section class="sec compliance-dashboard" id="compliance-dashboard" aria-labelledby="cd-h" hidden>
     <div class="sec-head">
       <h2 id="cd-h">Step 05 · Framework coverage · <span id="cd-coverage">—</span></h2>
