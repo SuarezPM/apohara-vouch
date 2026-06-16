@@ -13,6 +13,9 @@
 
 use thiserror::Error;
 
+use themis_agents::baaar::{BaaarReason, Outcome};
+use themis_agents::decision::AgentDecision;
+
 use crate::packet::SignedPacket;
 
 /// Errors from PDF rendering.
@@ -29,7 +32,7 @@ pub enum PdfError {
 /// Render a `SignedPacket` to PDF bytes (single A4 page, built-in
 /// Helvetica, ~12 sections, deterministic given the input packet).
 pub fn render_packet_pdf(packet: &SignedPacket) -> Result<Vec<u8>, PdfError> {
-    use printpdf::{BuiltinFont, Mm, PdfDocument};
+    use printpdf::{BuiltinFont, Color, Mm, PdfDocument, Rgb};
 
     let (doc, page1, layer1) =
         PdfDocument::new("THEMIS Evidence Packet", Mm(210.0), Mm(297.0), "Layer 1");
@@ -113,14 +116,49 @@ pub fn render_packet_pdf(packet: &SignedPacket) -> Result<Vec<u8>, PdfError> {
     // --- Section 2: BAAAR outcome ---
     write_line(&layer, "2. BAAAR Outcome", 20.0, y, 12.0, true);
     y -= line_h;
-    write_line(
-        &layer,
-        &format!("Outcome:           {:?}", packet.packet.bbaaar_outcome),
-        20.0,
-        y,
-        10.0,
-        false,
-    );
+    match packet.packet.bbaaar_outcome {
+        Outcome::Halt(reason) => {
+            // Big red HALT stamp. Restores black after the stamp.
+            layer.set_fill_color(Color::Rgb(Rgb::new(0.784, 0.0, 0.0, None)));
+            write_line(&layer, "HALT", 20.0, y, 24.0, true);
+            y -= line_h * 2.0;
+            layer.set_fill_color(Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)));
+
+            write_line(
+                &layer,
+                &format!("REASON: {}", format_baaar_reason(reason)),
+                20.0,
+                y,
+                11.0,
+                true,
+            );
+            y -= line_h * 1.3;
+
+            // 5-condition matrix. We pull the live values from the
+            // FraudAuditor's decision payload (best-effort — missing
+            // fields render as "n/a", which is the safe default).
+            let matrix = build_condition_matrix(&packet.packet.agent_decisions);
+            for (label, value) in matrix {
+                write_line(&layer, &value, 20.0, y, 9.0, label == "fired");
+                y -= line_h * 0.95;
+            }
+        }
+        Outcome::Approve => {
+            // Green APPROVED indicator. Restores black after.
+            layer.set_fill_color(Color::Rgb(Rgb::new(0.0, 0.588, 0.0, None)));
+            write_line(&layer, "APPROVED", 20.0, y, 18.0, true);
+            y -= line_h * 1.7;
+            layer.set_fill_color(Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)));
+            write_line(
+                &layer,
+                "All 5 BAAAR conditions passed; no halt triggered.",
+                20.0,
+                y,
+                10.0,
+                false,
+            );
+        }
+    }
     y -= line_h * 1.5;
 
     // --- Section 3: cryptographic integrity ---
@@ -326,6 +364,167 @@ pub fn render_packet_pdf(packet: &SignedPacket) -> Result<Vec<u8>, PdfError> {
             .map_err(|e| PdfError::Save(format!("{e:?}")))?;
     }
     Ok(buf)
+}
+
+/// Human-readable label for a `BaaarReason`. Used in the "REASON:" line
+/// of the HALT section.
+fn format_baaar_reason(reason: BaaarReason) -> &'static str {
+    match reason {
+        BaaarReason::RiskScoreExceeded => "risk_score > 0.85",
+        BaaarReason::SecretLeakDetected => "secret leak detected",
+        BaaarReason::CoherenceTooLow => "coherence_score < 0.3",
+        BaaarReason::MaxDebateRoundsReached => "debate_rounds >= 5",
+        BaaarReason::ExplicitHaltRequested => "operator requested halt",
+    }
+}
+
+/// Build the 5-row BAAAR condition matrix. Each row is
+/// `(label, formatted_line)`. The `label` is `"fired"` for the row
+/// that tripped the gate (so the renderer can bold it), or `""`
+/// otherwise. We pull live values from the FraudAuditor's
+/// `payload.assessment`; missing fields render as `n/a`.
+fn build_condition_matrix(decisions: &[AgentDecision]) -> Vec<(&'static str, String)> {
+    // Best-effort: find the FraudAuditor's assessment. The auditor
+    // emits `payload.assessment.{risk_score,...}`; older agents may
+    // emit the fields flat at the top level. Accept both shapes.
+    let (risk_score, coherence_score, debate_rounds, has_secret) =
+        extract_assessment(decisions);
+
+    let mut rows: Vec<(&'static str, String)> = Vec::with_capacity(5);
+
+    // 1. risk_score > 0.85
+    {
+        let score_str = risk_score
+            .map(|v| format!("{v:.2}"))
+            .unwrap_or_else(|| "n/a".to_string());
+        let tripped = risk_score.is_some_and(|v| v > 0.85);
+        rows.push((
+            if tripped { "fired" } else { "" },
+            format!(
+                "[{}] risk_score > 0.85  score={}  {}",
+                if tripped { "X" } else { " " },
+                score_str,
+                if tripped { "FIRED" } else { "pass" }
+            ),
+        ));
+    }
+    // 2. secret leak
+    {
+        let tripped = has_secret;
+        rows.push((
+            if tripped { "fired" } else { "" },
+            format!(
+                "[{}] secret_leak finding present        {}",
+                if tripped { "X" } else { " " },
+                if tripped { "FIRED" } else { "pass" }
+            ),
+        ));
+    }
+    // 3. coherence_score < 0.3
+    {
+        let score_str = coherence_score
+            .map(|v| format!("{v:.2}"))
+            .unwrap_or_else(|| "n/a".to_string());
+        let tripped = coherence_score.is_some_and(|v| v < 0.3);
+        rows.push((
+            if tripped { "fired" } else { "" },
+            format!(
+                "[{}] coherence_score < 0.3  coherence={}  {}",
+                if tripped { "X" } else { " " },
+                score_str,
+                if tripped { "FIRED" } else { "pass" }
+            ),
+        ));
+    }
+    // 4. debate_rounds >= 5
+    {
+        let rounds_str = debate_rounds
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "n/a".to_string());
+        let tripped = debate_rounds.is_some_and(|v| v >= 5);
+        rows.push((
+            if tripped { "fired" } else { "" },
+            format!(
+                "[{}] debate_rounds >= 5  rounds={}  {}",
+                if tripped { "X" } else { " " },
+                rounds_str,
+                if tripped { "FIRED" } else { "pass" }
+            ),
+        ));
+    }
+    // 5. explicit halt — there's no numeric value to show; the
+    //    operator either pressed the button or didn't.
+    {
+        let explicit = decisions.iter().any(|d| {
+            d.payload
+                .get("assessment")
+                .and_then(|a| a.get("explicit_halt"))
+                .and_then(|v| v.as_bool())
+                .unwrap_or_else(|| {
+                    d.payload
+                        .get("explicit_halt")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false)
+                })
+        });
+        let tripped = explicit;
+        rows.push((
+            if tripped { "fired" } else { "" },
+            format!(
+                "[{}] explicit_halt requested         {}",
+                if tripped { "X" } else { " " },
+                if tripped { "FIRED" } else { "pass" }
+            ),
+        ));
+    }
+
+    rows
+}
+
+/// Pull the live BAAAR inputs from the FraudAuditor's decision
+/// payload. `None` fields mean "absent" — they're rendered as `n/a`
+/// in the matrix instead of zero, so the judge can see what's
+/// missing.
+fn extract_assessment(
+    decisions: &[AgentDecision],
+) -> (Option<f32>, Option<f32>, Option<u32>, bool) {
+    // Prefer the FraudAuditor's decision; fall back to any decision
+    // that has an `assessment` block.
+    let payload = decisions
+        .iter()
+        .find(|d| d.agent_id == "fraud_auditor")
+        .map(|d| &d.payload)
+        .or_else(|| {
+            decisions
+                .iter()
+                .find(|d| d.payload.get("assessment").is_some())
+                .map(|d| &d.payload)
+        });
+
+    let Some(payload) = payload else {
+        return (None, None, None, false);
+    };
+
+    let inner = payload.get("assessment").unwrap_or(payload);
+    let risk_score = inner.get("risk_score").and_then(|v| v.as_f64()).map(|v| v as f32);
+    let coherence_score = inner
+        .get("coherence_score")
+        .and_then(|v| v.as_f64())
+        .map(|v| v as f32);
+    let debate_rounds = inner.get("debate_rounds").and_then(|v| v.as_u64()).map(|v| v as u32);
+    let has_secret = inner
+        .get("findings")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter().any(|item| {
+                item.get("kind")
+                    .and_then(|k| k.as_str())
+                    .is_some_and(|s| s == "secret_leak")
+            })
+        })
+        .unwrap_or(false);
+
+    (risk_score, coherence_score, debate_rounds, has_secret)
 }
 
 #[cfg(test)]
