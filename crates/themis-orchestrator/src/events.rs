@@ -9,6 +9,14 @@ use serde::Serialize;
 use tokio::sync::broadcast;
 use uuid::Uuid;
 
+// Re-export the mock EU AI Act Article 49 registration id so
+// downstream crates (and the SealedPacket producer in C-10) can
+// reference the same constant the Art 50 banner advertises.
+// Kept here to avoid a reverse dependency from events.rs into
+// themis-frontend (frontend is a leaf crate, orchestrator pulls
+// it in).
+pub use themis_frontend::art50_banner::EU_REGISTRATION_ID;
+
 /// Domain events the orchestrator emits. Each is JSON-serialized
 /// for SSE.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -177,6 +185,29 @@ pub enum Event {
         /// `"Qwen/Qwen3-Coder-30B-A3B-Instruct"`).
         featherless: String,
     },
+    /// EU AI Act Article 50 transparency disclosure. Mandatory
+    /// from 2-aug-2026 with no delay (Omnibus excluded). The
+    /// orchestrator emits this as the FIRST prelude event on
+    /// every new SSE connection so the regulator / judge sees
+    /// the AI disclosure before any agent output. Carries the
+    /// full banner HTML (gold-on-navy per the THEMIS palette)
+    /// and the Article 49 mock EU registration id. Closes
+    /// gaps G01 (Art 50 transparency) and G02 (Art 49 EU
+    /// database).
+    AiDisclosure {
+        /// The run id (defaults to Nil UUID for the connection-level
+        /// disclosure).
+        run_id: Uuid,
+        /// Full banner HTML, inline-CSS, THEMIS palette.
+        banner_html: String,
+        /// EU AI Act Article 49 mock registration id (the EU
+        /// database opens 2027-12-02; until then the mock id
+        /// `EU-AI-ACT-2026-THEMIS-MOCK` is embedded in every
+        /// Evidence Packet + C2PA manifest).
+        eu_registration_id: String,
+        /// UTC timestamp at which the disclosure was emitted.
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
 }
 
 /// Sponsor stack labels carried by `AppState` and embedded in
@@ -219,6 +250,7 @@ impl Event {
             Event::AgentHandoff { .. } => "agent_handoff",
             Event::IncidentReported { .. } => "incident_reported",
             Event::SponsorStack { .. } => "sponsor_stack",
+            Event::AiDisclosure { .. } => "ai_disclosure",
         }
     }
 }

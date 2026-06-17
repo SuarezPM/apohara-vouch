@@ -9,6 +9,12 @@
 
 #![warn(missing_docs)]
 
+/// EU AI Act Article 50 banner + Article 49 mock EU registration
+/// id. The banner is rendered as the first SSE event on every
+/// connection so the regulator / judge sees the AI disclosure
+/// before any agent output.
+pub mod art50_banner;
+
 /// Crate version + name.
 pub fn version() -> &'static str {
     "themis-frontend"

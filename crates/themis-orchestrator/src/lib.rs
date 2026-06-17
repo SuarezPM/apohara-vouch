@@ -31,6 +31,7 @@ pub fn version() -> &'static str {
     "themis-orchestrator"
 }
 
+pub mod art50;
 pub mod events;
 pub mod featherless_openclaw;
 pub mod fixtures;
