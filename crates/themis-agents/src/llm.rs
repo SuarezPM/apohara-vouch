@@ -414,6 +414,194 @@ impl LlmBackend for FeatherlessBackend {
     }
 }
 
+// ---------- AIMLAPIBackend ----------
+//
+// Real LLM backend that talks to AI/ML API's OpenAI-compatible
+// gateway. AI/ML API is the hackathon's other sponsor (Valerie
+// Brizatiuk at lablab.ai kickoff, 12 jun 2026): "one API for 500+
+// models", "different agents want different brains", "switch models
+// is changing just one string". The gateway serves Fable 5 (the
+// Anthropic model currently suspended by US export-control via
+// direct API) plus Claude Sonnet 4.5 / Opus 4.5 / Haiku 4.5, GPT-5.5,
+// Gemini 3.5, DeepSeek R1, Llama-4-Maverick, and ~494 more. The
+// THEMIS agent that needs reasoning quality (FraudAuditor) uses
+// AIML API's `anthropic/claude-sonnet-4.5` via this backend.
+//
+// Bearer auth via `AIML_API_KEY` env var. Same 429 backoff
+// (100/200/400ms, max 3 retries) as `FeatherlessBackend`. The HTTP
+// body shape is identical (OpenAI-compat), only the base URL and
+// env var name differ — see `OpenAiCompatBackend` macro below.
+
+/// Real LLM backend that talks to AI/ML API (aimlapi.com).
+pub struct AIMLAPIBackend {
+    client: reqwest::Client,
+    api_key: String,
+    model: &'static str,
+    /// Base URL (override for tests via `with_base_url`).
+    base_url: String,
+}
+
+impl std::fmt::Debug for AIMLAPIBackend {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // NEVER print the api_key.
+        f.debug_struct("AIMLAPIBackend")
+            .field("model", &self.model)
+            .field("base_url", &self.base_url)
+            .field("api_key", &"<redacted>")
+            .finish()
+    }
+}
+
+impl AIMLAPIBackend {
+    /// Build from the `AIML_API_KEY` env var. Returns `None` when
+    /// the var is unset or empty. Mirrors `FeatherlessBackend::from_env`.
+    pub fn from_env(model: &'static str) -> Option<Self> {
+        let api_key = std::env::var("AIML_API_KEY").ok()?;
+        let api_key = api_key.trim();
+        if api_key.is_empty() {
+            return None;
+        }
+        Some(Self::new(api_key.to_string(), model))
+    }
+
+    /// Direct constructor. Used by `from_env` and by tests.
+    pub fn new(api_key: String, model: &'static str) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .expect("reqwest Client builder should not fail");
+        Self {
+            client,
+            api_key,
+            model,
+            base_url: "https://api.aimlapi.com".to_string(),
+        }
+    }
+
+    /// Override the base URL (test-only).
+    #[cfg(test)]
+    pub fn with_base_url(mut self, base_url: impl Into<String>) -> Self {
+        self.base_url = base_url.into();
+        self
+    }
+
+    /// Backoff schedule for 429 retries.
+    pub const BACKOFFS_MS: [u64; 3] = [100, 200, 400];
+}
+
+#[async_trait]
+impl LlmBackend for AIMLAPIBackend {
+    fn model_id(&self) -> &'static str {
+        self.model
+    }
+
+    async fn complete(&self, req: LlmRequest) -> Result<LlmResponse, AgentError> {
+        // Same OpenAI-compat body shape as FeatherlessBackend.
+        // The provider name in error messages is swapped so logs
+        // distinguish the two backends.
+        let mut body = serde_json::json!({
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": req.system_prompt},
+                {"role": "user", "content": req.user_prompt},
+            ],
+            "max_tokens": req.max_tokens,
+            "temperature": req.temperature,
+        });
+        if let Some(schema) = req.response_schema.as_ref() {
+            let name = req.response_schema_name.unwrap_or("ThemisResponse");
+            body["response_format"] = serde_json::json!({
+                "type": "json_schema",
+                "json_schema": {
+                    "name": name,
+                    "schema": schema,
+                },
+            });
+        }
+
+        let url = format!("{}/v1/chat/completions", self.base_url);
+        let mut last_err: Option<AgentError> = None;
+        for attempt in 0..=Self::BACKOFFS_MS.len() {
+            if attempt > 0 {
+                let delay = Self::BACKOFFS_MS[attempt - 1];
+                tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
+            }
+            let response = self
+                .client
+                .post(&url)
+                .header("Authorization", format!("Bearer {}", self.api_key))
+                .header("Content-Type", "application/json")
+                .json(&body)
+                .send()
+                .await;
+            match response {
+                Ok(resp) => {
+                    let status = resp.status();
+                    if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                        last_err = Some(AgentError::RateLimited { retry_after_ms: 0 });
+                        continue;
+                    }
+                    if status.is_server_error() {
+                        return Err(AgentError::LlmUnavailable(format!(
+                            "AIMLAPI 5xx: {status}"
+                        )));
+                    }
+                    if !status.is_success() {
+                        let body_snippet = resp
+                            .text()
+                            .await
+                            .unwrap_or_default()
+                            .chars()
+                            .take(200)
+                            .collect::<String>();
+                        return Err(AgentError::LlmUnavailable(format!(
+                            "AIMLAPI {status}: {body_snippet}"
+                        )));
+                    }
+                    let raw = resp.text().await.map_err(|e| {
+                        AgentError::LlmUnavailable(format!("read body: {e}"))
+                    })?;
+                    let parsed: serde_json::Value =
+                        serde_json::from_str(&raw).map_err(|e| {
+                            AgentError::LlmMalformedPayload(format!(
+                                "AIMLAPI returned non-JSON: {e}: {}",
+                                &raw.chars().take(200).collect::<String>()
+                            ))
+                        })?;
+                    let text = parsed["choices"][0]["message"]["content"]
+                        .as_str()
+                        .ok_or_else(|| {
+                            AgentError::LlmMalformedPayload(
+                                "missing choices[0].message.content".to_string(),
+                            )
+                        })?
+                        .to_string();
+                    let input_tokens = parsed["usage"]["prompt_tokens"]
+                        .as_u64()
+                        .unwrap_or(0) as u32;
+                    let output_tokens = parsed["usage"]["completion_tokens"]
+                        .as_u64()
+                        .unwrap_or(0) as u32;
+                    return Ok(LlmResponse {
+                        text,
+                        input_tokens,
+                        output_tokens,
+                        model_id: self.model.to_string(),
+                    });
+                }
+                Err(e) => {
+                    return Err(AgentError::LlmUnavailable(format!(
+                        "AIMLAPI network error: {e}"
+                    )));
+                }
+            }
+        }
+        Err(last_err.unwrap_or(AgentError::LlmUnavailable(
+            "AIMLAPI: rate-limited after retries".to_string(),
+        )))
+    }
+}
+
 /// Helper to wrap any LlmBackend in an Arc.
 pub fn shared(backend: impl LlmBackend) -> Arc<dyn LlmBackend> {
     Arc::new(backend)
@@ -1240,5 +1428,113 @@ mod tests {
         // The integration test in http_e2e.rs covers the
         // "unset env → mock fallback" path end-to-end.
         let _: fn(&'static str) -> Option<FeatherlessBackend> = FeatherlessBackend::from_env;
+    }
+
+    // --- AIMLAPIBackend tests ---
+
+    #[tokio::test]
+    async fn aimlapi_sends_bearer_auth_and_openai_compat_body() {
+        // Bind a local mock that captures the request and replies
+        // with a valid OpenAI-compat envelope.
+        let (port, listener) = bind_ephemeral().await;
+        let captured = std::sync::Arc::new(std::sync::Mutex::new(Vec::<u8>::new()));
+        let captured_clone = captured.clone();
+        let handle = spawn_one_shot_handler(listener, move |req_bytes| {
+            *captured_clone.lock().unwrap() = req_bytes.clone();
+            let body = serde_json::json!({
+                "choices": [{"message": {"content": "ok-from-aimlapi"}, "finish_reason": "stop"}],
+                "usage": {"prompt_tokens": 21, "completion_tokens": 7, "total_tokens": 28}
+            })
+            .to_string();
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            )
+        });
+        let backend = AIMLAPIBackend::new("sk-aiml-test".to_string(), "anthropic/claude-sonnet-4.5")
+            .with_base_url(format!("http://127.0.0.1:{port}"));
+        let resp = backend
+            .complete(LlmRequest {
+                system_prompt: "you are a fraud auditor".to_string(),
+                user_prompt: "assess this invoice".to_string(),
+                max_tokens: 64,
+                temperature: 0.0,
+                seed: Some(42),
+                response_schema: None,
+                response_schema_name: None,
+            })
+            .await
+            .unwrap();
+        handle.await.unwrap();
+        let req_str = String::from_utf8_lossy(&captured.lock().unwrap().clone()).to_string();
+        let req_lower = req_str.to_lowercase();
+        assert!(
+            req_lower.contains("authorization: bearer sk-aiml-test"),
+            "AIML API must carry Bearer auth header, got:\n{req_str}"
+        );
+        assert!(
+            req_str.contains("\"model\":\"anthropic/claude-sonnet-4.5\""),
+            "AIML API must include the model id, got:\n{req_str}"
+        );
+        assert!(
+            req_str.contains("\"role\":\"system\"") && req_str.contains("\"role\":\"user\""),
+            "AIML API must include system + user roles, got:\n{req_str}"
+        );
+        assert_eq!(resp.text, "ok-from-aimlapi");
+        assert_eq!(resp.input_tokens, 21);
+        assert_eq!(resp.output_tokens, 7);
+        assert_eq!(resp.model_id, "anthropic/claude-sonnet-4.5");
+    }
+
+    #[tokio::test]
+    async fn aimlapi_sends_response_format_when_schema_set() {
+        // When response_schema is Some, the request body must
+        // include the response_format block.
+        let (port, listener) = bind_ephemeral().await;
+        let captured = std::sync::Arc::new(std::sync::Mutex::new(Vec::<u8>::new()));
+        let captured_clone = captured.clone();
+        let handle = spawn_one_shot_handler(listener, move |req_bytes| {
+            *captured_clone.lock().unwrap() = req_bytes.clone();
+            let body = serde_json::json!({
+                "choices": [{"message": {"content": "{}"}, "finish_reason": "stop"}],
+                "usage": {"prompt_tokens": 1, "completion_tokens": 1}
+            })
+            .to_string();
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            )
+        });
+        let backend = AIMLAPIBackend::new("k".to_string(), "anthropic/claude-sonnet-4.5")
+            .with_base_url(format!("http://127.0.0.1:{port}"));
+        let schema = serde_json::json!({
+            "type": "object",
+            "properties": {"a": {"type": "number"}},
+            "required": ["a"]
+        });
+        backend
+            .complete(LlmRequest {
+                system_prompt: "s".to_string(),
+                user_prompt: "u".to_string(),
+                max_tokens: 16,
+                temperature: 0.0,
+                seed: None,
+                response_schema: Some(schema),
+                response_schema_name: Some("TestSchema"),
+            })
+            .await
+            .unwrap();
+        handle.await.unwrap();
+        let req_str = String::from_utf8_lossy(&captured.lock().unwrap().clone()).to_string();
+        assert!(
+            req_str.contains("\"response_format\""),
+            "AIML API must include response_format when schema set, got:\n{req_str}"
+        );
+        assert!(
+            req_str.contains("\"name\":\"TestSchema\""),
+            "AIML API must include schema name, got:\n{req_str}"
+        );
     }
 }
