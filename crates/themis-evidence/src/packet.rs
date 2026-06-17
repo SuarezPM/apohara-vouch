@@ -47,6 +47,12 @@ pub struct SealedPacket {
     /// understands DSSE.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dsse_envelope: Option<DsseEnvelope>,
+    /// Rekor v2 transparency-log entry (anchoring the BLAKE3
+    /// hash to a public tamper-evident log). `None` if no anchor
+    /// was performed at seal time (the demo gracefully degrades
+    /// when Rekor is not configured).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rekor_entry: Option<crate::rekor::RekorEntry>,
 }
 
 /// DSSE envelope over the canonical JSON payload.
@@ -190,7 +196,12 @@ impl EvidenceService {
     /// Seal a payload: serialize → hash → sign → append to chain →
     /// request timestamp → return SealedPacket. Async because the
     /// TSA call is async.
-    pub async fn seal(&mut self, invoice_id: &str, payload: &str) -> Result<SealedPacket, EvError> {
+    pub async fn seal(
+        &mut self,
+        invoice_id: &str,
+        payload: &str,
+        rekor_entry: Option<crate::rekor::RekorEntry>,
+    ) -> Result<SealedPacket, EvError> {
         // 1. Serialize the payload (the "canonical JSON" for the
         //    demo is just serde_json; production would use a
         //    canonical-JSON crate for cross-platform determinism).
@@ -264,6 +275,7 @@ impl EvidenceService {
             timestamp,
             chain_length: self.chain.len() as u64,
             dsse_envelope: Some(dsse_envelope),
+            rekor_entry,
         })
     }
 
@@ -334,7 +346,7 @@ mod tests {
     #[tokio::test]
     async fn round_trip_seal_and_verify() {
         let mut svc = EvidenceService::from_seed("stark", [1u8; 32], tsa());
-        let packet = svc.seal("inv-001", "hello world").await.unwrap();
+        let packet = svc.seal("inv-001", "hello world", None).await.unwrap();
         assert_eq!(packet.tenant_id, "stark");
         assert_eq!(packet.invoice_id, "inv-001");
         let res = svc.verify(&packet);
@@ -348,8 +360,8 @@ mod tests {
     async fn two_tenants_seal_independently() {
         let mut stark = EvidenceService::from_seed("stark", [1u8; 32], tsa());
         let mut wayne = EvidenceService::from_seed("wayne", [2u8; 32], tsa());
-        let sp = stark.seal("inv-001", "from stark").await.unwrap();
-        let wp = wayne.seal("inv-001", "from wayne").await.unwrap();
+        let sp = stark.seal("inv-001", "from stark", None).await.unwrap();
+        let wp = wayne.seal("inv-001", "from wayne", None).await.unwrap();
         assert_ne!(sp.public_key_hex, wp.public_key_hex);
         assert!(stark.verify(&sp).is_ok());
         assert!(wayne.verify(&wp).is_ok());
@@ -362,7 +374,7 @@ mod tests {
     #[tokio::test]
     async fn tampered_payload_fails_verify() {
         let mut svc = EvidenceService::from_seed("stark", [1u8; 32], tsa());
-        let mut packet = svc.seal("inv-001", "hello").await.unwrap();
+        let mut packet = svc.seal("inv-001", "hello", None).await.unwrap();
         // Mutate the canonical JSON (the payload itself).
         packet.payload_canonical_json = b"\"TAMPERED\"".to_vec();
         let err = svc.verify(&packet).unwrap_err();
@@ -372,7 +384,7 @@ mod tests {
     #[tokio::test]
     async fn tampered_signature_fails_verify() {
         let mut svc = EvidenceService::from_seed("stark", [1u8; 32], tsa());
-        let mut packet = svc.seal("inv-001", "hello").await.unwrap();
+        let mut packet = svc.seal("inv-001", "hello", None).await.unwrap();
         // Flip a hex char in the signature.
         let mut sig = packet.signature_hex;
         // safe char flip
@@ -386,9 +398,9 @@ mod tests {
     #[tokio::test]
     async fn chain_length_grows_with_each_seal() {
         let mut svc = EvidenceService::from_seed("stark", [1u8; 32], tsa());
-        let p1 = svc.seal("inv-001", "a").await.unwrap();
-        let p2 = svc.seal("inv-002", "b").await.unwrap();
-        let p3 = svc.seal("inv-003", "c").await.unwrap();
+        let p1 = svc.seal("inv-001", "a", None).await.unwrap();
+        let p2 = svc.seal("inv-002", "b", None).await.unwrap();
+        let p3 = svc.seal("inv-003", "c", None).await.unwrap();
         assert_eq!(p1.chain_length, 1);
         assert_eq!(p2.chain_length, 2);
         assert_eq!(p3.chain_length, 3);
@@ -398,7 +410,37 @@ mod tests {
     #[tokio::test]
     async fn blank_payload_works() {
         let mut svc = EvidenceService::from_seed("stark", [1u8; 32], tsa());
-        let packet = svc.seal("inv-001", "").await.unwrap();
+        let packet = svc.seal("inv-001", "", None).await.unwrap();
         assert!(svc.verify(&packet).is_ok());
+    }
+
+    #[tokio::test]
+    async fn sealed_packet_carries_rekor_entry_when_provided() {
+        use crate::rekor::{MockRekorClient, RekorClient};
+        let mut svc = EvidenceService::from_seed("stark", [1u8; 32], tsa());
+        let rekor = MockRekorClient::new();
+        // Seal once to learn the BLAKE3 hash, then anchor that
+        // hash, then seal again to carry the entry. The hash is
+        // derived from the payload, so we have to know the
+        // payload's hash up front — we approximate by sealing
+        // a first time, but for the test we just anchor the
+        // hash of a fixed payload string.
+        let payload = "hello world";
+        let hash_hex = blake3::hash(payload.as_bytes()).to_hex().to_string();
+        let entry = rekor.anchor(&hash_hex, "stark").await.unwrap();
+        let packet = svc.seal("inv-001", payload, Some(entry.clone())).await.unwrap();
+        let carried = packet
+            .rekor_entry
+            .expect("rekor_entry should be carried when Some");
+        assert_eq!(carried.uuid, entry.uuid);
+        assert_eq!(carried.log_index, entry.log_index);
+        assert_eq!(carried.bundle_url, entry.bundle_url);
+    }
+
+    #[tokio::test]
+    async fn sealed_packet_rekor_entry_is_none_by_default() {
+        let mut svc = EvidenceService::from_seed("stark", [1u8; 32], tsa());
+        let packet = svc.seal("inv-001", "hello world", None).await.unwrap();
+        assert!(packet.rekor_entry.is_none());
     }
 }

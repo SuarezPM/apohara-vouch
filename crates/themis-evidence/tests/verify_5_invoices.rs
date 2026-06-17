@@ -82,7 +82,7 @@ async fn seal_fixture(tenant: &str, seed: [u8; 32], invoice_id: &str) -> SealedP
         r#"{{"invoice_id":"{}","tenant":"{}","vendor":"ACME","amount_cents":1000,"po_ref":"PO-1"}}"#,
         invoice_id, tenant
     );
-    svc.seal(invoice_id, &payload).await.expect("seal")
+    svc.seal(invoice_id, &payload, None).await.expect("seal")
 }
 
 fn run_verify(packet_path: &PathBuf, sig_path: &PathBuf) -> std::process::Output {

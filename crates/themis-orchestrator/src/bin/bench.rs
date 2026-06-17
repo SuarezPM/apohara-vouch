@@ -185,7 +185,7 @@ async fn run() {
         };
         let mut svc = EvidenceService::from_seed(&f.tenant_id, seed, tsa);
         let payload = serde_json::to_string(&f.extracted).unwrap();
-        let sealed = svc.seal(&f.invoice_id, &payload).await.unwrap();
+        let sealed = svc.seal(&f.invoice_id, &payload, None).await.unwrap();
         let tmp = std::env::temp_dir().join(format!("bench-{}.json", f.invoice_id));
         let json = serde_json::to_string(&sealed).unwrap();
         std::fs::write(&tmp, json).unwrap();

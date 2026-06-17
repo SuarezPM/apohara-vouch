@@ -130,6 +130,15 @@ fn main() -> ExitCode {
                 packet.timestamp.time, packet.timestamp.accuracy_ms
             );
             println!("  chain_length:  {}", packet.chain_length);
+            match &packet.rekor_entry {
+                Some(entry) => {
+                    println!("  rekor:         {} @ log_index={}", entry.uuid, entry.log_index);
+                    println!("  rekor_url:     {}", entry.bundle_url);
+                }
+                None => {
+                    println!("  rekor:         not anchored");
+                }
+            }
             ExitCode::SUCCESS
         }
         Err(e) => {

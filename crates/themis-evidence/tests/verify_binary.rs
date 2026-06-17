@@ -19,7 +19,7 @@ fn tsa() -> std::sync::Arc<dyn themis_evidence::timestamp::TimestampAuthority> {
 async fn themis_verify_binary_accepts_a_valid_packet() {
     let tmp = TempDir::new().unwrap();
     let mut svc = EvidenceService::from_seed("stark", [1u8; 32], tsa());
-    let packet = svc.seal("inv-001", "hello world").await.unwrap();
+    let packet = svc.seal("inv-001", "hello world", None).await.unwrap();
 
     // Write the packet to disk.
     let packet_path = tmp.path().join("packet.json");
@@ -72,7 +72,7 @@ fn themis_verify_binary_rejects_tampered_packet() {
         .build()
         .unwrap();
     let mut svc = EvidenceService::from_seed("stark", [1u8; 32], tsa());
-    let mut packet: SealedPacket = rt.block_on(async { svc.seal("inv-001", "x").await.unwrap() });
+    let mut packet: SealedPacket = rt.block_on(async { svc.seal("inv-001", "x", None).await.unwrap() });
     // Tamper the payload.
     packet.payload_canonical_json = b"\"TAMPERED\"".to_vec();
 

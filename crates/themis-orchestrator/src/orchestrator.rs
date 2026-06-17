@@ -461,7 +461,7 @@ impl Orchestrator {
             OrchestratorError::Evidence(format!("no evidence service for tenant {tenant_id}"))
         })?;
         let sealed = svc
-            .seal(invoice_id, &payload)
+            .seal(invoice_id, &payload, None)
             .await
             .map_err(|e| OrchestratorError::Evidence(format!("seal: {e}")))?;
         Ok((signed, Some(sealed)))
