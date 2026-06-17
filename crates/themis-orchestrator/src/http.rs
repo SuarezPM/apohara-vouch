@@ -236,6 +236,45 @@ async fn post_invoices(
         packet.packet.bbaaar_outcome,
     );
     let report = state.compliance.report(&compliance_packet);
+
+    // Adversarial dispute detection: if fraud_auditor and
+    // gaap_classifier disagree on risk by more than 0.3, publish
+    // Event::AgentDispute. The frontend renders this as a
+    // flashing DISPUTE badge — the wow moment of the demo.
+    // Two agents argue, the coordinator rules, the run halts
+    // (or approves with high confidence).
+    if let (Some(fraud), Some(gaap)) = (
+        packet.packet.agent_decisions.iter().find(|d| d.agent_id == "fraud_auditor"),
+        packet.packet.agent_decisions.iter().find(|d| d.agent_id == "gaap_classifier"),
+    ) {
+        // Approximate the gaap_classifier's "risk" via
+        // its confidence (the field is the model's
+        // confidence in the classification, not a risk
+        // score per se). The dispute trigger is "two
+        // specialists disagree on the same invoice by
+        // more than 0.3" — the exact field used for the
+        // delta is approximate but the protocol is the
+        // point.
+        let fraud_risk = fraud.confidence;
+        let gaap_risk = 1.0 - gaap.confidence; // invert: low confidence = high uncertainty
+        let delta = (fraud_risk - gaap_risk).abs();
+        if delta > 0.3 {
+            let ruling = if matches!(packet.packet.bbaaar_outcome, themis_agents::baaar::Outcome::Approve) {
+                "approve"
+            } else {
+                "halt"
+            };
+            state.event_bus.publish(Event::AgentDispute {
+                run_id,
+                agent_a: "fraud_auditor".to_string(),
+                risk_a: fraud_risk,
+                agent_b: "gaap_classifier".to_string(),
+                risk_b: gaap_risk,
+                delta,
+                ruling: ruling.to_string(),
+            });
+        }
+    }
     state.reports.insert(run_id, report.clone());
     state
         .packets

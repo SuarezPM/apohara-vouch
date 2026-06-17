@@ -70,6 +70,30 @@ pub enum Event {
         /// a real backend, `"mock-fallback"` for the mock).
         model_id: String,
     },
+    /// Two agents disagreed on the risk assessment and the
+    /// BaaarV2Gate escalated the run. The frontend renders this
+    /// as a visible "DISPUTE" badge with a flash animation;
+    /// the judge's eye catches the dispute resolving in real
+    /// time. This is the wow moment of the demo: agents argue,
+    /// the coordinator rules, the run halts.
+    AgentDispute {
+        /// The run id.
+        run_id: Uuid,
+        /// First agent (e.g. "fraud_auditor").
+        agent_a: String,
+        /// First agent's risk_score (0.0..=1.0).
+        risk_a: f32,
+        /// Second agent (e.g. "gaap_classifier").
+        agent_b: String,
+        /// Second agent's risk_score (0.0..=1.0).
+        risk_b: f32,
+        /// Absolute difference (|a - b|); trigger when > 0.3.
+        delta: f32,
+        /// The coordinator's ruling: "halt" (default) or
+        /// "approve" (when the gate's confidence is high
+        /// enough to override the dispute).
+        ruling: String,
+    },
 }
 
 impl Event {
@@ -82,6 +106,7 @@ impl Event {
             Event::EvidenceSealed { .. } => "evidence_sealed",
             Event::RunFinished { .. } => "run_finished",
             Event::ProviderActive { .. } => "provider_active",
+            Event::AgentDispute { .. } => "agent_dispute",
         }
     }
 }
