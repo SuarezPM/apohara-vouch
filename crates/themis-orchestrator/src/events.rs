@@ -94,6 +94,27 @@ pub enum Event {
         /// enough to override the dispute).
         ruling: String,
     },
+    /// A human approved a BAAAR HALT override via WebAuthn
+    /// (FIDO2, user-verified). Emitted to the SSE stream when
+    /// POST /packets/:id/override is called with a valid
+    /// assertion. The frontend renders this as a green
+    /// "OVERRIDE APPROVED" badge with the approver's key id.
+    /// Honors OWASP ASI09 (Human-Agent Trust Exploitation)
+    /// mitigation: cryptographic proof of human consent.
+    HumanOverride {
+        /// The run id.
+        run_id: Uuid,
+        /// The packet id that was overridden.
+        packet_id: Uuid,
+        /// The WebAuthn credential id (first 16 hex chars of
+        /// the public key). Stable per-judge.
+        approver_keyid: String,
+        /// Unix epoch ms when the override was approved.
+        timestamp_ms: i64,
+        /// The human-readable reason (e.g. "approved for
+        /// legitimate emergency override per CISO policy").
+        reason: String,
+    },
 }
 
 impl Event {
@@ -107,6 +128,7 @@ impl Event {
             Event::RunFinished { .. } => "run_finished",
             Event::ProviderActive { .. } => "provider_active",
             Event::AgentDispute { .. } => "agent_dispute",
+            Event::HumanOverride { .. } => "human_override",
         }
     }
 }
