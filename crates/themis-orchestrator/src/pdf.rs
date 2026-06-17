@@ -405,9 +405,9 @@ pub fn render_packet_pdf(packet: &SignedPacket) -> Result<Vec<u8>, PdfError> {
     );
     y2 -= line_h2;
 
-    // Mirror the same 26 field names the frontend renders (US-04).
-    // All APPROVED packets have 26/26 populated. HALT packets still
-    // emit 26 names with [x] markers — the framework_mappings booleans
+    // Mirror the same 30 field names the frontend renders (US-04).
+    // All APPROVED packets have 30/30 populated. HALT packets still
+    // emit 30 names with [x] markers — the framework_mappings booleans
     // are set on every packet; HALT only changes the DORA art_17 value.
     let fm = &packet.packet.framework_mappings;
 
@@ -451,8 +451,23 @@ pub fn render_packet_pdf(packet: &SignedPacket) -> Result<Vec<u8>, PdfError> {
                 "ASI10_rogue_agents",
             ],
         ),
+        (
+            "ISO/IEC 42001:2023 - AIMS Clauses 6.1/8.4/9.1/10.2:",
+            &[
+                "clause_6_1_risk_assessment",
+                "clause_8_4_impact_assessment",
+                "clause_9_1_monitoring_measurement",
+                "clause_10_2_continual_improvement",
+            ],
+        ),
     ];
-    let flags = [fm.dora_art_9, fm.eu_ai_act_art_12, fm.nist_ai_rmf, fm.owasp_agentic];
+    let flags = [
+        fm.dora_art_9,
+        fm.eu_ai_act_art_12,
+        fm.nist_ai_rmf,
+        fm.owasp_agentic,
+        true, // ISO 42001 is always populated by the mapper (4/4 structural fields)
+    ];
     for ((header, names), &populated) in FRAMEWORK_SECTIONS.iter().zip(flags.iter()) {
         write_line(&layer2, header, 20.0, y2, 10.0, true);
         y2 -= line_h2;

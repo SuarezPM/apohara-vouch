@@ -4,7 +4,7 @@ use serde::Serialize;
 use themis_agents::baaar::Outcome;
 use themis_agents::decision::AgentDecision;
 
-/// The 4 regulatory frameworks THEMIS maps an Evidence Packet against.
+/// The 5 regulatory frameworks THEMIS maps an Evidence Packet against.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Framework {
@@ -16,6 +16,9 @@ pub enum Framework {
     NistAiRmf,
     /// OWASP Agentic 2026 (ASI01–ASI10).
     OwaspAgentic,
+    /// ISO/IEC 42001:2023 — AI Management System (AIMS).
+    #[serde(rename = "iso_42001")]
+    Iso42001,
 }
 
 impl Framework {
@@ -26,6 +29,7 @@ impl Framework {
             Framework::EuAiAct => "eu_ai_act",
             Framework::NistAiRmf => "nist_ai_rmf",
             Framework::OwaspAgentic => "owasp_agentic",
+            Framework::Iso42001 => "iso_42001",
         }
     }
 }
@@ -134,6 +138,7 @@ mod tests {
         assert_eq!(Framework::EuAiAct.as_str(), "eu_ai_act");
         assert_eq!(Framework::NistAiRmf.as_str(), "nist_ai_rmf");
         assert_eq!(Framework::OwaspAgentic.as_str(), "owasp_agentic");
+        assert_eq!(Framework::Iso42001.as_str(), "iso_42001");
     }
 
     #[test]

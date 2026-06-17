@@ -1,12 +1,14 @@
 //! themis-compliance — DORA + EU AI Act + NIST AI RMF + OWASP Agentic 2026
-//! mappers on the Evidence Packet. Closes AC8 (5 frameworks mapped) +
-//! AC15 (EU AI Act Art 12 ≥7/8 fields populated; we ship 8/8).
+//! + ISO/IEC 42001:2023 mappers on the Evidence Packet. Closes AC8
+//!   (6 frameworks mapped) + AC15 (EU AI Act Art 12 ≥7/8 fields
+//!   populated; we ship 8/8).
 
 #![warn(missing_docs)]
 
 pub mod dora;
 pub mod eu_ai_act;
 pub mod framework;
+pub mod iso_42001;
 pub mod nist_ai_rmf;
 pub mod owasp_agentic;
 pub mod service;

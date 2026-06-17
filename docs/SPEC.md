@@ -1,7 +1,7 @@
 # THEMIS Specification
 
-**Last updated:** 2026-06-15 · post-US-01..US-05 sync.
-**Status:** Demo-ready. 4 days to submission (2026-06-19).
+**Last updated:** 2026-06-17 · post-ISO-42001 + threat model.
+**Status:** Demo-ready. 2 days to submission (2026-06-19).
 
 ## 1. What this is
 
@@ -77,6 +77,7 @@ Total: -1534 LOC.
 | AC16 OWASP Agentic 2026 | ✅ | 3/10 mitigated, 7/10 not_assessed |
 | AC17 DORA Art. 17 | ✅ | dora.rs populates the framework |
 | AC18 NIST AI RMF | ✅ | nist_ai_rmf.rs populates govern/map/measure/manage |
+| AC19 ISO 42001:2023 AIMS | ✅ | iso_42001.rs populates 4 clauses (6.1/8.4/9.1/10.2); 30/30 fields |
 
 ## 5. What's NOT in the demo (post-hackathon backlog)
 
@@ -105,6 +106,29 @@ Total: -1534 LOC.
 - **13 high + 17 medium + 18 low + 12 nit** audit findings deferred
   per .omc/autopilot/findings.md (out of scope for the 1-day sprint
   after criticals + quick wins landed).
+- **Heterogeneous multi-agent backend routing** (vNext report §2.1
+  / §8.1). 3 different model lineages (Qwen3-Coder-30B, Llama-3.3-70B,
+  Qwen3-30B) per agent role for adversarial robustness. Deferred:
+  needs multi-model test infrastructure + live sponsor credits;
+  current `FeatherlessBackend` already provides the routing
+  surface, the per-agent dispatch is a 1-PR change.
+- **`BaaarV2Gate` with SAC weighted consensus** (vNext report §2.1
+  / §8.2). Backward-compatible extension to `BaaarGate` adding
+  per-agent confidence weights. Deferred: AC11 is already 10/10
+  deterministic; SAC is a post-hackathon research question with
+  no clear correctness criterion for the current 5-fixture set.
+- **`CompressionBackend<B: LlmBackend>` for shadow agents**
+  (vNext report §5.1). LLMLingua-2 port wrap on
+  DemoNarrator + AuditWatchdog. Deferred: explicitly staged in
+  `docs/US-05-measurement-gate.md`; shadow-agent prompts are
+  small (no measurable token gain); binary size impact.
+- **Local MI300X endpoint** (vNext report §3.2 / §6). `THEMIS_LLM_ENDPOINT`
+  env var pointing to a self-hosted vLLM Qwen3-235B-A22B
+  instance. Deferred: no MI300X hardware in the demo environment.
+- **`sigstore-verify 0.8` migration** (vNext report §6). Replaces
+  the `cosign` shell-out with embedded trust root. Deferred:
+  ~250 LOC migration with binary bloat risk; current
+  `CosignRekorClient` is a working mock for the demo.
 
 ## 6. Commands
 

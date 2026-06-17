@@ -73,13 +73,13 @@ fn approved_packet_surfaces_26_populated_fields() {
     let svc = ComplianceService::new();
     let report = svc.report(&approved_packet());
 
-    // The 22 regulator fields: DORA 3 + EU AI Act 9 + NIST 4 + OWASP 10.
+    // The 30 regulator fields: DORA 3 + EU AI Act 9 + NIST 4 + OWASP 10 + ISO 42001 4.
     assert_eq!(
-        report.total_populated, 26,
-        "APPROVED packet must populate all 26 fields (DORA 3 + EU AI Act 9 + NIST 4 + OWASP 10), got {}",
+        report.total_populated, 30,
+        "APPROVED packet must populate all 30 fields (DORA 3 + EU AI Act 9 + NIST 4 + OWASP 10 + ISO 42001 4), got {}",
         report.total_populated
     );
-    assert_eq!(report.total_fields, 26);
+    assert_eq!(report.total_fields, 30);
     assert!((report.coverage_pct - 1.0).abs() < 1e-5);
     assert!(report.ac8_pass, "AC8 must pass on APPROVED packet");
     assert!(report.ac15_pass, "AC15 must pass on APPROVED packet (Art 12 8/8)");
@@ -142,6 +142,22 @@ fn approved_packet_field_breakdown_matches_dashboard_columns() {
     ] {
         assert!(owasp.iter().any(|n| n == asi), "missing ASI field: {asi}");
     }
+
+    let iso = by_fw
+        .get("iso_42001")
+        .expect("ISO 42001 column must be present");
+    assert_eq!(iso.len(), 4, "ISO 42001 must have 4 clauses, got {:?}", iso);
+    for clause in &[
+        "clause_6_1_risk_assessment",
+        "clause_8_4_impact_assessment",
+        "clause_9_1_monitoring_measurement",
+        "clause_10_2_continual_improvement",
+    ] {
+        assert!(
+            iso.iter().any(|n| n == clause),
+            "missing ISO 42001 clause: {clause}"
+        );
+    }
 }
 
 #[test]
@@ -160,7 +176,7 @@ fn compliance_report_serializes_with_field_level_detail_for_dashboard() {
         .get("frameworks")
         .and_then(|v| v.as_array())
         .expect("frameworks must be an array");
-    assert_eq!(frameworks.len(), 4, "4 framework entries expected");
+    assert_eq!(frameworks.len(), 5, "5 framework entries expected");
 
     let mut total_field_rows = 0usize;
     for fw in frameworks {
@@ -179,8 +195,8 @@ fn compliance_report_serializes_with_field_level_detail_for_dashboard() {
         }
     }
     assert_eq!(
-        total_field_rows, 26,
-        "JSON must expose all 26 populated field rows (frontend renders one row per entry)"
+        total_field_rows, 30,
+        "JSON must expose all 30 populated field rows (frontend renders one row per entry)"
     );
 }
 

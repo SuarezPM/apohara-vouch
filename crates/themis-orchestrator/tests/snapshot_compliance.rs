@@ -125,19 +125,19 @@ async fn approved_compliance_report_shape() {
     assert!(top["packet_id"].is_string());
     assert!(top["compliance"].is_object());
 
-    // compliance.frameworks: 4 frameworks, each with a 'framework'
+    // compliance.frameworks: 5 frameworks, each with a 'framework'
     // name + 'fields' Vec<[name, value]>.
     let frameworks = top["compliance"]["frameworks"]
         .as_array()
         .expect("frameworks is array");
-    assert_eq!(frameworks.len(), 4, "4 framework mappers");
+    assert_eq!(frameworks.len(), 5, "5 framework mappers");
     let framework_names: Vec<String> = frameworks
         .iter()
         .map(|f| f["framework"].as_str().unwrap().to_string())
         .collect();
     assert_eq!(
         framework_names,
-        vec!["dora", "eu_ai_act", "nist_ai_rmf", "owasp_agentic"],
+        vec!["dora", "eu_ai_act", "nist_ai_rmf", "owasp_agentic", "iso_42001"],
         "framework order locked: {framework_names:?}"
     );
 

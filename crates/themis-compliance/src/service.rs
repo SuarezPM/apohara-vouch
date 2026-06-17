@@ -1,5 +1,5 @@
-//! ComplianceService — aggregates all 4 framework mappers into a
-//! single ComplianceReport. Closes AC8 (5 frameworks mapped) and
+//! ComplianceService — aggregates all 5 framework mappers into a
+//! single ComplianceReport. Closes AC8 (6 frameworks mapped) and
 //! AC15 (EU AI Act Art 12 >= 7/8).
 
 use crate::framework::EvidencePacket;
@@ -8,6 +8,7 @@ use serde::Serialize;
 use crate::dora::DoraMapper;
 use crate::eu_ai_act::EuAiActMapper;
 use crate::framework::{ComplianceMap, ComplianceMapper};
+use crate::iso_42001::Iso42001Mapper;
 use crate::nist_ai_rmf::NistAiRmfMapper;
 use crate::owasp_agentic::OwaspAgenticMapper;
 
@@ -22,7 +23,7 @@ pub struct ComplianceReport {
     pub total_fields: u16,
     /// Coverage as 0.0..=1.0.
     pub coverage_pct: f32,
-    /// AC8: pass iff all 4 frameworks populated >= 1 field.
+    /// AC8: pass iff all 5 frameworks populated >= 1 field.
     pub ac8_pass: bool,
     /// AC15: pass iff EU AI Act Art 12 has >= 7/8 fields populated.
     pub ac15_pass: bool,
@@ -57,7 +58,7 @@ impl Default for ComplianceService {
 }
 
 impl ComplianceService {
-    /// New service with the 4 default mappers.
+    /// New service with the 5 default mappers.
     pub fn new() -> Self {
         Self {
             mappers: vec![
@@ -65,6 +66,7 @@ impl ComplianceService {
                 Box::new(EuAiActMapper),
                 Box::new(NistAiRmfMapper),
                 Box::new(OwaspAgenticMapper),
+                Box::new(Iso42001Mapper),
             ],
         }
     }
@@ -92,7 +94,7 @@ impl ComplianceService {
         } else {
             total_populated as f32 / total_fields as f32
         };
-        // AC8 — all 4 frameworks populated >= 1 field.
+        // AC8 — all 5 frameworks populated >= 1 field.
         let ac8_pass = frameworks.iter().all(|m| m.populated >= 1);
         // AC15 — EU AI Act has >= 7 of 8 Art 12 fields populated.
         // Use the framework name as a string (stable across serde
@@ -142,13 +144,13 @@ mod tests {
     }
 
     #[test]
-    fn new_service_has_4_mappers() {
+    fn new_service_has_5_mappers() {
         let svc = ComplianceService::new();
-        assert_eq!(svc.mappers.len(), 4);
+        assert_eq!(svc.mappers.len(), 5);
     }
 
     #[test]
-    fn all_4_frameworks_appear_in_report() {
+    fn all_5_frameworks_appear_in_report() {
         let svc = ComplianceService::new();
         let r = svc.report(&EvidencePacket::new(
             "stark",
@@ -161,7 +163,9 @@ mod tests {
             ],
             Outcome::Approve,
         ));
-        assert_eq!(r.frameworks.len(), 4);
+        assert_eq!(r.frameworks.len(), 5);
+        let names: Vec<&str> = r.frameworks.iter().map(|m| m.framework.as_str()).collect();
+        assert!(names.contains(&"iso_42001"));
     }
 
     #[test]
@@ -177,7 +181,7 @@ mod tests {
             ],
             Outcome::Approve,
         ));
-        assert!(r.ac8_pass, "AC8 must pass: all 4 frameworks populated");
+        assert!(r.ac8_pass, "AC8 must pass: all 5 frameworks populated");
     }
 
     #[test]
@@ -202,8 +206,10 @@ mod tests {
         // the packet metadata, not specific decisions). OWASP's 10
         // ASI categories are marked `not_assessed` or `mitigated`.
         // NIST's Map and Measure are populated from packet
-        // metadata. So an empty packet still passes AC8 because all
-        // 4 frameworks have >= 1 populated field.
+        // metadata. ISO 42001's 4 clauses are all structural
+        // (populated from metadata + the BAAAR mechanism, not
+        // decisions). So an empty packet still passes AC8 because
+        // all 5 frameworks have >= 1 populated field.
         let svc = ComplianceService::new();
         let r = svc.report(&EvidencePacket::new(
             "stark",
@@ -213,7 +219,7 @@ mod tests {
         ));
         assert!(
             r.ac8_pass,
-            "AC8 should pass on empty packet (DORA + OWASP + NIST all populate from metadata)"
+            "AC8 should pass on empty packet (DORA + OWASP + NIST + ISO 42001 all populate from metadata)"
         );
     }
 }
