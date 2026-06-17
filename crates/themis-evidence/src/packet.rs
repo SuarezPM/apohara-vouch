@@ -38,6 +38,53 @@ pub struct SealedPacket {
     /// Length of the hash chain at the time of sealing (proof that
     /// this packet is sequenced correctly).
     pub chain_length: u64,
+    /// DSSE envelope (RFC 8785 JCS, IETF draft-sharif-agent-audit-trail).
+    /// Compatible with the Notarized Agents paper pattern
+    /// (arXiv:2606.04193): `{"payloadType": "application/vnd.apohara.themis.entry+json",
+    /// "payload": base64url(payload_canonical_json), "signatures": [{"keyid",
+    /// "sig": base64url(signature_hex)}]}`. The auditor can
+    /// re-canonicalize and re-verify with any tool that
+    /// understands DSSE.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dsse_envelope: Option<DsseEnvelope>,
+}
+
+/// DSSE envelope over the canonical JSON payload.
+///
+/// Format follows the IETF in-toto DSSE convention
+/// (https://github.com/in-toto/in-toto.io/blob/main/in-toto-spec.md#dsse):
+/// ```json
+/// {
+///   "payloadType": "application/vnd.apohara.themis.entry+json",
+///   "payload": "<base64url(payload_canonical_json)>",
+///   "signatures": [
+///     { "keyid": "<public_key_hex_first_16_chars>",
+///       "sig": "<base64url(signature_bytes)>" }
+///   ]
+/// }
+/// ```
+/// The envelope's bytes are themselves canonical JSON
+/// (RFC 8785), so a verifier can hash the envelope's
+/// serialized form to get a stable identifier.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DsseEnvelope {
+    /// IANA media type (or vendor MIME) describing the payload.
+    pub payload_type: String,
+    /// Base64url-encoded payload (canonical JSON bytes).
+    pub payload: String,
+    /// One or more signatures over the payload. THEMIS emits
+    /// exactly one (the tenant's Ed25519 key signs the payload).
+    pub signatures: Vec<DsseSignature>,
+}
+
+/// A single signature entry inside a DSSE envelope.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DsseSignature {
+    /// Stable identifier for the signing key (first 16 hex chars
+    /// of the public key, by convention).
+    pub keyid: String,
+    /// Base64url-encoded Ed25519 signature over the payload.
+    pub sig: String,
 }
 
 /// Evidence-layer errors.
@@ -179,6 +226,33 @@ impl EvidenceService {
             tsa_url: self.tsa.url().to_string(),
         };
 
+        // Build the DSSE envelope (RFC 8785 JCS, IETF
+        // in-toto DSSE). The payload is the canonical
+        // JSON bytes; the signature is the Ed25519
+        // signature over the BLAKE3 hash (matching
+        // the `signature_hex` field). The envelope is
+        // the shape that an external auditor consumes
+        // to re-verify offline.
+        let public_key_hex = self.signer.public_key_hex();
+        use base64::Engine;
+        let dsse_envelope = {
+            let payload_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(&payload_canonical_json);
+            let sig_bytes = hex::decode(&signature_hex).unwrap_or_default();
+            let sig_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(&sig_bytes);
+            let keyid: String = public_key_hex.chars().take(16).collect();
+            DsseEnvelope {
+                payload_type: "application/vnd.apohara.themis.entry+json".to_string(),
+                payload: payload_b64,
+                signatures: vec![DsseSignature {
+                    keyid,
+                    sig: sig_b64,
+                }],
+            }
+        };
+        let public_key_hex = self.signer.public_key_hex();
+
         Ok(SealedPacket {
             packet_id: Uuid::new_v4(),
             tenant_id: self.signer.tenant_id().to_string(),
@@ -186,9 +260,10 @@ impl EvidenceService {
             payload_canonical_json,
             blake3_hash_hex,
             signature_hex,
-            public_key_hex: self.signer.public_key_hex(),
+            public_key_hex: public_key_hex.clone(),
             timestamp,
             chain_length: self.chain.len() as u64,
+            dsse_envelope: Some(dsse_envelope),
         })
     }
 
