@@ -35,13 +35,20 @@ sigstore-types = "0.8"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 serde_json_canonicalizer = "0.3"
 # Rekor v2 gRPC stack (ADR 0010). Pinned to 0.14 for tonic/prost to
-# match the current stable on crates.io as of 2026-06-17.
-tonic = "0.14"
+# match the current stable on crates.io as of 2026-06-17. The
+# `transport` feature pulls in HTTP/2 connector + TLS roots;
+# `tonic-prost` is the runtime codec crate the generated client
+# references (`tonic_prost::ProstCodec`).
+tonic = { version = "0.14", features = ["transport"] }
+tonic-prost = "0.14"
 prost = "0.14"
 prost-types = "0.14"
 
 [build-dependencies]
-tonic-build = "0.14"
+# tonic-prost-build 0.14 is the tonic 0.14 build helper (the
+# configure() API moved out of tonic-build in 0.14; tonic-build
+# 0.14 is now the manual-codegen crate only).
+tonic-prost-build = "0.14"
 
 [dev-dependencies]
 tempfile = "3"

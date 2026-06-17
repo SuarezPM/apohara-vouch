@@ -57,6 +57,10 @@ pub enum RekorError {
     NotConfigured,
     #[error("transport error: {0}")]
     Transport(String),
+    #[error("gRPC transport error: {0}")]
+    GrpcTransport(#[from] tonic::Status),
+    #[error("inclusion proof invalid: {0}")]
+    InclusionProofInvalid(String),
     #[error("invalid response: {0}")]
     InvalidResponse(String),
     #[error("`cosign` binary not found on PATH; install sigstore cosign or use MockRekorClient")]

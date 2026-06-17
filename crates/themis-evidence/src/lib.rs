@@ -31,8 +31,18 @@ pub mod chain;
 pub mod packet;
 pub mod persistence;
 pub mod rekor;
+pub mod rekor_v2;
 pub mod signer;
 pub mod timestamp;
+
+// Generated proto module (see `build.rs`). tonic-prost-build writes
+// the output to `dev.sigstore.rekor.v2.rs`; `build.rs` renames it to
+// `dev_sigstore_rekor_v2.rs` so this `include!` resolves to a
+// known module name. `OUT_DIR` is set by Cargo for every build.
+#[allow(clippy::module_inception)]
+mod dev_sigstore_rekor_v2 {
+    include!(concat!(env!("OUT_DIR"), "/dev_sigstore_rekor_v2.rs"));
+}
 
 #[cfg(test)]
 mod tests {
