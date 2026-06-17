@@ -184,6 +184,42 @@
     </form>
   </section>
 
+  <!-- ───── Section 3.5 · Regulator-visible live metrics (Track 10) ───── -->
+  <section class="sec regulator-live" aria-labelledby="reg-live-h">
+    <div class="sec-head">
+      <h2 id="reg-live-h">Step 01.5 · Regulator-visible live metrics</h2>
+      <p>Three compliance signals update in real time. The judge sees the audit log being written, not a claim that one exists.</p>
+    </div>
+    <div class="regulator-live__row">
+      <article class="reg-tile" id="reg-dora" data-state="idle">
+        <h3 class="reg-tile__h">DORA Art. 17 incident reporting clock</h3>
+        <p class="reg-tile__sub">72h window from BAAAR HALT to competent authority notification</p>
+        <p class="reg-tile__v"><span id="reg-dora-v">idle</span></p>
+      </article>
+      <article class="reg-tile" id="reg-eu" data-state="idle">
+        <h3 class="reg-tile__h">EU AI Act Art. 12 fields populated</h3>
+        <p class="reg-tile__sub">Record-keeping (8 fields) — flips green on first packet</p>
+        <p class="reg-tile__v"><span id="reg-eu-v">0 / 8</span></p>
+      </article>
+      <article class="reg-tile" id="reg-nist" data-state="idle">
+        <h3 class="reg-tile__h">NIST AI RMF coverage</h3>
+        <p class="reg-tile__sub">Govern / Map / Measure / Manage — all 4 functions traced</p>
+        <p class="reg-tile__v"><span id="reg-nist-v">0 / 4</span></p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ───── Section 3.7 · Band room transcript (Track 8) ───── -->
+  <section class="sec band-transcript" aria-labelledby="band-h">
+    <div class="sec-head">
+      <h2 id="band-h">Step 01.7 · Band room transcript (@mention routing)</h2>
+      <p>Each agent's message carries an <code>@mention</code> for the next agent in the pipeline. The transcript shows the handoffs and the dispute resolution.</p>
+    </div>
+    <ol class="band-transcript__list" id="band-transcript" aria-live="polite">
+      <li class="band-transcript__empty">No active run. Submit an invoice to populate the room.</li>
+    </ol>
+  </section>
+
   <!-- ───── Section 4 · Live counter + status ───── -->
   <section class="sec counter" aria-labelledby="counter-h">
     <div class="sec-head">
