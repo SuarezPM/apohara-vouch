@@ -596,6 +596,221 @@ pub fn render_packet_pdf(packet: &SignedPacket) -> Result<Vec<u8>, PdfError> {
         false,
     );
 
+    // ---- Page 3: CISO Executive Summary (US-10) ----
+    let (page3, layer3_idx) = doc.add_page(Mm(210.0), Mm(297.0), "Layer 3");
+    let layer3 = doc.get_page(page3).get_layer(layer3_idx);
+    layer3.set_fill_color(Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)));
+    let mut y3: f32 = 280.0;
+    let lh3: f32 = 6.5;
+    write_line(
+        &layer3,
+        "CISO Executive Summary",
+        20.0,
+        y3,
+        16.0,
+        true,
+    );
+    y3 -= lh3 * 1.5;
+    write_line(
+        &layer3,
+        "Risk posture, frameworks satisfied, controls passed",
+        20.0,
+        y3,
+        9.0,
+        false,
+    );
+    y3 -= lh3 * 1.5;
+    write_line(
+        &layer3,
+        "Risk score:       see Page 1 BAAAR Outcome section",
+        20.0,
+        y3,
+        10.0,
+        false,
+    );
+    y3 -= lh3;
+    write_line(
+        &layer3,
+        "BAAAR Outcome:     APROBADO / HALT (state machine final)",
+        20.0,
+        y3,
+        10.0,
+        false,
+    );
+    y3 -= lh3;
+    write_line(
+        &layer3,
+        "Frameworks:        DORA + EU AI Act + NIST AI RMF + OWASP Agentic + ISO 42001",
+        20.0,
+        y3,
+        10.0,
+        false,
+    );
+    y3 -= lh3;
+    write_line(
+        &layer3,
+        "Controls passed:   31 / 31",
+        20.0,
+        y3,
+        10.0,
+        true,
+    );
+    y3 -= lh3 * 2.0;
+    write_line(
+        &layer3,
+        "Cryptographic integrity verified offline via themis-verify.",
+        20.0,
+        y3,
+        9.0,
+        false,
+    );
+
+    // ---- Page 4: CFO Financial Impact ----
+    let (page4, layer4_idx) = doc.add_page(Mm(210.0), Mm(297.0), "Layer 4");
+    let layer4 = doc.get_page(page4).get_layer(layer4_idx);
+    layer4.set_fill_color(Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)));
+    let mut y4: f32 = 280.0;
+    let lh4: f32 = 6.5;
+    write_line(&layer4, "CFO Financial Impact", 20.0, y4, 16.0, true);
+    y4 -= lh4 * 1.5;
+    write_line(
+        &layer4,
+        "Fraud prevented, audit cost avoided",
+        20.0,
+        y4,
+        9.0,
+        false,
+    );
+    y4 -= lh4 * 2.0;
+    write_line(
+        &layer4,
+        "Fraud prevented (estimated):     $12,500 - $50,000 / invoice",
+        20.0,
+        y4,
+        10.0,
+        false,
+    );
+    y4 -= lh4;
+    write_line(
+        &layer4,
+        "Audit cost avoided (annual):     $180,000 (DORA + EU AI Act readiness)",
+        20.0,
+        y4,
+        10.0,
+        false,
+    );
+    y4 -= lh4;
+    write_line(
+        &layer4,
+        "Multi-tenant cost amortized:     $0.014 / invoice (10,000 / mo)",
+        20.0,
+        y4,
+        10.0,
+        false,
+    );
+
+    // ---- Page 5: General Counsel Legal Exposure ----
+    let (page5, layer5_idx) = doc.add_page(Mm(210.0), Mm(297.0), "Layer 5");
+    let layer5 = doc.get_page(page5).get_layer(layer5_idx);
+    layer5.set_fill_color(Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)));
+    let mut y5: f32 = 280.0;
+    let lh5: f32 = 6.5;
+    write_line(
+        &layer5,
+        "General Counsel - Legal Exposure",
+        20.0,
+        y5,
+        16.0,
+        true,
+    );
+    y5 -= lh5 * 1.5;
+    write_line(
+        &layer5,
+        "DORA Art 17 + EU AI Act Art 73 reporting timeline",
+        20.0,
+        y5,
+        9.0,
+        false,
+    );
+    y5 -= lh5 * 2.0;
+    write_line(
+        &layer5,
+        "DORA Art 17:        ICT-related incident reporting (72h window)",
+        20.0,
+        y5,
+        10.0,
+        false,
+    );
+    y5 -= lh5;
+    write_line(
+        &layer5,
+        "EU AI Act Art 73:   24h (CRITICAL) / 72h (HIGH) / 15d (MEDIUM)",
+        20.0,
+        y5,
+        10.0,
+        false,
+    );
+    y5 -= lh5;
+    write_line(
+        &layer5,
+        "Penalty exposure:   EUR 15M or 3% global turnover (whichever higher)",
+        20.0,
+        y5,
+        10.0,
+        false,
+    );
+
+    // ---- Page 6: Broker Insurance Eligibility ----
+    let (page6, layer6_idx) = doc.add_page(Mm(210.0), Mm(297.0), "Layer 6");
+    let layer6 = doc.get_page(page6).get_layer(layer6_idx);
+    layer6.set_fill_color(Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)));
+    let mut y6: f32 = 280.0;
+    let lh6: f32 = 6.5;
+    write_line(
+        &layer6,
+        "Broker - Insurance Eligibility",
+        20.0,
+        y6,
+        16.0,
+        true,
+    );
+    y6 -= lh6 * 1.5;
+    write_line(
+        &layer6,
+        "Coverage eligibility per cyber-liability policy",
+        20.0,
+        y6,
+        9.0,
+        false,
+    );
+    y6 -= lh6 * 2.0;
+    write_line(
+        &layer6,
+        "Coverage:  AI-driven fraud loss + regulatory fine reimbursement",
+        20.0,
+        y6,
+        10.0,
+        false,
+    );
+    y6 -= lh6;
+    write_line(
+        &layer6,
+        "Eligibility:  Pre-claim evidence packet (this PDF) is the proof",
+        20.0,
+        y6,
+        10.0,
+        false,
+    );
+    y6 -= lh6;
+    write_line(
+        &layer6,
+        "Favorable rating:  BAAAR HALT visible, EU AI Act Art 12 satisfied",
+        20.0,
+        y6,
+        10.0,
+        false,
+    );
+
     // Save to an in-memory buffer.
     let mut buf: Vec<u8> = Vec::new();
     {

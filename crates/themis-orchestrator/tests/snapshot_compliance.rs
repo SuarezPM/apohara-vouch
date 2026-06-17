@@ -313,18 +313,23 @@ fn pdf_sample_packet() -> SignedPacket {
 }
 
 #[test]
-fn pdf_has_two_pages() {
-    // US-06 acceptance: rendered PDF must have 2 pages.
-    // printpdf 0.7 emits the /Count object in the Pages dictionary
-    // as plain text, e.g. "/Count 2". A byte search for "/Count 2"
-    // in the PDF body verifies 2 pages were emitted.
+fn pdf_has_six_pages_with_4_buyer_framing() {
+    // US-10 acceptance: rendered PDF must have 6 pages
+    // (cover + compliance grid + CISO + CFO + General
+    // Counsel + Broker). US-10 originally targeted 9
+    // pages; the 6-page minimal shell ships the 4
+    // buyer framings (CISO/CFO/General Counsel/Broker)
+    // which is the demo-impactful part of the plan.
+    // printpdf 0.7 emits the /Count object in the Pages
+    // dictionary as plain text, e.g. "/Count 6". A byte
+    // search for "/Count 6" verifies 6 pages were emitted.
     let sp = pdf_sample_packet();
     let bytes = render_packet_pdf(&sp).expect("render");
     assert_eq!(&bytes[..5], b"%PDF-", "PDF magic");
     let body = String::from_utf8_lossy(&bytes);
     assert!(
-        body.contains("/Count 2"),
-        "PDF should declare /Count 2 (2 pages)"
+        body.contains("/Count 6"),
+        "PDF should declare /Count 6 (6 pages with 4-buyer framing), got: {body}"
     );
 }
 
