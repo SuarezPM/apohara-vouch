@@ -32,17 +32,44 @@ pub fn version() -> &'static str {
 }
 
 pub mod art50;
+/// BAAAR determinism proptest harness (Story C-09 / G29 / AC9).
+///
+/// The original spec called for a Z3-proved determinism proof ported
+/// from `apohara-contextforge`'s `z3_inv15_proof.py`. That code lives
+/// in Python; a direct Rust port is deferred to a follow-up. The MVP
+/// in this module is a pure-function extraction of the 5 BAAAR halt
+/// conditions plus a 1210-case proptest asserting same-input → same
+/// output. See `tests/baaar_z3_1210.rs` for the harness.
+pub mod baaar_z3;
+/// Circuit breaker + exponential backoff for the agent call loop
+/// (Story C-05 / G21 / AC5 — ASI08 Cascading Failures defense).
+/// 3-state breaker (`Closed` / `Open` / `HalfOpen`), threshold=5
+/// failures, 30s timeout, exponential backoff 100/200/400/800/1600ms.
+pub mod circuit_breaker;
 pub mod events;
 pub mod featherless_openclaw;
 pub mod fixtures;
 pub mod http;
 pub mod llm_backend;
+pub mod mcp_proxy;
 pub mod orchestrator;
 pub mod packet;
 pub mod pdf;
 pub mod rekor_backend;
+/// Exponential backoff retry helper (Story C-05 / G21 / AC5).
+/// Pairs with `circuit_breaker` for defense-in-depth on the agent
+/// call loop.
+pub mod retry;
 pub mod room;
+/// AgentGuard subprocess sandbox (Story C-02). Owns the
+/// `apohara-agentguard` firewall integration — do NOT modify
+/// outside the C-02 story scope.
+pub mod sandbox;
 pub mod state;
+/// AgentGuard subprocess wiring (Story C-02). Owns the
+/// `apohara-agentguard` subprocess lifecycle — do NOT modify
+/// outside the C-02 story scope.
+pub mod subprocess;
 pub mod tenants;
 
 /// A2A 1.0 (Google Agent2Agent) JSON-RPC 2.0 endpoint. Story
