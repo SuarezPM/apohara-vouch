@@ -365,8 +365,8 @@ mod tests {
                 input_tokens: 200,
                 output_tokens: 200,
                 model_id: "mock".to_string(),
-            },
-        );
+                finish_reason: crate::llm::FinishReason::Stop,
+            }        );
         let agent = GaapClassifier::new(Arc::new(mock));
         let ctx = AgentContext::new("stark", "inv-001").with_upstream(make_invoice_decision());
         let d = agent.process(ctx).await.unwrap();
@@ -397,8 +397,8 @@ mod tests {
                 input_tokens: 50,
                 output_tokens: 50,
                 model_id: "mock".to_string(),
-            },
-        );
+                finish_reason: crate::llm::FinishReason::Stop,
+            }        );
         let agent = GaapClassifier::new(Arc::new(mock));
         let ctx = AgentContext::new("stark", "inv-001").with_upstream(make_invoice_decision());
         let err = agent.process(ctx).await.unwrap_err();
@@ -419,8 +419,8 @@ mod tests {
                 input_tokens: 50,
                 output_tokens: 50,
                 model_id: "mock".to_string(),
-            },
-        );
+                finish_reason: crate::llm::FinishReason::Stop,
+            }        );
         let agent = GaapClassifier::new(Arc::new(mock));
         let ctx = AgentContext::new("stark", "inv-001").with_upstream(make_invoice_decision());
         let d = agent.process(ctx).await.unwrap();

@@ -38,8 +38,8 @@ fn router_for(f: &DemoInvoice) -> axum::Router {
                     input_tokens: 256,
                     output_tokens: 128,
                     model_id: "snapshot-mock".to_string(),
-                },
-            )
+                finish_reason: themis_agents::llm::FinishReason::Stop,
+                        })
             .with_response(
                 "assess_fraud_risk",
                 LlmResponse {
@@ -57,13 +57,14 @@ fn router_for(f: &DemoInvoice) -> axum::Router {
                     input_tokens: 256,
                     output_tokens: 64,
                     model_id: "snapshot-mock".to_string(),
-                },
-            )
+                finish_reason: themis_agents::llm::FinishReason::Stop,
+                        })
             .with_default(LlmResponse {
                 text: serde_json::json!({"stub":"ok"}).to_string(),
                 input_tokens: 64,
                 output_tokens: 32,
                 model_id: "snapshot-mock".to_string(),
+            finish_reason: themis_agents::llm::FinishReason::Stop,
             }),
     );
     let agents = themis_orchestrator::test_support::build_stub_agents_with_mock(mock_llm.clone(), None);

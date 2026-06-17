@@ -134,8 +134,8 @@ pub fn stub_default_response(model_id: &str) -> LlmResponse {
         input_tokens: 64,
         output_tokens: 32,
         model_id: model_id.to_string(),
-    }
-}
+                finish_reason: themis_agents::llm::FinishReason::Stop,
+            }}
 
 /// Path to the 5 demo invoice fixtures at the repo root.
 pub fn fixtures_dir() -> PathBuf {
@@ -406,8 +406,8 @@ pub fn build_orchestrator(
                     input_tokens: 256,
                     output_tokens: 128,
                     model_id: "mock-test".to_string(),
-                },
-            )
+                finish_reason: themis_agents::llm::FinishReason::Stop,
+            }            )
             .with_response(
                 "assess_fraud_risk",
                 LlmResponse {
@@ -415,8 +415,8 @@ pub fn build_orchestrator(
                     input_tokens: 256,
                     output_tokens: 64,
                     model_id: "mock-test".to_string(),
-                },
-            )
+                finish_reason: themis_agents::llm::FinishReason::Stop,
+            }            )
             .with_default(stub_default_response("mock-test")),
     );
     // Tests use a single mock LLM shared across all agents.
@@ -460,8 +460,8 @@ pub fn build_orchestrator_with_evidence(
                     input_tokens: 256,
                     output_tokens: 128,
                     model_id: "mock-test".to_string(),
-                },
-            )
+                finish_reason: themis_agents::llm::FinishReason::Stop,
+            }            )
             .with_response(
                 "assess_fraud_risk",
                 LlmResponse {
@@ -469,8 +469,8 @@ pub fn build_orchestrator_with_evidence(
                     input_tokens: 256,
                     output_tokens: 64,
                     model_id: "mock-test".to_string(),
-                },
-            )
+                finish_reason: themis_agents::llm::FinishReason::Stop,
+            }            )
             .with_default(stub_default_response("mock-test")),
     );
     let mut dispatch = HashMap::new();

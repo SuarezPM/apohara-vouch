@@ -86,8 +86,8 @@ fn orchestrator_for(f: &DemoInvoice, counter: Arc<AtomicU32>) -> (Orchestrator, 
                     input_tokens: 256,
                     output_tokens: 128,
                     model_id: "mock-bench".to_string(),
-                },
-            )
+                finish_reason: themis_agents::llm::FinishReason::Stop,
+            }            )
             .with_response(
                 "assess_fraud_risk",
                 LlmResponse {
@@ -95,8 +95,8 @@ fn orchestrator_for(f: &DemoInvoice, counter: Arc<AtomicU32>) -> (Orchestrator, 
                     input_tokens: 256,
                     output_tokens: 64,
                     model_id: "mock-bench".to_string(),
-                },
-            )
+                finish_reason: themis_agents::llm::FinishReason::Stop,
+            }            )
             .with_default(stub_default_response("mock-bench")),
     );
     // Per-agent dispatch map (bench uses a single shared mock).

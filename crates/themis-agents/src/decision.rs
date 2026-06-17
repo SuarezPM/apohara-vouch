@@ -76,7 +76,12 @@ pub struct AgentDecision {
 /// All failure modes an agent can return. `LlmMalformedPayload` is
 /// the critical one for the BAAAR gate — it forces fail-closed
 /// behavior (HALT, not "ignore and continue").
+///
+/// `#[non_exhaustive]` so future variants can be added without a
+/// breaking semver bump; downstream crates (and tests) must add a
+/// `_` arm to any exhaustive `match` on `AgentError`.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum AgentError {
     /// The LLM provider is unreachable or rate-limited.
     #[error("LLM unavailable: {0}")]

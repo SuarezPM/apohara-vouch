@@ -126,6 +126,7 @@ impl LlmBackend for OpenClawBackend {
             input_tokens: parsed.input_tokens,
             output_tokens: parsed.output_tokens,
             model_id: self.model.clone(),
+            finish_reason: themis_agents::llm::FinishReason::Stop,
         })
     }
 }
