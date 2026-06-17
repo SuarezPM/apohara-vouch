@@ -23,6 +23,8 @@
 
 ---
 
+> **Note — naming.** Apotheon THEMIS is a separate commercial product from a different vendor (publicly documented in a 2026 whitepaper). THEMIS 2.0 (`apohara-themis`, this repository) is the open-source Band-of-Agents hackathon entry. They share the Greek-mythology naming convention but are unrelated projects: different code, different architecture, different vendor, different domain (Apotheon's Merkle-DAG evidence chain + Mnemosyne data lineage + crypto-shredding for AI governance vs. THEMIS 2.0's BLAKE3 chain + Rekor v2 anchor + BAAAR kill-switch for AP invoice fraud). This repository does not derive from Apotheon's code or whitepaper, and the two products are not affiliated.
+
 ## The 30-second pitch
 
 A vendor sends an invoice. THEMIS runs it through a **5-agent Band chat room** — Extractor, PO Matcher, Fraud Auditor, GAAP Classifier, Provenance Signer. The orchestrator's **BAAAR 5-condition gate** fires deterministically and either approves or halts. Every run produces a downloadable **Evidence Packet** (Ed25519-signed, BLAKE3-chained, RFC 3161-timestamped, Rekor-anchored) that simultaneously satisfies **DORA Art. 9/10/17, EU AI Act Art. 12/26, NIST AI RMF, and OWASP Agentic 2026** — for two fictitious companies on two trust domains.

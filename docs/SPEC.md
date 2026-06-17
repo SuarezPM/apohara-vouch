@@ -18,6 +18,13 @@ cryptographically-signed **Evidence Packet** that satisfies:
 …for 2 fictitious companies on 2 trust domains (Stark Industries,
 Wayne Enterprises).
 
+> **Naming note.** Apotheon THEMIS is a separate commercial product
+> (Apotheon whitepaper, feb 2026) that uses the same Greek-mythology
+> name. THEMIS 2.0 (`apohara-themis`, this repository) is the
+> open-source Band-of-Agents hackathon entry. The two products are
+> unrelated: different code, different architecture, different
+> vendor, different domain.
+
 ## 2. Architecture (current)
 
 - **9 agents**: 5 core (extractor, po_matcher, fraud_auditor,

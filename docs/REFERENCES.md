@@ -39,3 +39,14 @@
 - **ISO/IEC 42001:2023** — AI Management System (AIMS) standard.
   Clauses 6.1 (risk assessment), 8.4 (impact assessment), 9.1
   (monitoring), 10.2 (continual improvement).
+
+## Naming disambiguation
+
+Apotheon THEMIS is a separate commercial product from a different
+vendor (publicly documented in a 2026 whitepaper). THEMIS 2.0
+(`apohara-themis`, this repository) is the open-source
+Band-of-Agents hackathon entry. They share the Greek-mythology
+naming convention but are unrelated projects: different code,
+different architecture, different vendor, different domain.
+This repository does not derive from Apotheon's code or
+whitepaper.
