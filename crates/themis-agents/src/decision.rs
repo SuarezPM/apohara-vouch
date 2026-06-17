@@ -99,6 +99,18 @@ pub enum AgentError {
         retry_after_ms: u64,
     },
 
+    /// The LLM provider rejected our credentials (401/403). The
+    /// provider's error envelope (`error.message` on OpenAI-compat
+    /// gateways) is surfaced as `reason` for operator triage.
+    #[error("{provider} authentication failed: {reason}")]
+    AuthenticationError {
+        /// Stable provider identifier (`"aimlapi"`, `"featherless"`,
+        /// `"anthropic"`, ...). Used in error messages and logs.
+        provider: &'static str,
+        /// Human-readable reason from the provider's error envelope.
+        reason: String,
+    },
+
     /// The input to the agent was invalid (e.g. empty invoice bytes).
     #[error("invalid input: {0}")]
     InvalidInput(String),
@@ -186,6 +198,10 @@ mod tests {
             AgentError::LlmMalformedPayload("not json".to_string()),
             AgentError::RateLimited {
                 retry_after_ms: 5000,
+            },
+            AgentError::AuthenticationError {
+                provider: "aimlapi",
+                reason: "Invalid API key".to_string(),
             },
             AgentError::InvalidInput("empty".to_string()),
             AgentError::Internal("io".to_string()),

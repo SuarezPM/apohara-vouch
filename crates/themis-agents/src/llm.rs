@@ -592,6 +592,32 @@ impl LlmBackend for AIMLAPIBackend {
                             "AIMLAPI 5xx: {status}"
                         )));
                     }
+                    if status == reqwest::StatusCode::UNAUTHORIZED
+                        || status == reqwest::StatusCode::FORBIDDEN
+                    {
+                        // 401/403: bad or missing credentials. Parse
+                        // the OpenAI-compat `error.message` envelope
+                        // (best effort — providers vary in shape).
+                        let raw_body = resp.text().await.unwrap_or_default();
+                        let reason = serde_json::from_str::<serde_json::Value>(&raw_body)
+                            .ok()
+                            .and_then(|v| {
+                                v.get("error")
+                                    .and_then(|e| e.get("message"))
+                                    .and_then(|m| m.as_str())
+                                    .map(|s| s.to_string())
+                            })
+                            .unwrap_or_else(|| {
+                                raw_body
+                                    .chars()
+                                    .take(200)
+                                    .collect::<String>()
+                            });
+                        return Err(AgentError::AuthenticationError {
+                            provider: "aimlapi",
+                            reason,
+                        });
+                    }
                     if !status.is_success() {
                         let body_snippet = resp
                             .text()
@@ -1803,6 +1829,67 @@ mod tests {
             assert_eq!(resp.input_tokens, 5);
             assert_eq!(resp.output_tokens, 1);
             assert_eq!(resp.finish_reason, FinishReason::Stop);
+        }
+
+        // --- US-B3b: 2 new tests (auth + 5xx mapping) ---
+
+        #[tokio::test]
+        async fn aimlapi_401_with_error_envelope_returns_authentication_error() {
+            // 401 with an OpenAI-compat error envelope must map to
+            // `AgentError::AuthenticationError { provider, reason }`
+            // where `reason` is the envelope's `error.message`.
+            let server = MockServer::start().await;
+            Mock::given(method("POST"))
+                .and(path("/v1/chat/completions"))
+                .respond_with(ResponseTemplate::new(401).set_body_json(serde_json::json!({
+                    "error": {
+                        "message": "Invalid API key",
+                        "type": "invalid_request_error",
+                        "code": "invalid_api_key"
+                    }
+                })))
+                .mount(&server)
+                .await;
+
+            let backend = aimlapi_at(&server);
+            let err = backend
+                .complete(default_request())
+                .await
+                .expect_err("401 must error");
+            match err {
+                AgentError::AuthenticationError { provider, reason } => {
+                    assert_eq!(provider, "aimlapi");
+                    assert_eq!(reason, "Invalid API key");
+                }
+                other => panic!("expected AuthenticationError, got {other:?}"),
+            }
+        }
+
+        #[tokio::test]
+        async fn aimlapi_5xx_returns_llm_unavailable() {
+            // 500 (server error) must map to `LlmUnavailable` — the
+            // generic fail-closed path for transport-layer errors.
+            let server = MockServer::start().await;
+            Mock::given(method("POST"))
+                .and(path("/v1/chat/completions"))
+                .respond_with(ResponseTemplate::new(500))
+                .mount(&server)
+                .await;
+
+            let backend = aimlapi_at(&server);
+            let err = backend
+                .complete(default_request())
+                .await
+                .expect_err("500 must error");
+            match err {
+                AgentError::LlmUnavailable(msg) => {
+                    assert!(
+                        msg.contains("500"),
+                        "LlmUnavailable message should mention status, got: {msg}"
+                    );
+                }
+                other => panic!("expected LlmUnavailable, got {other:?}"),
+            }
         }
     }
 }

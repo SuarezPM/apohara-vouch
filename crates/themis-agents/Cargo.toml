@@ -1,6 +1,10 @@
 [package]
 name = "themis-agents"
-version.workspace = true
+# US-B3b: bumped from workspace 0.1.0 -> 0.2.0 because we added
+# `AgentError::AuthenticationError` (a new public variant on a
+# `#[non_exhaustive]` enum — still technically a minor bump since
+# downstream exhaustive matches can now encounter it).
+version = "0.2.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
