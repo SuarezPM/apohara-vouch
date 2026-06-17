@@ -129,6 +129,14 @@ pub struct EvidenceService {
     signer: SignerService,
     chain: HashChain,
     tsa: Arc<dyn TimestampAuthority>,
+    /// US-06: configurable retention policy. Default
+    /// `RetentionPolicy::default()` (6 months per EU AI
+    /// Act Art 12). Per-tenant / per-jurisdiction
+    /// overrides apply.
+    retention: crate::chain::RetentionPolicy,
+    /// US-06: jurisdiction tag for retention lookup.
+    /// Defaults to "EU" (the demo's deployment region).
+    jurisdiction: String,
 }
 
 impl std::fmt::Debug for EvidenceService {
@@ -154,6 +162,8 @@ impl EvidenceService {
             signer,
             chain: HashChain::new(),
             tsa,
+            retention: crate::chain::RetentionPolicy::default(),
+            jurisdiction: "EU".to_string(),
         })
     }
 
@@ -163,6 +173,8 @@ impl EvidenceService {
             signer: SignerService::from_seed(tenant_id, seed),
             chain: HashChain::new(),
             tsa,
+            retention: crate::chain::RetentionPolicy::default(),
+            jurisdiction: "EU".to_string(),
         }
     }
 
@@ -177,6 +189,27 @@ impl EvidenceService {
             signer,
             chain: HashChain::new(),
             tsa,
+            retention: crate::chain::RetentionPolicy::default(),
+            jurisdiction: "EU".to_string(),
+        })
+    }
+
+    /// US-06: constructor with an explicit retention policy.
+    /// The default `for_tenant` uses 6 months; this variant
+    /// lets the demo wire per-tenant overrides (e.g. `wayne`
+    /// with 24 months for biometric / law enforcement).
+    pub fn for_tenant_with_retention(
+        tenant_id: &str,
+        tsa: Arc<dyn TimestampAuthority>,
+        retention: crate::chain::RetentionPolicy,
+    ) -> Result<Self, EvError> {
+        let signer = SignerService::for_tenant(tenant_id)?;
+        Ok(Self {
+            signer,
+            chain: HashChain::new(),
+            tsa,
+            retention,
+            jurisdiction: "EU".to_string(),
         })
     }
 
@@ -234,6 +267,14 @@ impl EvidenceService {
         // 4. Append the (payload, hash) tuple to the chain. The
         //    payload is what the auditor sees; the chain proves
         //    ordering.
+        // US-06: enforce the retention policy before appending.
+        // If the previous entry is older than the configured
+        // window (default 6 months per EU AI Act Art 12), the
+        // append is rejected with `ChainError::RetentionExceeded`.
+        // Empty chains (genesis append) always pass.
+        self.chain
+            .enforce_retention(&self.retention, chrono::Utc::now().timestamp_millis(),
+                &self.signer.tenant_id(), self.jurisdiction.as_str())?;
         self.chain.append(payload)?;
 
         // 5. Request a timestamp.

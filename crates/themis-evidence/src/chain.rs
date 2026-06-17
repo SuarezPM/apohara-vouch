@@ -8,6 +8,55 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+/// Retention policy for the hash chain. US-06: enforces
+/// EU AI Act Article 12 (6-month minimum retention) and
+/// per-tenant / per-jurisdiction overrides. The default
+/// is 6 months; the demo's tenant jurisdiction may
+/// override to 24 months (biometric / law enforcement).
+///
+/// The policy is consulted by `EvidenceService::seal`
+/// (and any other append path) when the previous chain
+/// entry is older than the configured window — in that
+/// case the append is rejected with `ChainError::RetentionExceeded`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RetentionPolicy {
+    /// Default retention in months (EU AI Act Art 12 = 6).
+    pub default_months: u32,
+    /// Per-tenant overrides (e.g. "wayne" -> 24 months for
+    /// biometric / law enforcement data).
+    #[serde(default)]
+    pub per_tenant_overrides: std::collections::HashMap<String, u32>,
+    /// Per-jurisdiction overrides (e.g. "EU" -> 6, "US" -> 12).
+    #[serde(default)]
+    pub per_jurisdiction_overrides: std::collections::HashMap<String, u32>,
+}
+
+impl Default for RetentionPolicy {
+    fn default() -> Self {
+        Self {
+            default_months: 6, // EU AI Act Article 12
+            per_tenant_overrides: std::collections::HashMap::new(),
+            per_jurisdiction_overrides: std::collections::HashMap::new(),
+        }
+    }
+}
+
+impl RetentionPolicy {
+    /// Effective retention in months for a given tenant.
+    /// Resolution order: tenant override → jurisdiction override →
+    /// default. The demo's two baked tenants (stark, wayne)
+    /// share the default EU jurisdiction.
+    pub fn effective_months(&self, tenant_id: &str, jurisdiction: &str) -> u32 {
+        if let Some(m) = self.per_tenant_overrides.get(tenant_id) {
+            return *m;
+        }
+        if let Some(m) = self.per_jurisdiction_overrides.get(jurisdiction) {
+            return *m;
+        }
+        self.default_months
+    }
+}
+
 /// A single entry in the hash chain.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ChainEntry {
@@ -20,6 +69,13 @@ pub struct ChainEntry {
     /// The previous entry's `blake3_hash` (64-char hex; all-zero
     /// for the genesis entry).
     pub prev_hash: String,
+    /// Unix epoch ms when the entry was created. US-06:
+    /// used by `RetentionPolicy::enforce_chain` to
+    /// reject appends that would exceed the configured
+    /// retention window. `0` for entries created before
+    /// the timestamp field was added (back-compat).
+    #[serde(default)]
+    pub created_at_ms: i64,
 }
 
 /// Hash-chain errors.
@@ -34,6 +90,17 @@ pub enum ChainError {
     /// A non-genesis entry has the all-zero prev_hash (broken chain).
     #[error("broken chain at sequence {0}: prev_hash is the all-zero placeholder")]
     BrokenChain(u64),
+    /// US-06: the previous entry in the chain is older than
+    /// the configured retention window. EU AI Act Art 12
+    /// mandates a 6-month minimum retention; longer
+    /// retention is allowed, shorter is not. The error
+    /// carries the configured window in days for the
+    /// audit log.
+    #[error("retention exceeded: previous entry is older than the configured window ({window_months} months)")]
+    RetentionExceeded {
+        /// The configured retention window in months.
+        window_months: u32,
+    },
 }
 
 /// The hash chain. Append-only; no remove, no mutate.
@@ -76,6 +143,18 @@ impl HashChain {
     /// the sequence number. Returns a reference to the appended
     /// entry.
     pub fn append(&mut self, payload: &str) -> Result<&ChainEntry, ChainError> {
+        self.append_with_timestamp(payload, chrono::Utc::now().timestamp_millis())
+    }
+
+    /// Append a payload with an explicit timestamp (used by
+    /// the retention-policy code path + tests). Computes
+    /// the new entry's hash and bumps the sequence number.
+    /// Returns a reference to the appended entry.
+    pub fn append_with_timestamp(
+        &mut self,
+        payload: &str,
+        created_at_ms: i64,
+    ) -> Result<&ChainEntry, ChainError> {
         let sequence = self.entries.len() as u64;
         let prev_hash = self
             .entries
@@ -88,8 +167,35 @@ impl HashChain {
             payload: payload.to_string(),
             blake3_hash,
             prev_hash,
+            created_at_ms,
         });
         Ok(self.entries.last().expect("just pushed"))
+    }
+
+    /// US-06: enforce the retention policy before a new
+    /// append. If the most recent entry is older than the
+    /// configured window (in months), returns
+    /// `ChainError::RetentionExceeded` with the window
+    /// in months. Empty chains always pass (the genesis
+    /// entry is the first one to age).
+    pub fn enforce_retention(
+        &self,
+        policy: &RetentionPolicy,
+        now_ms: i64,
+        tenant_id: &str,
+        jurisdiction: &str,
+    ) -> Result<(), ChainError> {
+        let latest = match self.entries.last() {
+            Some(e) => e,
+            None => return Ok(()),
+        };
+        let window_months = policy.effective_months(tenant_id, jurisdiction);
+        let window_ms = (window_months as i64) * 30 * 86_400 * 1000;
+        let age_ms = now_ms - latest.created_at_ms;
+        if age_ms > window_ms {
+            return Err(ChainError::RetentionExceeded { window_months });
+        }
+        Ok(())
     }
 
     /// Verify the entire chain. Returns `Ok(())` if every entry's
