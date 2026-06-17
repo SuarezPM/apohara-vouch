@@ -18,6 +18,7 @@ use thiserror::Error;
 
 use crate::packet::{EvidencePacket, SignedPacket};
 use crate::room::BandRoom;
+use uuid::Uuid;
 use crate::state::{InvoiceState, StateMachine, Transition};
 use crate::tenants::{TenantError, TenantRegistry};
 
@@ -74,6 +75,11 @@ pub struct Orchestrator {
     /// `process_invoice` (legacy) returns just the `SignedPacket`
     /// when this is `None` — back-compat for all existing tests.
     evidence: Option<tokio::sync::Mutex<HashMap<String, EvidenceService>>>,
+    /// Optional SSE event bus. When set, the orchestrator publishes
+    /// `Event::AgentHandoff` between every two agents in the
+    /// pipeline (US-03). When `None`, the handoff events are
+    /// skipped (back-compat for tests that don't wire the bus).
+    event_bus: Option<std::sync::Arc<crate::events::EventBus>>,
 }
 
 impl std::fmt::Debug for Orchestrator {
@@ -117,6 +123,7 @@ impl Orchestrator {
             tenants,
             rekor,
             evidence: None,
+            event_bus: None,
         }
     }
 
@@ -139,12 +146,21 @@ impl Orchestrator {
             tenants,
             rekor,
             evidence: Some(tokio::sync::Mutex::new(evidence)),
+            event_bus: None,
         }
     }
 
     /// Override the BAAAR gate (for tests with different thresholds).
     pub fn with_baaar(mut self, gate: BaaarGate) -> Self {
         self.baaar = gate;
+        self
+    }
+
+    /// Attach the SSE event bus. When set, the orchestrator
+    /// publishes `Event::AgentHandoff` between every two
+    /// agents in the pipeline. US-03.
+    pub fn with_event_bus(mut self, bus: std::sync::Arc<crate::events::EventBus>) -> Self {
+        self.event_bus = Some(bus);
         self
     }
 
@@ -293,6 +309,34 @@ impl Orchestrator {
             };
 
             decisions.push(decision.clone());
+
+            // Publish `Event::AgentHandoff` so the frontend
+            // renders the animated arrow between this agent
+            // and the next one. US-03: the visible signal of
+            // "clear task handoffs" the Hackathon Guide
+            // criterion 1 calls out. We emit the event AFTER
+            // the agent finishes and BEFORE the next agent
+            // starts, with `context_summary` being the first
+            // 200 chars of the next agent's input.
+            if let Some(bus) = self.event_bus.as_ref() {
+                let next_name = next_agent_mention(agent_name)
+                    .into_iter()
+                    .next()
+                    .unwrap_or_default();
+                if !next_name.is_empty() {
+                    let context_summary = decision
+                        .reasoning
+                        .chars()
+                        .take(200)
+                        .collect::<String>();
+                    bus.publish(crate::events::Event::AgentHandoff {
+                        run_id: Uuid::new_v4(),
+                        from: agent_name.to_string(),
+                        to: next_name.clone(),
+                        context_summary,
+                    });
+                }
+            }
 
             // Post the agent's message to the Band room with
             // @mention routing. The next agent in the

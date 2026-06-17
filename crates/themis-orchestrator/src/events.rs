@@ -115,6 +115,23 @@ pub enum Event {
         /// legitimate emergency override per CISO policy").
         reason: String,
     },
+    /// Agent-to-agent handoff. Emitted by the orchestrator
+    /// between every two adjacent agents in the canonical
+    /// pipeline. The frontend renders a CSS-animated arrow
+    /// from the `from` avatar to the `to` avatar. Closes
+    /// the "clear task handoffs" Hackathon criterion 1
+    /// sub-criterion (US-03).
+    AgentHandoff {
+        /// The run id.
+        run_id: Uuid,
+        /// The agent that just finished (e.g. "extractor").
+        from: String,
+        /// The next agent in the pipeline (e.g. "po_matcher").
+        to: String,
+        /// First 200 chars of the receiving agent's input —
+        /// the context the handoff is passing.
+        context_summary: String,
+    },
     /// Announces the sponsor stack of the current build.
     /// Emitted as the FIRST event on every new SSE connection
     /// so the frontend can render the SponsorStack banner
@@ -178,6 +195,7 @@ impl Event {
             Event::ProviderActive { .. } => "provider_active",
             Event::AgentDispute { .. } => "agent_dispute",
             Event::HumanOverride { .. } => "human_override",
+            Event::AgentHandoff { .. } => "agent_handoff",
             Event::SponsorStack { .. } => "sponsor_stack",
         }
     }

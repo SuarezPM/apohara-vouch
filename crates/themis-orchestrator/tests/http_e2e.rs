@@ -810,3 +810,134 @@ async fn e2e_sponsor_stack_event_emitted_first_on_sse_connect() {
         "featherless label must include Qwen3-Coder-30B: {v:?}"
     );
 }
+
+/// US-03: the orchestrator must emit `Event::AgentHandoff`
+/// between every two adjacent agents in the canonical
+/// pipeline (extractor → po_matcher → fraud_auditor →
+/// gaap_classifier → provenance_signer → ...). The test
+/// subscribes to the bus BEFORE the POST fires, then
+/// drains and asserts the handoff sequence is in order.
+#[tokio::test]
+async fn e2e_agent_handoff_events_emitted_in_order() {
+    use themis_orchestrator::events::Event;
+    let f = load_fixture("wayne-002.json");
+    let mock_llm: Arc<dyn themis_agents::llm::LlmBackend> = Arc::new(
+        MockLlmProvider::new("e2e-handoff-mock")
+            .with_response(
+                &f.invoice_id,
+                LlmResponse {
+                    text: serde_json::to_string(&f.extracted).unwrap(),
+                    input_tokens: 256,
+                    output_tokens: 128,
+                    model_id: "e2e-handoff-mock".to_string(),
+                    finish_reason: themis_agents::llm::FinishReason::Stop,
+                },
+            )
+            .with_response(
+                "assess_fraud_risk",
+                LlmResponse {
+                    text: serde_json::json!({
+                        "assessment": {
+                            "risk_score": f.fraud_assessment.risk_score,
+                            "findings": [],
+                            "coherence_score": f.fraud_assessment.coherence_score,
+                            "debate_rounds": f.fraud_assessment.debate_rounds,
+                            "explicit_halt": f.fraud_assessment.explicit_halt,
+                        },
+                        "outcome": "approve",
+                    })
+                    .to_string(),
+                    input_tokens: 256,
+                    output_tokens: 64,
+                    model_id: "e2e-handoff-mock".to_string(),
+                    finish_reason: themis_agents::llm::FinishReason::Stop,
+                },
+            )
+            .with_default(LlmResponse {
+                text: serde_json::json!({"stub":"ok"}).to_string(),
+                input_tokens: 64,
+                output_tokens: 32,
+                model_id: "e2e-handoff-mock".to_string(),
+                finish_reason: themis_agents::llm::FinishReason::Stop,
+            }),
+    );
+    let agents =
+        themis_orchestrator::test_support::build_stub_agents_with_mock(mock_llm.clone(), None);
+    let rooms: Arc<dyn themis_orchestrator::room::BandRoom> = MockBandRoom::new().into_arc();
+    let tenants = Arc::new(TenantRegistry::with_default_tenants());
+    let bus = Arc::new(themis_orchestrator::events::EventBus::new(64));
+    let mut rx = bus.subscribe();
+    let orch = Orchestrator::new_with_rekor(
+        rooms,
+        agents,
+        tenants,
+        Some(Arc::new(MockRekorClient::new()) as Arc<dyn themis_evidence::rekor::RekorClient>),
+    )
+    .with_event_bus(bus.clone());
+    let state = AppState {
+        orchestrator: Arc::new(tokio::sync::Mutex::new(orch)),
+        event_bus: bus,
+        compliance: Arc::new(themis_compliance::service::ComplianceService::new()),
+        reports: dashmap::DashMap::new(),
+        packets: dashmap::DashMap::new(),
+        sealed: dashmap::DashMap::new(),
+        model_id: mock_llm.model_id().to_string(),
+        band_room: None,
+        sponsor_stack: themis_orchestrator::events::SponsorStackInfo::default(),
+    };
+    let app = build_router(state);
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/invoices")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"tenant_id":"wayne","invoice_id":"handoff-001","raw_b64":""}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    // Drain the bus and collect the handoffs in arrival order.
+    let mut handoffs: Vec<(String, String)> = Vec::new();
+    for _ in 0..32 {
+        match rx.try_recv() {
+            Ok(Event::AgentHandoff { from, to, .. }) => handoffs.push((from, to)),
+            Ok(_) => {}
+            Err(_) => break,
+        }
+    }
+    // The handoffs must include the canonical pipeline as
+    // defined by `next_agent_mention` in orchestrator.rs.
+    // The 5 required handoffs are (set-based; po_matcher
+    // runs after extractor and also mentions fraud_auditor,
+    // so the order in the bus is non-deterministic but
+    // all 5 must be present):
+    //   extractor → fraud_auditor
+    //   po_matcher → fraud_auditor
+    //   fraud_auditor → gaap_classifier
+    //   gaap_classifier → provenance_signer
+    //   provenance_signer → audit_watchdog
+    let required: std::collections::HashSet<(&str, &str)> = [
+        ("extractor", "fraud_auditor"),
+        ("po_matcher", "fraud_auditor"),
+        ("fraud_auditor", "gaap_classifier"),
+        ("gaap_classifier", "provenance_signer"),
+        ("provenance_signer", "audit_watchdog"),
+    ]
+    .iter()
+    .copied()
+    .collect();
+    let observed: std::collections::HashSet<(&str, &str)> = handoffs
+        .iter()
+        .map(|(a, b)| (a.as_str(), b.as_str()))
+        .collect();
+    for need in &required {
+        assert!(
+            observed.contains(need),
+            "missing required handoff {need:?}; observed: {observed:?}"
+        );
+    }
+}

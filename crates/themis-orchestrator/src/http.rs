@@ -88,9 +88,15 @@ pub fn build_default_state(
     room_concrete: std::sync::Arc<crate::room::ScriptedBandRoom>,
     model_id: String,
 ) -> AppState {
+    // Build the bus FIRST so the orchestrator can publish
+    // `Event::AgentHandoff` (US-03) to the SAME bus the SSE
+    // handler subscribes to. The orchestrator holds a cloned
+    // `Arc`; the AppState holds the canonical one.
+    let bus = std::sync::Arc::new(crate::events::EventBus::new(1024));
+    let orch = orch.with_event_bus(bus.clone());
     AppState {
         orchestrator: std::sync::Arc::new(tokio::sync::Mutex::new(orch)),
-        event_bus: std::sync::Arc::new(crate::events::EventBus::new(1024)),
+        event_bus: bus,
         compliance: std::sync::Arc::new(themis_compliance::service::ComplianceService::new()),
         reports: DashMap::new(),
         packets: DashMap::new(),

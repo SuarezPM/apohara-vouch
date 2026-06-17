@@ -497,6 +497,42 @@ header.hero {
 .halt-overlay__meta dd { margin: 0; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink); overflow-wrap: anywhere; }
 .halt-overlay__lede { margin: 0 0 var(--space-md) 0; font-size: var(--text-sm); color: var(--ink-muted); }
 .halt-overlay__lede code { font-family: var(--font-mono); background: var(--panel); padding: 0 4px; border-radius: 2px; }
+
+/* ───── Agent handoff chip (US-03) ─────
+ * Transient chip rendered in the transcript pane when
+ * Event::AgentHandoff fires. Auto-dismisses after 6s. */
+.handoff-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 4px 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(212, 160, 23, 0.12);
+  border: 1px solid rgba(212, 160, 23, 0.35);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 11px;
+  animation: handoff-fade-in 240ms ease-out, handoff-fade-out 600ms ease-in 5400ms forwards;
+}
+.handoff-chip__from { color: var(--accent, #d4a017); font-weight: 700; }
+.handoff-chip__arrow { color: var(--muted, #8a8a8a); }
+.handoff-chip__to { color: var(--ink, #f9fafb); font-weight: 700; }
+.handoff-chip__summary {
+  color: var(--muted, #8a8a8a);
+  font-size: 10px;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@keyframes handoff-fade-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes handoff-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
 .halt-overlay__actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
 
 /* ───── Section 6 · Evidence + download ───── */

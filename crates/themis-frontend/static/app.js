@@ -612,6 +612,37 @@
         // Malformed payload — ignore, badge keeps prior state.
       }
     });
+    es.addEventListener('agent_handoff', (ev) => {
+      // US-03: render the agent handoff as a transient
+      // chip in the Band room transcript pane. The chip
+      // shows the source agent → target agent with the
+      // first 80 chars of the context_summary. The chip
+      // auto-dismisses after 6s so the transcript doesn't
+      // grow unbounded.
+      try {
+        const data = JSON.parse(ev.data || '{}');
+        const from = (data.from || '').toString();
+        const to = (data.to || '').toString();
+        if (!from || !to) return;
+        const summary = (data.context_summary || '').toString().slice(0, 80);
+        const pane = document.getElementById('transcript-pane')
+          || document.querySelector('.transcript')
+          || document.body;
+        const chip = document.createElement('div');
+        chip.className = 'handoff-chip';
+        chip.setAttribute('data-qa', 'handoff-chip');
+        chip.innerHTML = `<span class="handoff-chip__from">${from}</span>` +
+          `<span class="handoff-chip__arrow" aria-hidden="true">→</span>` +
+          `<span class="handoff-chip__to">${to}</span>` +
+          (summary ? `<span class="handoff-chip__summary">${summary}</span>` : '');
+        pane.appendChild(chip);
+        setTimeout(() => {
+          if (chip.parentNode) chip.parentNode.removeChild(chip);
+        }, 6000);
+      } catch (_e) {
+        // Malformed payload — ignore.
+      }
+    });
     es.addEventListener('baaar_halt', (ev) => {
       // BAAAR HALT fired — start the DORA Art. 17 72h
       // reporting clock. The tile shows the deadline as
