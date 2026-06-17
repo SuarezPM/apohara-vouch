@@ -4,10 +4,10 @@
 //! renders one row per populated field, grouped by framework, with a
 //! green checkmark. This test validates the data contract that the
 //! dashboard consumes: an APPROVED Evidence Packet must produce a
-//! `ComplianceReport` with 26 populated fields across the 4 mappers
-//! (DORA 3 + EU AI Act 9 + NIST AI RMF 4 + OWASP 10 = 26). The
+//! `ComplianceReport` with 31 populated fields across the 5 mappers
+//! (DORA 3 + EU AI Act 9 + NIST AI RMF 4 + OWASP 10 + ISO 42001 5 = 31). The
 //! frontend ACS column adds 4 more derived fields (tenant_id,
-//! ed25519 pubkey, blake3 hash, chain length) to reach 30/30 in the
+//! ed25519 pubkey, blake3 hash, chain length) to reach 35/35 in the
 //! visual layout, but those are derived client-side from the
 //! SealedPacket — not part of `ComplianceReport` itself.
 
@@ -69,17 +69,19 @@ fn approved_packet() -> EvidencePacket {
 }
 
 #[test]
-fn approved_packet_surfaces_26_populated_fields() {
+fn approved_packet_surfaces_31_populated_fields() {
     let svc = ComplianceService::new();
     let report = svc.report(&approved_packet());
 
-    // The 30 regulator fields: DORA 3 + EU AI Act 9 + NIST 4 + OWASP 10 + ISO 42001 4.
+    // The 31 regulator fields: DORA 3 + EU AI Act 9 + NIST 4 + OWASP 10 + ISO 42001 5.
+    // US-05 added the 5th ISO 42001 field (Annex A.6 lifecycle stage);
+    // the total grew from 30 to 31.
     assert_eq!(
-        report.total_populated, 30,
-        "APPROVED packet must populate all 30 fields (DORA 3 + EU AI Act 9 + NIST 4 + OWASP 10 + ISO 42001 4), got {}",
+        report.total_populated, 31,
+        "APPROVED packet must populate all 31 fields (DORA 3 + EU AI Act 9 + NIST 4 + OWASP 10 + ISO 42001 5), got {}",
         report.total_populated
     );
-    assert_eq!(report.total_fields, 30);
+    assert_eq!(report.total_fields, 31);
     assert!((report.coverage_pct - 1.0).abs() < 1e-5);
     assert!(report.ac8_pass, "AC8 must pass on APPROVED packet");
     assert!(
@@ -157,12 +159,13 @@ fn approved_packet_field_breakdown_matches_dashboard_columns() {
     let iso = by_fw
         .get("iso_42001")
         .expect("ISO 42001 column must be present");
-    assert_eq!(iso.len(), 4, "ISO 42001 must have 4 clauses, got {:?}", iso);
+    assert_eq!(iso.len(), 5, "ISO 42001 must have 5 clauses, got {:?}", iso);
     for clause in &[
         "clause_6_1_risk_assessment",
         "clause_8_4_impact_assessment",
         "clause_9_1_monitoring_measurement",
         "clause_10_2_continual_improvement",
+        "annex_a_6_lifecycle_stage",
     ] {
         assert!(
             iso.iter().any(|n| n == clause),
@@ -204,7 +207,7 @@ fn compliance_report_serializes_with_field_level_detail_for_dashboard() {
         }
     }
     assert_eq!(
-        total_field_rows, 30,
+        total_field_rows, 31,
         "JSON must expose all 30 populated field rows (frontend renders one row per entry)"
     );
 }
