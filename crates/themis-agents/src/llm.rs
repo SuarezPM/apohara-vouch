@@ -5,6 +5,15 @@
 //! (DeepSeek, Qwen3-Coder via Featherless), Z.ai (GLM-5.1), and
 //! Google (Gemini 3.1 Flash-Lite). Each provider has a stub impl in
 //! this module — real HTTP wiring is a follow-up sprint.
+//!
+//! ## Testing
+//!
+//! WireMock is the canonical mock layer for AIML (see `aiml_wiremock`).
+//! The hand-rolled `bind_ephemeral` + `spawn_one_shot_handler` TCP
+//! helper is kept only for Featherless streaming, which needs control
+//! over chunk timing that WireMock's matchers don't model. The `live`
+//! module is opt-in: set `AIML_LIVE_TEST=1` and `AIML_API_KEY`, and the
+//! test skips on a missing env or any runtime failure (informational).
 
 use async_trait::async_trait;
 use std::collections::HashMap;
