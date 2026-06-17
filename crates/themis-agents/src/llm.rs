@@ -1003,6 +1003,8 @@ mod tests {
 
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
+    use wiremock::matchers::{body_partial_json, header, method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
 
     /// Bind to an ephemeral port, return (port, listener). Caller
     /// spawns the per-connection handler.
@@ -1434,26 +1436,29 @@ mod tests {
 
     #[tokio::test]
     async fn aimlapi_sends_bearer_auth_and_openai_compat_body() {
-        // Bind a local mock that captures the request and replies
-        // with a valid OpenAI-compat envelope.
-        let (port, listener) = bind_ephemeral().await;
-        let captured = std::sync::Arc::new(std::sync::Mutex::new(Vec::<u8>::new()));
-        let captured_clone = captured.clone();
-        let handle = spawn_one_shot_handler(listener, move |req_bytes| {
-            *captured_clone.lock().unwrap() = req_bytes.clone();
-            let body = serde_json::json!({
-                "choices": [{"message": {"content": "ok-from-aimlapi"}, "finish_reason": "stop"}],
-                "usage": {"prompt_tokens": 21, "completion_tokens": 7, "total_tokens": 28}
-            })
-            .to_string();
-            format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                body.len(),
-                body
-            )
+        // WireMock asserts: POST /v1/chat/completions, Bearer auth,
+        // OpenAI-compat body shape (model, system+user roles).
+        let server = MockServer::start().await;
+        let body = serde_json::json!({
+            "choices": [{"message": {"content": "ok-from-aimlapi"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 21, "completion_tokens": 7, "total_tokens": 28}
         });
+        Mock::given(method("POST"))
+            .and(path("/v1/chat/completions"))
+            .and(header("Authorization", "Bearer sk-aiml-test"))
+            .and(body_partial_json(serde_json::json!({
+                "model": "anthropic/claude-sonnet-4.5",
+                "messages": [
+                    {"role": "system", "content": "you are a fraud auditor"},
+                    {"role": "user", "content": "assess this invoice"},
+                ],
+            })))
+            .respond_with(ResponseTemplate::new(200).set_body_json(body))
+            .mount(&server)
+            .await;
+
         let backend = AIMLAPIBackend::new("sk-aiml-test".to_string(), "anthropic/claude-sonnet-4.5")
-            .with_base_url(format!("http://127.0.0.1:{port}"));
+            .with_base_url(server.uri());
         let resp = backend
             .complete(LlmRequest {
                 system_prompt: "you are a fraud auditor".to_string(),
@@ -1466,21 +1471,6 @@ mod tests {
             })
             .await
             .unwrap();
-        handle.await.unwrap();
-        let req_str = String::from_utf8_lossy(&captured.lock().unwrap().clone()).to_string();
-        let req_lower = req_str.to_lowercase();
-        assert!(
-            req_lower.contains("authorization: bearer sk-aiml-test"),
-            "AIML API must carry Bearer auth header, got:\n{req_str}"
-        );
-        assert!(
-            req_str.contains("\"model\":\"anthropic/claude-sonnet-4.5\""),
-            "AIML API must include the model id, got:\n{req_str}"
-        );
-        assert!(
-            req_str.contains("\"role\":\"system\"") && req_str.contains("\"role\":\"user\""),
-            "AIML API must include system + user roles, got:\n{req_str}"
-        );
         assert_eq!(resp.text, "ok-from-aimlapi");
         assert_eq!(resp.input_tokens, 21);
         assert_eq!(resp.output_tokens, 7);
@@ -1490,25 +1480,35 @@ mod tests {
     #[tokio::test]
     async fn aimlapi_sends_response_format_when_schema_set() {
         // When response_schema is Some, the request body must
-        // include the response_format block.
-        let (port, listener) = bind_ephemeral().await;
-        let captured = std::sync::Arc::new(std::sync::Mutex::new(Vec::<u8>::new()));
-        let captured_clone = captured.clone();
-        let handle = spawn_one_shot_handler(listener, move |req_bytes| {
-            *captured_clone.lock().unwrap() = req_bytes.clone();
-            let body = serde_json::json!({
-                "choices": [{"message": {"content": "{}"}, "finish_reason": "stop"}],
-                "usage": {"prompt_tokens": 1, "completion_tokens": 1}
-            })
-            .to_string();
-            format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                body.len(),
-                body
-            )
+        // include the response_format block. WireMock's
+        // body_partial_json checks the response_format block
+        // is present and its json_schema.schema is non-empty.
+        let server = MockServer::start().await;
+        let body = serde_json::json!({
+            "choices": [{"message": {"content": "{}"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1}
         });
+        Mock::given(method("POST"))
+            .and(path("/v1/chat/completions"))
+            .and(body_partial_json(serde_json::json!({
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "TestSchema",
+                        "schema": {
+                            "type": "object",
+                            "properties": {"a": {"type": "number"}},
+                            "required": ["a"],
+                        },
+                    },
+                },
+            })))
+            .respond_with(ResponseTemplate::new(200).set_body_json(body))
+            .mount(&server)
+            .await;
+
         let backend = AIMLAPIBackend::new("k".to_string(), "anthropic/claude-sonnet-4.5")
-            .with_base_url(format!("http://127.0.0.1:{port}"));
+            .with_base_url(server.uri());
         let schema = serde_json::json!({
             "type": "object",
             "properties": {"a": {"type": "number"}},
@@ -1526,15 +1526,5 @@ mod tests {
             })
             .await
             .unwrap();
-        handle.await.unwrap();
-        let req_str = String::from_utf8_lossy(&captured.lock().unwrap().clone()).to_string();
-        assert!(
-            req_str.contains("\"response_format\""),
-            "AIML API must include response_format when schema set, got:\n{req_str}"
-        );
-        assert!(
-            req_str.contains("\"name\":\"TestSchema\""),
-            "AIML API must include schema name, got:\n{req_str}"
-        );
     }
 }

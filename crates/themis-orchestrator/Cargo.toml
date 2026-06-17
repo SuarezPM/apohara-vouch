@@ -37,6 +37,7 @@ qrcode = "0.14"
 [dev-dependencies]
 tokio = { workspace = true }
 proptest = "1"
+wiremock = "=0.6.2"
 
 [features]
 # `bench` enables test_support for the bench binary and the

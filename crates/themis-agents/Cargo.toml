@@ -25,3 +25,4 @@ themis-compressor = { path = "../themis-compressor" }
 
 [dev-dependencies]
 tokio = { version = "1.40", features = ["macros", "rt-multi-thread", "time", "sync", "net", "io-util"] }
+wiremock = "=0.6.2"
