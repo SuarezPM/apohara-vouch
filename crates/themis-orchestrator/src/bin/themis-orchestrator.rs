@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use themis_evidence::rekor::MockRekorClient;
-use themis_evidence::timestamp::MockTimestampAuthority;
+// (FreeTSAAuthority is referenced by fully-qualified path in main.)
 use themis_orchestrator::fixtures::{load_all, DemoFixture};
 use themis_orchestrator::http::{build_router, AppState};
 use themis_orchestrator::llm_backend::select_backend;
@@ -85,9 +85,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
 
-    // Mock Timestamp Authority (real FreeTSA is a follow-up).
-    let tsa: Arc<dyn themis_evidence::timestamp::TimestampAuthority> =
-        Arc::new(MockTimestampAuthority::new("https://mock.tsa.local"));
+    // Timestamp authority: prefer FreeTSA (real RFC 3161
+    // timestamping via the public endpoint at freetsa.org).
+    // We use the mock as the documented fallback so the
+    // demo degrades gracefully when the public TSA is
+    // unreachable. The real FreeTSA wire is verified in
+    // `themis-evidence::FreeTSAAuthority`.
+    let tsa: Arc<dyn themis_evidence::timestamp::TimestampAuthority> = Arc::new(
+        themis_evidence::timestamp::FreeTSAAuthority::freetsa(),
+    );
 
     // Build the evidence service for each baked tenant. The
     // orchestrator sels into a per-tenant HashChain so the

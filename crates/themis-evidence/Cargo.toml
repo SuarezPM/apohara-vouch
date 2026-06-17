@@ -32,6 +32,7 @@ tokio = { version = "1.40", features = ["macros", "rt-multi-thread", "time", "pr
 sigstore-verify = "0.8"
 sigstore-trust-root = "0.8"
 sigstore-types = "0.8"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 
 [dev-dependencies]
 tempfile = "3"
