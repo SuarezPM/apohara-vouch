@@ -83,6 +83,7 @@ fn router_for(f: &DemoInvoice) -> axum::Router {
         packets: dashmap::DashMap::new(),
         sealed: dashmap::DashMap::new(),
         model_id: mock_llm.model_id().to_string(),
+        band_room: None,
     };
     build_router(state)
 }

@@ -21,7 +21,7 @@ use themis_orchestrator::fixtures::{load_all, DemoFixture};
 use themis_orchestrator::http::{build_router, AppState};
 use themis_orchestrator::llm_backend::select_backend;
 use themis_orchestrator::orchestrator::Orchestrator;
-use themis_orchestrator::room::MockBandRoom;
+// (ScriptedBandRoom is referenced by fully-qualified path in main.)
 use themis_orchestrator::tenants::TenantRegistry;
 
 #[tokio::main]
@@ -106,7 +106,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // service map, so every process_invoice run anchors its
     // BLAKE3 hash in the transparency log AND produces a
     // SealedPacket for the /json endpoint.
-    let rooms: Arc<dyn themis_orchestrator::room::BandRoom> = MockBandRoom::new().into_arc();
+    //
+    // The Band room is `ScriptedBandRoom` (in-memory store with
+    // @mention routing visible to the demo transcript). The
+    // HTTP layer holds the concrete `Arc<ScriptedBandRoom>` so
+    // the `/rooms/:id/transcript` endpoint can serve the live
+    // agent debate. The orchestrator receives an
+    // `Arc<dyn BandRoom>` (trait object) so the test path can
+    // substitute a `MockBandRoom` without touching this code.
+    let room_concrete = std::sync::Arc::new(themis_orchestrator::room::ScriptedBandRoom::new());
+    let rooms: Arc<dyn themis_orchestrator::room::BandRoom> = room_concrete.clone();
     let orch = Orchestrator::with_evidence(
         rooms,
         agents,
@@ -123,6 +132,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         packets: dashmap::DashMap::new(),
         sealed: dashmap::DashMap::new(),
         model_id: model_id.to_string(),
+        band_room: Some(room_concrete.clone()),
     };
 
     let app = build_router(state);

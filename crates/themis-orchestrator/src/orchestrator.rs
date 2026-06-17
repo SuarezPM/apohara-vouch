@@ -294,11 +294,21 @@ impl Orchestrator {
 
             decisions.push(decision.clone());
 
-            // Post the agent's message to the Band room so the
-            // transcript shows the debate.
+            // Post the agent's message to the Band room with
+            // @mention routing. The next agent in the
+            // canonical pipeline gets @mentioned; the demo
+            // transcript then shows the handoff (and the
+            // scripted back-and-forth visible to the judge).
+            let next = next_agent_mention(agent_name);
             let _ = self
                 .rooms
-                .post_message(room, tenant_id, agent_name, &decision.reasoning, vec![])
+                .post_message(
+                    room,
+                    tenant_id,
+                    agent_name,
+                    &decision.reasoning,
+                    next.into_iter().collect(),
+                )
                 .await;
 
             // BAAAR check on the Fraud Auditor's decision.
@@ -463,6 +473,28 @@ impl Orchestrator {
             .get(&format!("{tenant_id}:{invoice_id}"))
             .map(|s| s.clone())
     }
+}
+
+/// Canonical @mention routing: when agent X posts, the next
+/// agent in the pipeline gets @mentioned. The transcript shows
+/// the natural handoff (extractor → fraud_auditor →
+/// gaap_classifier → provenance_signer → audit_watchdog),
+/// and the audit_watchdog pings the demo_narrator at the end.
+/// Returns an empty slice for unknown / terminal agents (the
+/// room just records the post without fan-out).
+fn next_agent_mention(agent_name: &str) -> Vec<String> {
+    let next = match agent_name {
+        "extractor" => Some("fraud_auditor"),
+        "fraud_auditor" => Some("gaap_classifier"),
+        "gaap_classifier" => Some("provenance_signer"),
+        "provenance_signer" => Some("audit_watchdog"),
+        "po_matcher" => Some("fraud_auditor"),
+        "demo_narrator" => None,
+        "regression_tester" => None,
+        "audit_watchdog" => Some("demo_narrator"),
+        _ => None,
+    };
+    next.map(|s| vec![s.to_string()]).unwrap_or_default()
 }
 
 // --- Helpers for assembling the AgentContext ---

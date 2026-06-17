@@ -34,6 +34,7 @@ use crate::fixtures::load_all;
 use crate::orchestrator::Orchestrator;
 use crate::packet::SignedPacket;
 use crate::pdf;
+use crate::tenants::RoomId;
 
 /// Shared application state held by every axum handler.
 #[derive(Clone)]
@@ -44,6 +45,13 @@ pub struct AppState {
     pub orchestrator: std::sync::Arc<tokio::sync::Mutex<Orchestrator>>,
     /// The event bus (for SSE), wrapped in Arc so AppState can be Clone.
     pub event_bus: std::sync::Arc<EventBus>,
+    /// The Band room (concrete `ScriptedBandRoom` for the demo
+    /// so the HTTP layer can serve the live transcript). The
+    /// orchestrator receives an `Arc<dyn BandRoom>`; this is
+    /// the same underlying room reached via the concrete
+    /// type. `None` for tests that don't expose the
+    /// transcript endpoint.
+    pub band_room: Option<std::sync::Arc<crate::room::ScriptedBandRoom>>,
     /// The compliance service (instantiated once at startup), Arc-wrapped.
     pub compliance: std::sync::Arc<themis_compliance::service::ComplianceService>,
     /// Per-run-id → ComplianceReport (populated after process_invoice).
@@ -101,6 +109,7 @@ pub fn build_router(state: AppState) -> Router {
         )
         .route("/packets/:packet_id/pdf", get(get_packet_pdf))
         .route("/packets/:packet_id/json", get(get_packet_json))
+        .route("/rooms/:room_id/transcript", get(get_room_transcript))
         .with_state(state)
 }
 
@@ -263,6 +272,66 @@ async fn get_compliance_report_json(
         )
             .into_response(),
     }
+}
+
+/// Live Band room transcript. The frontend polls this endpoint
+/// every 1s while a run is in progress to render the agent
+/// debate in the right-hand pane. The `last_n` query param
+/// limits the response size (default 50). Returns 503 if the
+/// Band room is not exposed (test builds).
+async fn get_room_transcript(
+    State(state): State<Arc<AppState>>,
+    Path(room_id): Path<String>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Response {
+    let room = match state.band_room.as_ref() {
+        Some(r) => r,
+        None => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({"error": "band room not exposed in this build"})),
+            )
+                .into_response();
+        }
+    };
+    // The room id in the URL is the canonical
+    // "{tenant}:{invoice}" string; we hash to the deterministic
+    // UUID the orchestrator uses. Equivalent to
+    // `MockBandRoom::open` logic.
+    let room_uuid = {
+        let parts: Vec<&str> = room_id.splitn(2, ':').collect();
+        if parts.len() != 2 {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({"error": "room_id must be tenant:invoice"})),
+            )
+                .into_response();
+        }
+        uuid::Uuid::new_v5(
+            &uuid::Uuid::NAMESPACE_OID,
+            room_id.as_bytes(),
+        )
+    };
+    let room_uuid = RoomId(room_uuid);
+    let last_n: usize = params
+        .get("last_n")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(50);
+    let all = room.history(room_uuid);
+    let len = all.len();
+    let start = len.saturating_sub(last_n);
+    let slice = &all[start..];
+    Json(json!({
+        "room_id": room_uuid.0.to_string(),
+        "total_messages": len,
+        "messages": slice.iter().map(|m| json!({
+            "from": m.from,
+            "body": m.body,
+            "mentions": m.mentions,
+            "ts_ms": m.ts_ms,
+        })).collect::<Vec<_>>(),
+    }))
+    .into_response()
 }
 
 // --- Helpers ---
@@ -449,6 +518,7 @@ mod tests {
             packets: DashMap::new(),
             sealed: DashMap::new(),
             model_id: "mock-fallback".to_string(),
+            band_room: None,
         }
     }
 

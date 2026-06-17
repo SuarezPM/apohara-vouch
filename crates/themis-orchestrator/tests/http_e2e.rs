@@ -101,6 +101,7 @@ fn router_for(f: &DemoInvoice) -> axum::Router {
         packets: dashmap::DashMap::new(),
         sealed: dashmap::DashMap::new(),
         model_id: mock_llm.model_id().to_string(),
+        band_room: None,
     };
     build_router(state)
 }
@@ -585,6 +586,7 @@ async fn e2e_halting_fixtures_produce_halted_packet() {
             packets: dashmap::DashMap::new(),
             sealed: dashmap::DashMap::new(),
             model_id: mock_llm.model_id().to_string(),
+            band_room: None,
         };
         let app = build_router(state);
 
