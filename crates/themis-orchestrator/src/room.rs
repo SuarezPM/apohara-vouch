@@ -58,6 +58,15 @@ impl From<TenantError> for BandError {
                 tenant,
                 target_tenant,
             },
+            // C-13: keyring-level errors never reach the Band
+            // transport path in practice (the A2A handler returns
+            // them as a 400 to the peer), but a future caller that
+            // threads a keyring error through a `?` must not
+            // break the From impl. Map to Transport with the
+            // display string so a stray error isn't swallowed.
+            TenantError::EmptyTenantId | TenantError::KeyringLockPoisoned => {
+                BandError::Transport(format!("tenant: {e}"))
+            }
         }
     }
 }

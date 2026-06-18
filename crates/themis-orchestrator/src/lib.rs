@@ -46,6 +46,12 @@ pub mod baaar_z3;
 /// 3-state breaker (`Closed` / `Open` / `HalfOpen`), threshold=5
 /// failures, 30s timeout, exponential backoff 100/200/400/800/1600ms.
 pub mod circuit_breaker;
+/// INV-15 verification seam at the LLM call boundary
+/// (Story C-03 / G14 / G19 / AC3). Pairs with
+/// `themis-compliance::inv15` — this module is the wiring, not
+/// the verifier. See `context.rs` for the integration plan and
+/// the note about the `LlmBackend::send` follow-up.
+pub mod context;
 pub mod events;
 pub mod featherless_openclaw;
 pub mod fixtures;
@@ -55,6 +61,13 @@ pub mod fixtures;
 /// requires explicit re-auth before further approvals.
 pub mod human_guard;
 pub mod http;
+/// Tenant keyring — Story C-13 / G16, G28 / AC13.
+///
+/// BIP32-*style* (HMAC-SHA512, first 32 bytes) Ed25519 keyring
+/// derived from a master seed. Per-tenant keys are derived on
+/// demand and cached. The A2A handler (Story C-12) consumes
+/// this for cross-framework peer integration.
+pub mod keyring;
 pub mod llm_backend;
 pub mod mcp_proxy;
 pub mod orchestrator;

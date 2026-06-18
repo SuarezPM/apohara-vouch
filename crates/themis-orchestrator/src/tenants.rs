@@ -9,12 +9,22 @@
 //! — i.e. the same `SignerService` that produces the per-tenant
 //! signatures. This guarantees that the pubkey shown in the PDF /
 //! JSON packet is the *real* Ed25519 public key, not a placeholder.
+//!
+//! Story C-13 (G16, G28) adds a **dynamic** per-tenant keyring
+//! (`TenantKeyring`) for tenants that don't have a baked seed
+//! file. The keyring is HMAC-SHA512-derived from a master seed
+//! and is *separate* from the baked seeds; the demo signs with
+//! the baked seeds (so `themis-verify` works offline), and the
+//! keyring is the long-tail path for runtime-added tenants.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use dashmap::DashMap;
 use thiserror::Error;
 use uuid::Uuid;
+
+use crate::keyring::TenantKeyring;
 
 /// A tenant (fictitious company on a trust domain).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -69,15 +79,73 @@ pub enum TenantError {
         /// The tenant that owns the resource.
         target_tenant: String,
     },
+    /// Empty tenant id supplied to a keyring operation.
+    #[error("tenant id must not be empty")]
+    EmptyTenantId,
+    /// Keyring mutex was poisoned by a panic in a previous holder.
+    #[error("tenant keyring lock poisoned")]
+    KeyringLockPoisoned,
 }
 
 /// The registry. Holds the 2 default tenants and the
 /// `(tenant_id, invoice_id) → RoomId` mapping. The latter uses
 /// `DashMap` so concurrent `open_room` calls don't contend.
-#[derive(Debug)]
+///
+/// The keyring is `Arc<TenantKeyring>` so it can be cheaply cloned
+/// into the A2A handler (Story C-12 peer integration) and the
+/// orchestrator's per-tenant signing path.
+#[derive(Clone)]
 pub struct TenantRegistry {
     tenants: HashMap<String, Tenant>,
     rooms: DashMap<(String, String), RoomId>,
+    /// BIP32-*style* keyring (HMAC-SHA512 truncated to 32 bytes).
+    /// Shared with consumers via `Arc` to avoid cloning the
+    /// per-tenant `Mutex<HashMap>` on every borrow.
+    keyring: Arc<TenantKeyring>,
+}
+
+// Manual Debug: `DashMap` doesn't implement `Debug`. Print a short
+// summary that doesn't lock the rooms map.
+impl std::fmt::Debug for TenantRegistry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TenantRegistry")
+            .field("tenants", &self.tenants)
+            .field("room_count", &self.rooms.len())
+            .field("keyring_cached", &self.keyring.count())
+            .finish()
+    }
+}
+
+/// Load the master seed from the `THEMIS_MASTER_SEED` env var.
+///
+/// The env var must be a 32-byte seed encoded as 64 hex chars. If
+/// the env var is missing, empty, malformed, or the wrong length,
+/// fall back to a **deterministic dev seed** so tests are
+/// reproducible. In production, the operator is expected to set
+/// `THEMIS_MASTER_SEED` to a CSPRNG-generated 32-byte value.
+pub fn load_master_seed_from_env() -> [u8; 32] {
+    const ENV: &str = "THEMIS_MASTER_SEED";
+    if let Ok(hex_seed) = std::env::var(ENV) {
+        if let Ok(bytes) = hex::decode(hex_seed.trim()) {
+            if bytes.len() == 32 {
+                let mut seed = [0u8; 32];
+                seed.copy_from_slice(&bytes);
+                return seed;
+            }
+        }
+        // Env var present but unusable: log nothing in production
+        // (logging may not be wired yet) and fall through to the
+        // dev seed. The fail-soft behavior is documented in the
+        // module-level doc comment.
+    }
+    // Deterministic dev seed: NOT for production. Marked clearly
+    // so an operator reading a memory dump recognizes it. The
+    // 32-byte literal is truncated with `b"..."[..32]` so a future
+    // edit that grows the string doesn't silently shrink the seed.
+    let dev = b"themis-dev-master-seed-do-not-use-in-prod-v0";
+    let mut seed = [0u8; 32];
+    seed.copy_from_slice(&dev[..32]);
+    seed
 }
 
 impl TenantRegistry {
@@ -88,7 +156,20 @@ impl TenantRegistry {
     /// real Ed25519 signing. Panics at startup if the per-tenant
     /// seed file is missing (fail-fast — better than a placeholder
     /// that passes tests but breaks the demo).
+    ///
+    /// The keyring is initialized from `load_master_seed_from_env()`.
+    /// **The keyring and the baked seeds are intentionally separate**:
+    /// the demo signs with the baked seeds (so `themis-verify` works
+    /// offline), and the keyring is the *dynamic* path for tenants
+    /// that don't have a baked key file.
     pub fn with_default_tenants() -> Self {
+        Self::with_default_tenants_and_seed(load_master_seed_from_env())
+    }
+
+    /// Same as `with_default_tenants` but takes an explicit master
+    /// seed. Used by tests and by callers that want to inject a
+    /// seed without touching the env var.
+    pub fn with_default_tenants_and_seed(master_seed: [u8; 32]) -> Self {
         let mut tenants = HashMap::new();
         for (id, name, key_id) in [
             ("stark", "Stark Industries", "stark-prod-2026-01"),
@@ -114,7 +195,16 @@ impl TenantRegistry {
         Self {
             tenants,
             rooms: DashMap::new(),
+            keyring: Arc::new(TenantKeyring::new(master_seed)),
         }
+    }
+
+    /// Access the per-tenant keyring. The keyring is shared
+    /// (`Arc<TenantKeyring>`) so callers can hand it to the A2A
+    /// handler, a future per-tenant signer, or an integration test
+    /// without copying the internal `Mutex<HashMap>`.
+    pub fn keyring(&self) -> &TenantKeyring {
+        &self.keyring
     }
 
     /// Get a tenant by id.
@@ -252,5 +342,30 @@ mod tests {
         let r = TenantRegistry::with_default_tenants();
         let result = r.get_room("stark", "stark", "never-opened").unwrap();
         assert_eq!(result, None);
+    }
+
+    #[test]
+    fn keyring_derives_keys_distinct_from_baked_seeds() {
+        // Story C-13 / AC13: the keyring is a *separate* path from
+        // the baked seeds, so a tenant's keyring key MUST NOT match
+        // the baked SignerService key. This is the contract that
+        // lets the keyring be the dynamic path for runtime-added
+        // tenants without breaking `themis-verify` for the demo
+        // (which still uses the baked seeds).
+        let r = TenantRegistry::with_default_tenants_and_seed([7u8; 32]);
+        let stark_tenant = r.get("stark").unwrap();
+        let keyring_stark = r.keyring().derive_for_tenant("stark");
+        let keyring_stark_pub_hex = hex::encode(keyring_stark.verifying_key().to_bytes());
+        assert_ne!(
+            stark_tenant.ed25519_public_key_hex, keyring_stark_pub_hex,
+            "keyring key must not collide with baked SignerService key"
+        );
+    }
+
+    #[test]
+    fn keyring_empty_tenant_id_rejected() {
+        let r = TenantRegistry::with_default_tenants_and_seed([0u8; 32]);
+        let err = r.keyring().get_or_derive("").unwrap_err();
+        assert!(matches!(err, TenantError::EmptyTenantId));
     }
 }
