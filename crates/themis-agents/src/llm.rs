@@ -274,6 +274,12 @@ pub struct FeatherlessBackend {
     model: &'static str,
     /// Base URL (override for tests via `with_base_url`).
     base_url: String,
+    /// Optional metrics sink. When set, every call (success or
+    /// final failure) is reported to it. Held as a trait object
+    /// so the agents crate doesn't depend on themis-compliance.
+    /// Implemented by
+    /// `themis-compliance::featherless_metrics::FeatherlessMetricsInner`.
+    metrics: Option<std::sync::Arc<dyn LlmMetricsSink>>,
 }
 
 impl std::fmt::Debug for FeatherlessBackend {
@@ -318,6 +324,7 @@ impl FeatherlessBackend {
             api_key,
             model,
             base_url: "https://api.featherless.ai".to_string(),
+            metrics: None,
         }
     }
 
@@ -326,6 +333,15 @@ impl FeatherlessBackend {
     #[cfg(test)]
     pub fn with_base_url(mut self, base_url: impl Into<String>) -> Self {
         self.base_url = base_url.into();
+        self
+    }
+
+    /// Attach a metrics sink. Every call (success or final
+    /// failure) is reported to the sink as a `CallMetrics`
+    /// event. Pass `None` to detach. The default is no sink.
+    /// Mirrors `AIMLAPIBackend::with_metrics`.
+    pub fn with_metrics(mut self, sink: std::sync::Arc<dyn LlmMetricsSink>) -> Self {
+        self.metrics = Some(sink);
         self
     }
 
@@ -372,6 +388,8 @@ impl LlmBackend for FeatherlessBackend {
         }
 
         let url = format!("{}/v1/chat/completions", self.base_url);
+        let call_start = std::time::Instant::now();
+        let model_str = self.model;
         let mut last_err: Option<AgentError> = None;
         // 1 initial attempt + 3 retries on 429 = 4 max attempts.
         for attempt in 0..=Self::BACKOFFS_MS.len() {
@@ -398,6 +416,16 @@ impl LlmBackend for FeatherlessBackend {
                         continue;
                     }
                     if status.is_server_error() {
+                        let latency_ms = call_start.elapsed().as_millis() as u64;
+                        if let Some(s) = self.metrics.as_ref() {
+                            s.record_call(CallMetrics {
+                                success: false,
+                                latency_ms,
+                                tokens_in: 0,
+                                tokens_out: 0,
+                                model: model_str,
+                            });
+                        }
                         return Err(AgentError::LlmUnavailable(format!(
                             "Featherless 5xx: {status}"
                         )));
@@ -412,6 +440,16 @@ impl LlmBackend for FeatherlessBackend {
                             .chars()
                             .take(200)
                             .collect::<String>();
+                        let latency_ms = call_start.elapsed().as_millis() as u64;
+                        if let Some(s) = self.metrics.as_ref() {
+                            s.record_call(CallMetrics {
+                                success: false,
+                                latency_ms,
+                                tokens_in: 0,
+                                tokens_out: 0,
+                                model: model_str,
+                            });
+                        }
                         return Err(AgentError::LlmUnavailable(format!(
                             "Featherless {status}: {body_snippet}"
                         )));
@@ -441,6 +479,16 @@ impl LlmBackend for FeatherlessBackend {
                         parsed["usage"]["completion_tokens"].as_u64().unwrap_or(0) as u32;
                     let finish_reason =
                         parse_finish_reason(parsed["choices"][0]["finish_reason"].as_str());
+                    let latency_ms = call_start.elapsed().as_millis() as u64;
+                    if let Some(s) = self.metrics.as_ref() {
+                        s.record_call(CallMetrics {
+                            success: true,
+                            latency_ms,
+                            tokens_in: input_tokens,
+                            tokens_out: output_tokens,
+                            model: model_str,
+                        });
+                    }
                     return Ok(LlmResponse {
                         text,
                         input_tokens,
@@ -453,6 +501,16 @@ impl LlmBackend for FeatherlessBackend {
                     // Network-level error (DNS, TLS, timeout). Map
                     // to LlmUnavailable. No retry — the network is
                     // probably down, not rate-limited.
+                    let latency_ms = call_start.elapsed().as_millis() as u64;
+                    if let Some(s) = self.metrics.as_ref() {
+                        s.record_call(CallMetrics {
+                            success: false,
+                            latency_ms,
+                            tokens_in: 0,
+                            tokens_out: 0,
+                            model: model_str,
+                        });
+                    }
                     return Err(AgentError::LlmUnavailable(format!(
                         "Featherless network error: {e}"
                     )));
@@ -460,6 +518,16 @@ impl LlmBackend for FeatherlessBackend {
             }
         }
         // All retries exhausted on 429.
+        let latency_ms = call_start.elapsed().as_millis() as u64;
+        if let Some(s) = self.metrics.as_ref() {
+            s.record_call(CallMetrics {
+                success: false,
+                latency_ms,
+                tokens_in: 0,
+                tokens_out: 0,
+                model: model_str,
+            });
+        }
         Err(last_err.unwrap_or(AgentError::LlmUnavailable(
             "Featherless: rate-limited after retries".to_string(),
         )))
@@ -484,6 +552,33 @@ impl LlmBackend for FeatherlessBackend {
 // body shape is identical (OpenAI-compat), only the base URL and
 // env var name differ — see `OpenAiCompatBackend` macro below.
 
+/// Outcome of a single AI/ML API call, reported to the optional
+/// metrics sink after the call settles. The same shape is used by
+/// the `themis-compliance::aiml_metrics` accumulator.
+#[derive(Debug, Clone, Copy)]
+pub struct CallMetrics {
+    /// True iff the call returned 2xx with a well-formed `usage` block.
+    pub success: bool,
+    /// End-to-end latency in milliseconds.
+    pub latency_ms: u64,
+    /// `usage.prompt_tokens` from the response (0 on failure).
+    pub tokens_in: u32,
+    /// `usage.completion_tokens` from the response (0 on failure).
+    pub tokens_out: u32,
+    /// The model id used (e.g. `"anthropic/claude-sonnet-4.5"`).
+    pub model: &'static str,
+}
+
+/// Pluggable metrics sink for LLM backends. Implemented by
+/// `themis-compliance::aiml_metrics::AimlMetricsInner`. Held as
+/// `Option<Arc<dyn LlmMetricsSink>>` on the backend so the
+/// agents crate stays free of the compliance dep.
+pub trait LlmMetricsSink: Send + Sync {
+    /// Record one call outcome. Called exactly once per call,
+    /// after success or final-failure.
+    fn record_call(&self, outcome: CallMetrics);
+}
+
 /// Real LLM backend that talks to AI/ML API (aimlapi.com).
 pub struct AIMLAPIBackend {
     client: reqwest::Client,
@@ -491,6 +586,10 @@ pub struct AIMLAPIBackend {
     model: &'static str,
     /// Base URL (override for tests via `with_base_url`).
     base_url: String,
+    /// Optional metrics sink. When set, every call (success or
+    /// final failure) is reported to it. Held as a trait object
+    /// so the agents crate doesn't depend on themis-compliance.
+    metrics: Option<std::sync::Arc<dyn LlmMetricsSink>>,
 }
 
 impl std::fmt::Debug for AIMLAPIBackend {
@@ -542,6 +641,7 @@ impl AIMLAPIBackend {
             api_key,
             model,
             base_url: "https://api.aimlapi.com".to_string(),
+            metrics: None,
         }
     }
 
@@ -550,6 +650,14 @@ impl AIMLAPIBackend {
     /// tests in `tests/` unable to point at a local WireMock server).
     pub fn with_base_url(mut self, base_url: impl Into<String>) -> Self {
         self.base_url = base_url.into();
+        self
+    }
+
+    /// Attach a metrics sink. Every call (success or final failure)
+    /// is reported to the sink as a `CallMetrics` event. Pass
+    /// `None` to detach. The default is no sink.
+    pub fn with_metrics(mut self, sink: std::sync::Arc<dyn LlmMetricsSink>) -> Self {
+        self.metrics = Some(sink);
         self
     }
 
@@ -588,6 +696,12 @@ impl LlmBackend for AIMLAPIBackend {
         }
 
         let url = format!("{}/v1/chat/completions", self.base_url);
+        // Track the start time so the metrics sink gets an
+        // accurate end-to-end latency (including all retries
+        // and backoff sleeps). The sink is invoked exactly once
+        // per call on the terminal branch via `report`.
+        let call_start = std::time::Instant::now();
+        let model_str = self.model;
         let mut last_err: Option<AgentError> = None;
         for attempt in 0..=Self::BACKOFFS_MS.len() {
             if attempt > 0 {
@@ -610,6 +724,16 @@ impl LlmBackend for AIMLAPIBackend {
                         continue;
                     }
                     if status.is_server_error() {
+                        let latency_ms = call_start.elapsed().as_millis() as u64;
+                        if let Some(s) = self.metrics.as_ref() {
+                            s.record_call(CallMetrics {
+                                success: false,
+                                latency_ms,
+                                tokens_in: 0,
+                                tokens_out: 0,
+                                model: model_str,
+                            });
+                        }
                         return Err(AgentError::LlmUnavailable(format!("AIMLAPI 5xx: {status}")));
                     }
                     if status == reqwest::StatusCode::UNAUTHORIZED
@@ -628,6 +752,16 @@ impl LlmBackend for AIMLAPIBackend {
                                     .map(|s| s.to_string())
                             })
                             .unwrap_or_else(|| raw_body.chars().take(200).collect::<String>());
+                        let latency_ms = call_start.elapsed().as_millis() as u64;
+                        if let Some(s) = self.metrics.as_ref() {
+                            s.record_call(CallMetrics {
+                                success: false,
+                                latency_ms,
+                                tokens_in: 0,
+                                tokens_out: 0,
+                                model: model_str,
+                            });
+                        }
                         return Err(AgentError::AuthenticationError {
                             provider: "aimlapi",
                             reason,
@@ -641,6 +775,16 @@ impl LlmBackend for AIMLAPIBackend {
                             .chars()
                             .take(200)
                             .collect::<String>();
+                        let latency_ms = call_start.elapsed().as_millis() as u64;
+                        if let Some(s) = self.metrics.as_ref() {
+                            s.record_call(CallMetrics {
+                                success: false,
+                                latency_ms,
+                                tokens_in: 0,
+                                tokens_out: 0,
+                                model: model_str,
+                            });
+                        }
                         return Err(AgentError::LlmUnavailable(format!(
                             "AIMLAPI {status}: {body_snippet}"
                         )));
@@ -669,6 +813,16 @@ impl LlmBackend for AIMLAPIBackend {
                         parsed["usage"]["completion_tokens"].as_u64().unwrap_or(0) as u32;
                     let finish_reason =
                         parse_finish_reason(parsed["choices"][0]["finish_reason"].as_str());
+                    let latency_ms = call_start.elapsed().as_millis() as u64;
+                    if let Some(s) = self.metrics.as_ref() {
+                        s.record_call(CallMetrics {
+                            success: true,
+                            latency_ms,
+                            tokens_in: input_tokens,
+                            tokens_out: output_tokens,
+                            model: model_str,
+                        });
+                    }
                     return Ok(LlmResponse {
                         text,
                         input_tokens,
@@ -678,11 +832,31 @@ impl LlmBackend for AIMLAPIBackend {
                     });
                 }
                 Err(e) => {
+                    let latency_ms = call_start.elapsed().as_millis() as u64;
+                    if let Some(s) = self.metrics.as_ref() {
+                        s.record_call(CallMetrics {
+                            success: false,
+                            latency_ms,
+                            tokens_in: 0,
+                            tokens_out: 0,
+                            model: model_str,
+                        });
+                    }
                     return Err(AgentError::LlmUnavailable(format!(
                         "AIMLAPI network error: {e}"
                     )));
                 }
             }
+        }
+        let latency_ms = call_start.elapsed().as_millis() as u64;
+        if let Some(s) = self.metrics.as_ref() {
+            s.record_call(CallMetrics {
+                success: false,
+                latency_ms,
+                tokens_in: 0,
+                tokens_out: 0,
+                model: model_str,
+            });
         }
         Err(last_err.unwrap_or(AgentError::LlmUnavailable(
             "AIMLAPI: rate-limited after retries".to_string(),

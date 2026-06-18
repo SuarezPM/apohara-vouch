@@ -6,8 +6,10 @@
 #![warn(missing_docs)]
 
 pub mod aibom;
+pub mod aiml_metrics;
 pub mod dora;
 pub mod eu_ai_act;
+pub mod featherless_metrics;
 pub mod framework;
 pub mod fria;
 pub mod inv15;

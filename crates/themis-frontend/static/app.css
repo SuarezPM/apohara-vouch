@@ -684,3 +684,39 @@ p a:hover, li a:hover, td a:hover, .foot-col a:hover {
   .transcript__msg { grid-template-columns: minmax(0, 1fr); }
   .transcript__ts { margin-bottom: var(--space-xs); }
 }
+
+/* ───── regulator-live tiles (Step 01.5) ───── */
+.regulator-live__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-md, 16px);
+}
+.reg-tile {
+  background: var(--canvas-2, rgba(20, 28, 44, 0.6));
+  border: 1px solid var(--ink-faint, rgba(255,255,255,0.08));
+  border-radius: 8px;
+  padding: 16px 18px;
+  transition: border-color 200ms, background 200ms;
+}
+.reg-tile[data-state="live"] { border-color: var(--accent, #d4a017); }
+.reg-tile[data-state="halted"] { border-color: var(--halt, #dc2626); }
+.reg-tile[data-state="fulfilled"] { border-color: var(--ok, #10b981); }
+.reg-tile__h { font: 600 14px var(--ff-display, "Chakra Petch", sans-serif); margin: 0 0 4px; }
+.reg-tile__chip {
+  display: inline-block; margin-left: 6px; padding: 1px 6px;
+  font: 600 10px var(--ff-mono, "JetBrains Mono", monospace);
+  background: var(--accent, #d4a017); color: #0a0e1a; border-radius: 3px;
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+.reg-tile__sub { font: 12px/1.4 var(--ff-sans, "Geist", sans-serif); color: var(--ink-faint, rgba(255,255,255,0.55)); margin: 0 0 10px; }
+.reg-tile__v { font: 600 18px var(--ff-mono, "JetBrains Mono", monospace); margin: 0; color: var(--ink, #f9fafb); }
+.reg-tile__v span { color: var(--ink, #f9fafb); }
+.reg-tile__model { font: 11px var(--ff-mono, "JetBrains Mono", monospace); color: var(--ink-faint, rgba(255,255,255,0.5)); margin: 6px 0 0; word-break: break-all; }
+.reg-aiml-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 12px;
+}
+.reg-aiml-grid span { display: flex; flex-direction: column; align-items: flex-start; }
+.reg-aiml-grid b { font: 600 18px var(--ff-mono, "JetBrains Mono", monospace); color: var(--ink, #f9fafb); }
+.reg-aiml-grid i { font: 10px var(--ff-sans, "Geist", sans-serif); font-style: normal; color: var(--ink-faint, rgba(255,255,255,0.5)); text-transform: uppercase; letter-spacing: 0.04em; }

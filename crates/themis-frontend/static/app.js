@@ -782,4 +782,95 @@
     }
   });
   connectSse();
+
+  // --- Story Ola-B: poll /metrics/aiml every 2s. Renders
+  //     the AI/ML API live-call counters above the fold.
+  //     The widget is in the regulator-live row; the
+  //     endpoint returns 0s when no metrics sink is attached
+  //     (test builds), so we never have to special-case the
+  //     empty state. ---
+  const aimlEls = {
+    tile: document.getElementById('reg-aiml'),
+    calls: document.getElementById('reg-aiml-calls'),
+    ok: document.getElementById('reg-aiml-ok'),
+    p95: document.getElementById('reg-aiml-p95'),
+    cost: document.getElementById('reg-aiml-cost'),
+    model: document.getElementById('reg-aiml-model'),
+  };
+  const fmtUsd = (n) => {
+    if (!isFinite(n) || n === 0) return '$0.00';
+    if (n < 0.01) return '$' + n.toFixed(6);
+    return '$' + n.toFixed(4);
+  };
+  const fmtMs = (n) => {
+    if (!isFinite(n) || n === 0) return '—';
+    return Math.round(n).toString();
+  };
+  const tickAiml = async () => {
+    try {
+      const r = await fetch('/metrics/aiml', { cache: 'no-store' });
+      if (!r.ok) return;
+      const m = await r.json();
+      if (aimlEls.calls) aimlEls.calls.textContent = String(m.calls ?? 0);
+      if (aimlEls.ok) aimlEls.ok.textContent = String(m.successes ?? 0);
+      if (aimlEls.p95) aimlEls.p95.textContent = fmtMs(m.p95_latency_ms);
+      if (aimlEls.cost) aimlEls.cost.textContent = fmtUsd(m.total_cost_usd);
+      if (aimlEls.model) {
+        aimlEls.model.textContent = m.model
+          ? `model: ${m.model}`
+          : 'model: (no calls yet)';
+      }
+      if (aimlEls.tile) {
+        aimlEls.tile.dataset.state = (m.calls > 0) ? 'live' : 'idle';
+      }
+    } catch (_e) {
+      // Network blip — keep last good values.
+    }
+  };
+  // First tick immediately so the widget is populated on page
+  // load (the model id is "—" until the first call lands).
+  tickAiml();
+  setInterval(tickAiml, 2000);
+
+  // --- Story Ola-C: poll /metrics/featherless every 2s.
+  //     Renders the Featherless AI live-call counters as a
+  //     sibling of the AI/ML API widget above. The
+  //     fraud_auditor is the only agent routed to Featherless
+  //     (Qwen3-Coder-30B-A3B-Instruct). The endpoint returns
+  //     0s when no metrics sink is attached (test builds /
+  //     no FEATHERLESS_API_KEY), so we never have to
+  //     special-case the empty state. ---
+  const featherlessEls = {
+    tile: document.getElementById('reg-featherless'),
+    calls: document.getElementById('reg-featherless-calls'),
+    ok: document.getElementById('reg-featherless-ok'),
+    p95: document.getElementById('reg-featherless-p95'),
+    cost: document.getElementById('reg-featherless-cost'),
+    model: document.getElementById('reg-featherless-model'),
+  };
+  const tickFeatherless = async () => {
+    try {
+      const r = await fetch('/metrics/featherless', { cache: 'no-store' });
+      if (!r.ok) return;
+      const m = await r.json();
+      if (featherlessEls.calls) featherlessEls.calls.textContent = String(m.calls ?? 0);
+      if (featherlessEls.ok) featherlessEls.ok.textContent = String(m.successes ?? 0);
+      if (featherlessEls.p95) featherlessEls.p95.textContent = fmtMs(m.p95_latency_ms);
+      if (featherlessEls.cost) featherlessEls.cost.textContent = fmtUsd(m.total_cost_usd);
+      if (featherlessEls.model) {
+        featherlessEls.model.textContent = m.model
+          ? `model: ${m.model}`
+          : 'model: (no calls yet)';
+      }
+      if (featherlessEls.tile) {
+        featherlessEls.tile.dataset.state = (m.calls > 0) ? 'live' : 'idle';
+      }
+    } catch (_e) {
+      // Network blip — keep last good values.
+    }
+  };
+  // First tick immediately so the widget is populated on page
+  // load (the model id is "—" until the first call lands).
+  tickFeatherless();
+  setInterval(tickFeatherless, 2000);
 })();
