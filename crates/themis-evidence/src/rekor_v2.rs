@@ -27,10 +27,10 @@
 //!
 //! ## Status
 //!
-//! The `anchor()` body uses a placeholder Ed25519 signature (the
-//! blake3 hash bytes themselves) so the wire shape compiles and the
-//! unit tests can exercise the gRPC plumbing. A real Ed25519
-//! signature of the digest is a follow-up.
+//! The `anchor()` method produces a real Ed25519 signature over the
+//! BLAKE3 digest using the per-tenant SignerService. The signature
+//! is verifiable offline against the baked tenant public key.
+//! Follow-up: TUF SigningConfig lookup for shard rotation.
 
 use std::time::Duration;
 
@@ -117,25 +117,35 @@ impl RekorClient for RekorV2Client {
     async fn anchor(
         &self,
         blake3_hash_hex: &str,
-        _tenant_id: &str,
+        tenant_id: &str,
     ) -> Result<RekorEntry, RekorError> {
         // Decode the hex-encoded BLAKE3 hash into raw bytes.
         let hash_bytes = hex::decode(blake3_hash_hex)
             .map_err(|e| RekorError::InvalidResponse(format!("blake3 hash is not hex: {e}")))?;
 
-        // Build the HashedRekordRequestV002 body.
-        // DEMO-ONLY: signature content = hash bytes themselves. A real
-        // entry requires an Ed25519 signature of the digest; that's a
-        // follow-up (see module docs).
+        // Real Ed25519 signature over the digest using the per-tenant
+        // SignerService. The signature + public key are sourced from
+        // the same baked key (deterministic for fixture tenants
+        // stark/wayne) so a separate verifier with the matching
+        // tenant public key can validate offline.
+        let signer = crate::signer::SignerService::for_tenant(tenant_id).map_err(|e| {
+            RekorError::Transport(format!("signer for tenant {tenant_id}: {e}"))
+        })?;
+        let ed25519_sig = signer.sign(&hash_bytes);
+        let pubkey_bytes = hex::decode(signer.public_key_hex())
+            .map_err(|e| RekorError::Transport(format!("signer pubkey not hex: {e}")))?;
+
+        // Build the HashedRekordRequestV002 body with the real
+        // Ed25519 signature content + the matching public key.
         let request = CreateEntryRequest {
             hashed_rekord_request_v002: Some(HashedRekordRequestV002 {
                 digest: base64::engine::general_purpose::STANDARD.encode(&hash_bytes),
                 signature: Some(Signature {
-                    content: hash_bytes.clone(),
+                    content: ed25519_sig.to_bytes().to_vec(),
                     verifier: Some(Verifier {
                         algorithm: SignatureAlgorithm::Ed25519 as i32,
                         public_key: Some(PublicKey {
-                            raw_bytes: hash_bytes,
+                            raw_bytes: pubkey_bytes,
                         }),
                     }),
                 }),
