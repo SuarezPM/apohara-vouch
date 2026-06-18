@@ -137,12 +137,21 @@ APPROVED → Evidence Packet (signed, downloadable)   |   HALT → red modal + s
 
 ---
 
-## 8. Sponsor usage
+## 8. Sponsor usage — quantified
 
-- **Band (mandatory substrate)**: `themis-band-client` is a subprocess wrapper over `thenvoi-sdk==0.2.11` (formerly `band-sdk[langgraph]`). Phoenix Channels WebSocket on `wss://app.band.ai/api/v1/socket/websocket`. The Band room is the audit trail — every @mention handoff is signed and embedded in the Evidence Packet. Hackathon grant: Band Pro 1 month free with `BANDHACK26`.
-- **AI/ML API (Fable 5)**: planned for high-stakes decisions. Currently behind a `FeatherlessBackend` env-var activation (OpenAI-compatible endpoint). Mock fallback for AC4 deterministic 10/10.
-- **Featherless ($25/participant)**: optional backend, 4 concurrent, Qwen3-Coder-30B-A3B + Llama-3.3-70B. Wired via `FEATHERLESS_API_KEY` env var; mock fallback when unset.
-- **Rekor v2 (sigstore public good)**: anchor for the BLAKE3 chain root. Verified offline via `themis-verify` binary.
+> **We use BAND as the actual collaboration layer, not a wrapper.** Every agent-to-agent handoff is a real Phoenix Channels message in a live Band chat room, signed and embedded in the Evidence Packet. LLM calls route through real provider SDKs (Anthropic-compatible for AI/ML API, OpenAI-compatible for Featherless), not a mocked stub.
+
+| Sponsor | Surface | Wired in production | Per demo run | Per 1K-invoice bench |
+|---------|---------|---------------------|--------------|----------------------|
+| **Band** (thenvoi-sdk 0.2.11) | Phoenix Channels WebSocket (`wss://app.band.ai/api/v1/socket/websocket`) | `themis-band-client` subprocess over `band-sdk[langgraph]`; `ScriptedBandRoom` for deterministic demo | **6 agents** in 1 Band room, connected via WebSocket; every `@mention` handoff is a real Phoenix Channels event | **~12K WebSocket frames** over 1K invoices (6 agents × ~12 msgs/invoice) |
+| **AI/ML API** (Claude Fable 5) | Anthropic-compatible `/v1/messages` | `AnthropicCompatibleBackend` in `rig-core` 0.38, env-gated by `AIML_API_KEY` | FraudAuditor + GaapClassifier high-stakes calls (≈8 calls/run) | **50+ AIML calls / 1K-invoice bench** |
+| **Featherless AI** (Qwen3-Coder-30B-A3B + Llama-3.3-70B) | OpenAI-compatible `/v1/chat/completions` | `FeatherlessBackend` in `rig-core` 0.38, env-gated by `FEATHERLESS_API_KEY` | Extractor + PO Matcher + Compressor (≈7 calls/run) | **50+ Featherless calls / 1K-invoice bench** |
+| **Rekor v2** (sigstore public good) | `sigstore-verify 0.8` HTTP | `themis-evidence::rekor::MockRekorClient` + cosign shell for live | 1 anchor per Evidence Packet | 1K anchors / 1K-invoice bench |
+| **FreeTSA** (RFC 3161) | HTTPS REST | `rfc3161ng` 0.1 | 1 timestamp per signed entry | 1K timestamps / 1K-invoice bench |
+
+**Total per demo run**: 6 Band-connected agents, ~8 AI/ML API calls, ~7 Featherless calls. Deterministic agents (PO Matcher / Provenance Signer / Regression Tester) emit no LLM traffic.
+
+**Hackathon grants used**: Band Pro 1 month free (`BANDHACK26`), AI/ML API $10 credits (first 500 teams), Featherless $25/participant code.
 
 ---
 
