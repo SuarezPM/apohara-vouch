@@ -147,6 +147,28 @@ pub fn build_default_state(
     }
 }
 
+/// Like [`build_default_state`] but attaches a pre-built
+/// `FeatherlessMetrics` handle to the AppState. The
+/// production binary calls this so the
+/// `GET /metrics/featherless` endpoint serves real counters
+/// (the binary constructs the FeatherlessBackend and
+/// attaches the same handle to the backend via
+/// `with_metrics`, so every fraud_auditor call increments
+/// the counters exposed by the route). When no key is set
+/// the binary passes a fresh empty handle — the route
+/// returns the zero snapshot, which is the correct UX (the
+/// frontend renders "live · 0 calls").
+pub fn build_default_state_with_featherless(
+    orch: Orchestrator,
+    room_concrete: std::sync::Arc<crate::room::ScriptedBandRoom>,
+    model_id: String,
+    featherless_metrics: themis_compliance::featherless_metrics::FeatherlessMetricsHandle,
+) -> AppState {
+    let mut s = build_default_state(orch, room_concrete, model_id);
+    s.featherless_metrics = Some(featherless_metrics);
+    s
+}
+
 /// Build the axum Router with all routes.
 ///
 /// `AppState` is wrapped in `Arc` before being installed as the axum
@@ -1014,6 +1036,44 @@ mod tests {
         assert_eq!(approves, 1);
         // First entry is the APPROVED fixture (default selection).
         assert_eq!(fixtures[0]["expected_verdict"], "APPROVED");
+    }
+
+    /// `GET /metrics/featherless` (Story Ola-C) returns the
+    /// live counters JSON. When no sink is attached, the
+    /// handler returns a zero snapshot with the right field
+    /// set (same shape as `/metrics/aiml` so the frontend
+    /// can render both widgets with one template).
+    #[tokio::test]
+    async fn get_featherless_metrics_returns_zero_snapshot() {
+        let state = build_state();
+        let app = build_router(state);
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .uri("/metrics/featherless")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let ct = resp
+            .headers()
+            .get("content-type")
+            .unwrap()
+            .to_str()
+            .unwrap();
+        assert!(ct.starts_with("application/json"), "ct={ct}");
+        let v: serde_json::Value =
+            serde_json::from_slice(&to_bytes(resp.into_body(), 1024 * 1024).await.unwrap())
+                .unwrap();
+        // The Ola-C widget reads calls/successes/p95/cost/model.
+        for key in ["calls", "successes", "avg_latency_ms", "p95_latency_ms", "total_cost_usd", "total_tokens_in", "total_tokens_out", "model"] {
+            assert!(v.get(key).is_some(), "missing key: {key}");
+        }
+        assert_eq!(v["calls"], 0);
+        assert_eq!(v["successes"], 0);
+        assert_eq!(v["model"], "");
     }
 }
 

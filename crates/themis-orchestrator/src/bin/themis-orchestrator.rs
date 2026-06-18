@@ -142,10 +142,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         evidence_map,
     );
 
-    let state = themis_orchestrator::http::build_default_state(
+    // Story Ola-C: build a `FeatherlessMetrics` handle and
+    // (when `FEATHERLESS_API_KEY` is set) a `FeatherlessBackend`
+    // with the same handle attached via `with_metrics`. The
+    // AppState receives the handle so `GET /metrics/featherless`
+    // serves the live counters. When the key is unset the
+    // backend is `None` and the handle is still allocated (the
+    // empty snapshot is the right UX — the widget renders
+    // "live · 0 calls"). We construct the handle FIRST so the
+    // backend and the AppState share the SAME `Arc` (counter
+    // consistency invariant).
+    let featherless_metrics =
+        themis_orchestrator::routing::new_shared_featherless_metrics();
+    if let Some(_backend) = themis_agents::llm::FeatherlessBackend::from_env(
+        themis_orchestrator::routing::FRAUD_AUDITOR_FEATHERLESS_MODEL,
+    )
+    .map(|b| b.with_metrics(featherless_metrics.clone()))
+    {
+        eprintln!(
+            "[themis-orchestrator] FeatherlessBackend wired: fraud_auditor -> {}",
+            themis_orchestrator::routing::FRAUD_AUDITOR_FEATHERLESS_MODEL
+        );
+    } else {
+        eprintln!(
+            "[themis-orchestrator] FEATHERLESS_API_KEY not set; fraud_auditor falls back to MockLlmProvider"
+        );
+    }
+
+    let state = themis_orchestrator::http::build_default_state_with_featherless(
         orch,
         room_concrete.clone(),
         model_id.to_string(),
+        featherless_metrics,
     );
     let app = build_router(state);
     let listener = tokio::net::TcpListener::bind(&bind).await?;
