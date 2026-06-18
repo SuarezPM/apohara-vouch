@@ -34,7 +34,7 @@ agents:
     role: worker
     framework: band-sdk[langgraph]
     llm_backend: aimlapi
-    llm_model: claude-fable-5
+    llm_model: claude-sonnet-4-5
     multimodal: true
     ws_path: /api/v1/socket/websocket
 
@@ -55,7 +55,7 @@ agents:
     role: worker
     framework: band-sdk[langgraph]
     llm_backend: aimlapi
-    llm_model: claude-fable-5
+    llm_model: claude-sonnet-4-5
     multimodal: true
     emits_halt: true
     ws_path: /api/v1/socket/websocket
@@ -67,7 +67,7 @@ agents:
     role: worker
     framework: band-sdk[langgraph]
     llm_backend: aimlapi
-    llm_model: claude-fable-5
+    llm_model: claude-sonnet-4-5
     ws_path: /api/v1/socket/websocket
 
   - name: provenance_signer
@@ -87,5 +87,5 @@ agents:
     role: shadow
     framework: band-sdk[langgraph]
     llm_backend: aimlapi
-    llm_model: claude-fable-5
+    llm_model: claude-sonnet-4-5
     ws_path: /api/v1/socket/websocket

@@ -22,20 +22,20 @@ pub struct Component {
     /// CycloneDX `type` — one of `application`, `machine-learning-model`,
     /// `data` (or `library`, `framework`, etc. as needed).
     pub component_type: String,
-    /// Component name (e.g. `themis-orchestrator`, `claude-fable-5`).
+    /// Component name (e.g. `themis-orchestrator`, `claude-sonnet-4-5`).
     pub name: String,
     /// Version string (semver when applicable; LLM provider version
     /// or `latest` for models without a release tag).
     pub version: String,
     /// Optional model card. CycloneDX 1.6 attaches the card to
     /// `machine-learning-model` components via
-    /// `Component.modelCard`. The PRD says the Claude Fable 5
+    /// `Component.modelCard`. The PRD says the Claude Sonnet 4.5
     /// entry must carry one.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_card: Option<ModelCard>,
     /// Datasets used to train or evaluate this component. Empty
     /// for crates; the InvoiceNet dataset is attached to the
-    /// Claude Fable 5 model card as a `data` group.
+    /// Claude Sonnet 4.5 model card as a `data` group.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub datasets: Vec<Dataset>,
 }
@@ -60,7 +60,7 @@ pub struct ModelCard {
 /// A dataset referenced by an AIBOM component. CycloneDX 1.6
 /// represents datasets as a sub-component or as a `data` group;
 /// for THEMIS 3.0 we attach the InvoiceNet dataset to the
-/// Claude Fable 5 model card.
+/// Claude Sonnet 4.5 model card.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Dataset {
     /// Dataset name (e.g. `invoicenet-1k`).
@@ -83,7 +83,7 @@ pub struct Aibom {
 
 /// Build the canonical THEMIS 3.0 AIBOM. 7 application crates +
 /// 5 ML model providers + 1 dataset (with provenance) attached
-/// to the Claude Fable 5 model card.
+/// to the Claude Sonnet 4.5 model card.
 pub fn build() -> Aibom {
     // The 7 THEMIS 3.0 crates — each gets an `application`
     // component with the workspace version.
@@ -152,11 +152,11 @@ pub fn build() -> Aibom {
                 .to_string(),
     };
 
-    // 5 ML models. Only Claude Fable 5 carries a modelCard; per
+    // 5 ML models. Only Claude Sonnet 4.5 carries a modelCard; per
     // the PRD, that's the component auditors will check first.
-    let claude_fable_5 = Component {
+    let claude_sonnet_4_5 = Component {
         component_type: "machine-learning-model".to_string(),
-        name: "claude-fable-5".to_string(),
+        name: "claude-sonnet-4-5".to_string(),
         version: "2025-11-01".to_string(),
         model_card: Some(ModelCard {
             model_parameters: serde_json::json!({
@@ -213,7 +213,7 @@ pub fn build() -> Aibom {
     };
 
     let mut components = apps;
-    components.push(claude_fable_5);
+    components.push(claude_sonnet_4_5);
     components.push(qwen3_coder_30b);
     components.push(featherless_fallback);
     components.push(mock_provider);
@@ -246,7 +246,7 @@ pub fn to_cyclonedx_json(aibom: &Aibom) -> serde_json::Value {
 
             // CycloneDX 1.6 attaches modelCard to machine-learning-model
             // components. The PRD requires a modelCard on the Claude
-            // Fable 5 component.
+            // Sonnet 4.5 component.
             if let Some(card) = &c.model_card {
                 let card_obj = serde_json::json!({
                     "modelParameters": card.model_parameters,
@@ -368,7 +368,7 @@ mod tests {
             models.len()
         );
         let names: Vec<&str> = models.iter().map(|c| c.name.as_str()).collect();
-        assert!(names.contains(&"claude-fable-5"));
+        assert!(names.contains(&"claude-sonnet-4-5"));
         assert!(names.contains(&"qwen3-coder-30b"));
         assert!(names.contains(&"featherless-fallback"));
         assert!(names.contains(&"mock-provider"));
@@ -378,13 +378,13 @@ mod tests {
     #[test]
     fn build_includes_invoicenet_dataset() {
         let a = build();
-        // The InvoiceNet dataset is attached to the Claude Fable 5
+        // The InvoiceNet dataset is attached to the Claude Sonnet 4.5
         // component (the only model with a modelCard).
         let claude = a
             .components
             .iter()
-            .find(|c| c.name == "claude-fable-5")
-            .expect("claude-fable-5 must be present");
+            .find(|c| c.name == "claude-sonnet-4-5")
+            .expect("claude-sonnet-4-5 must be present");
         assert_eq!(claude.datasets.len(), 1);
         assert_eq!(claude.datasets[0].name, "invoicenet-1k");
     }

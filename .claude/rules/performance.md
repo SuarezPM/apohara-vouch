@@ -53,4 +53,4 @@ If any AC is at risk during Phase 1-3, raise it before polish phase.
 
 - **Concurrency limit on Featherless**: 4 concurrent requests. 6 agents × 1 call each = 6 concurrent at peak. **Stagger spawn by 5-10ms** (Clotho @ 0ms, Lachesis @ 5ms, ...) to stay under the ceiling.
 - **GLM-5.1 8h sustained is a vendor claim.** Don't claim 8h in the pitch. Claim what we measure.
-- **Fable 5 with 95% cache hit** is the cost lever. If cache hit drops below 90%, investigate the system prompt stability.
+- **Claude Sonnet 4.5 with 95% cache hit** is the cost lever. If cache hit drops below 90%, investigate the system prompt stability.

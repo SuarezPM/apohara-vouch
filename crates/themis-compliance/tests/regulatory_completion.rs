@@ -119,16 +119,16 @@ fn aibom_full_flow() {
 fn aibom_contains_model_card() {
     let a = aibom::build();
 
-    // The Claude Fable 5 component must carry a modelCard.
+    // The Claude Sonnet 4.5 component must carry a modelCard.
     let claude = a
         .components
         .iter()
-        .find(|c| c.name == "claude-fable-5")
-        .expect("claude-fable-5 must be present in AIBOM");
+        .find(|c| c.name == "claude-sonnet-4-5")
+        .expect("claude-sonnet-4-5 must be present in AIBOM");
     let card = claude
         .model_card
         .as_ref()
-        .expect("claude-fable-5 must carry a modelCard (PRD requirement)");
+        .expect("claude-sonnet-4-5 must carry a modelCard (PRD requirement)");
 
     // modelParameters is a JSON object with the expected keys.
     let params = card
@@ -160,11 +160,11 @@ fn aibom_contains_model_card() {
     let comps = j.get("components").and_then(|v| v.as_array()).unwrap();
     let claude_json = comps
         .iter()
-        .find(|c| c.get("name").and_then(|v| v.as_str()) == Some("claude-fable-5"))
-        .expect("claude-fable-5 must be in cyclonedx JSON");
+        .find(|c| c.get("name").and_then(|v| v.as_str()) == Some("claude-sonnet-4-5"))
+        .expect("claude-sonnet-4-5 must be in cyclonedx JSON");
     let mcard = claude_json
         .get("modelCard")
-        .expect("claude-fable-5 must render a modelCard key");
+        .expect("claude-sonnet-4-5 must render a modelCard key");
     assert!(
         mcard.get("modelParameters").is_some(),
         "rendered modelCard must include modelParameters"
@@ -179,14 +179,14 @@ fn aibom_contains_model_card() {
 fn aibom_contains_datasets_provenance() {
     let a = aibom::build();
 
-    // The InvoiceNet dataset is attached to the Claude Fable 5
+    // The InvoiceNet dataset is attached to the Claude Sonnet 4.5
     // model card. Verify both the structured `datasets` field and
     // the populated `provenance` string.
     let claude = a
         .components
         .iter()
-        .find(|c| c.name == "claude-fable-5")
-        .expect("claude-fable-5 must be present in AIBOM");
+        .find(|c| c.name == "claude-sonnet-4-5")
+        .expect("claude-sonnet-4-5 must be present in AIBOM");
     assert_eq!(claude.datasets.len(), 1);
     let dataset = &claude.datasets[0];
     assert_eq!(dataset.name, "invoicenet-1k");
@@ -206,16 +206,16 @@ fn aibom_contains_datasets_provenance() {
     let comps = j.get("components").and_then(|v| v.as_array()).unwrap();
     let claude_json = comps
         .iter()
-        .find(|c| c.get("name").and_then(|v| v.as_str()) == Some("claude-fable-5"))
-        .expect("claude-fable-5 must be in cyclonedx JSON");
+        .find(|c| c.get("name").and_then(|v| v.as_str()) == Some("claude-sonnet-4-5"))
+        .expect("claude-sonnet-4-5 must be in cyclonedx JSON");
     let subs = claude_json
         .get("components")
         .and_then(|v| v.as_array())
-        .expect("claude-fable-5 must render a sub-components array for datasets");
+        .expect("claude-sonnet-4-5 must render a sub-components array for datasets");
     assert_eq!(
         subs.len(),
         1,
-        "claude-fable-5 must have 1 dataset sub-component"
+        "claude-sonnet-4-5 must have 1 dataset sub-component"
     );
     let data = &subs[0];
     assert_eq!(data.get("type").and_then(|v| v.as_str()), Some("data"));

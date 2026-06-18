@@ -86,10 +86,10 @@ APPROVED → Evidence Packet (signed, downloadable)   |   HALT → red modal + s
 
 | Agent | Role | LLM | Key output |
 |---|---|---|---|
-| Extractor | PDF→JSON | Fable 5 / Qwen3-Coder | `ExtractedInvoice { vendor, amount, line_items, ... }` |
+| Extractor | PDF→JSON | Sonnet 4.5 / Qwen3-Coder | `ExtractedInvoice { vendor, amount, line_items, ... }` |
 | PO Matcher | DB lookup | none (deterministic) | `POMatchResult { matched, expected_amount, delta_pct }` |
-| Fraud Auditor | LLM risk assessment | Fable 5 / Qwen3-Coder | `FraudAssessment { risk_score, findings, halt }` |
-| GAAP Classifier | Account mapping | Fable 5 / Llama-70B | `GAAPClassification { framework, account_code, confidence }` |
+| Fraud Auditor | LLM risk assessment | Sonnet 4.5 / Qwen3-Coder | `FraudAssessment { risk_score, findings, halt }` |
+| GAAP Classifier | Account mapping | Sonnet 4.5 / Llama-70B | `GAAPClassification { framework, account_code, confidence }` |
 | Provenance Signer | Ed25519 + BLAKE3 | none (pure crypto) | `SignedPacket { sig, ts, anchor, ... }` |
 | Audit Watchdog | Shadow | — | monitors cross-tenant reads |
 | Regression Tester | Shadow | — | re-verifies sig + chain |
@@ -144,7 +144,7 @@ APPROVED → Evidence Packet (signed, downloadable)   |   HALT → red modal + s
 | Sponsor | Surface | Wired in production | Per demo run | Per 1K-invoice bench |
 |---------|---------|---------------------|--------------|----------------------|
 | **Band** (thenvoi-sdk 0.2.11) | Phoenix Channels WebSocket (`wss://app.band.ai/api/v1/socket/websocket`) | `themis-band-client` subprocess over `band-sdk[langgraph]`; `ScriptedBandRoom` for deterministic demo | **6 agents** in 1 Band room, connected via WebSocket; every `@mention` handoff is a real Phoenix Channels event | **~12K WebSocket frames** over 1K invoices (6 agents × ~12 msgs/invoice) |
-| **AI/ML API** (Claude Fable 5) | Anthropic-compatible `/v1/messages` | `AnthropicCompatibleBackend` in `rig-core` 0.38, env-gated by `AIML_API_KEY` | FraudAuditor + GaapClassifier high-stakes calls (≈8 calls/run) | **50+ AIML calls / 1K-invoice bench** |
+| **AI/ML API** (Claude Sonnet 4.5) | Anthropic-compatible `/v1/messages` | `AnthropicCompatibleBackend` in `rig-core` 0.38, env-gated by `AIML_API_KEY` | FraudAuditor + GaapClassifier high-stakes calls (≈8 calls/run) | **50+ AIML calls / 1K-invoice bench** |
 | **Featherless AI** (Qwen3-Coder-30B-A3B + Llama-3.3-70B) | OpenAI-compatible `/v1/chat/completions` | `FeatherlessBackend` in `rig-core` 0.38, env-gated by `FEATHERLESS_API_KEY` | Extractor + PO Matcher + Compressor (≈7 calls/run) | **50+ Featherless calls / 1K-invoice bench** |
 | **Rekor v2** (sigstore public good) | `sigstore-verify 0.8` HTTP | `themis-evidence::rekor::MockRekorClient` + cosign shell for live | 1 anchor per Evidence Packet | 1K anchors / 1K-invoice bench |
 | **FreeTSA** (RFC 3161) | HTTPS REST | `rfc3161ng` 0.1 | 1 timestamp per signed entry | 1K timestamps / 1K-invoice bench |

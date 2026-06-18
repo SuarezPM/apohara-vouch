@@ -540,9 +540,10 @@ impl LlmBackend for FeatherlessBackend {
 // gateway. AI/ML API is the hackathon's other sponsor (Valerie
 // Brizatiuk at lablab.ai kickoff, 12 jun 2026): "one API for 500+
 // models", "different agents want different brains", "switch models
-// is changing just one string". The gateway serves Fable 5 (the
-// Anthropic model currently suspended by US export-control via
-// direct API) plus Claude Sonnet 4.5 / Opus 4.5 / Haiku 4.5, GPT-5.5,
+// is changing just one string". The gateway serves Claude Sonnet 4.5 (the
+// Anthropic model currently available via AIML API after the US
+// export-control restrictions on direct API access to Fable 5) plus
+// Claude Sonnet 4.5 / Opus 4.5 / Haiku 4.5, GPT-5.5,
 // Gemini 3.5, DeepSeek R1, Llama-4-Maverick, and ~494 more. The
 // THEMIS agent that needs reasoning quality (FraudAuditor) uses
 // AIML API's `anthropic/claude-sonnet-4.5` via this backend.

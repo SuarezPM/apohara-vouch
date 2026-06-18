@@ -184,7 +184,7 @@ pub fn derive() -> Iso23894Report {
         RiskEvent {
             category: RiskCategory::R8_Environmental,
             description:
-                "Claude Fable 5 + Qwen3-Coder-30B + 5 mock LLM calls per run ≈ $1.49 per run; \
+                "Claude Sonnet 4.5 + Qwen3-Coder-30B + 5 mock LLM calls per run ≈ $1.49 per run; \
                  compute footprint is bounded. Follow-up: add kWh estimate per run."
                     .to_string(),
             likelihood: 0.2,

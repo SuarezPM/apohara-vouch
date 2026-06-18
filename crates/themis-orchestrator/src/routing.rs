@@ -56,7 +56,7 @@ pub const AIML_API_MODEL: &str = "anthropic/claude-sonnet-4.5";
 /// `AgentBackend` value is for the binary's static config).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AgentBackend {
-    /// AIML API gateway (Fable 5 / Claude Sonnet 4.5).
+    /// AIML API gateway (Claude Sonnet 4.5).
     AimlApi,
     /// Featherless AI (Qwen3-Coder-30B-A3B-Instruct).
     Featherless,

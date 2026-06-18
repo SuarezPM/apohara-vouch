@@ -15,7 +15,7 @@ Before ANY commit:
 
 ```rust
 // NEVER: hardcoded secrets
-const FABLE5_KEY: &str = "sk-proj-xxxxx";
+const FABLE5_KEY_DISABLED: &str = "sk-proj-xxxxx"; // Fable 5 is export-control restricted; using Sonnet 4.5 via AIML API gateway instead
 
 // GOOD: env var with explicit error
 let api_key = std::env::var("ANTHROPIC_API_KEY")

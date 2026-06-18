@@ -1,8 +1,8 @@
 //! AI/ML API live-call metrics (Story Ola-B).
 //!
 //! Tracks rolling counters for the AI/ML API provider (the
-//! Anthropic-Sonnet-4.5-via-aimlapi path — Fable 5). The metrics
-//! are accumulated by the AIMLAPIBackend on every successful
+//! `anthropic/claude-sonnet-4.5` path via AIML API gateway). The
+//! metrics are accumulated by the AIMLAPIBackend on every successful
 //! (and failed) call, then surfaced to the dashboard via
 //! `GET /metrics/aiml`.
 //!
@@ -21,7 +21,7 @@
 //!   allocated once at construction.
 //!
 //! Cost computation: AIML API charges per million tokens for
-//! input/output on `anthropic/claude-sonnet-4.5` (Fable 5). As of
+//! input/output on `anthropic/claude-sonnet-4.5`. As of
 //! 2026-06-18 the listed rate is $3.15 / 1M input and $15.75 / 1M
 //! output tokens (per the public AIML API pricing page; verified
 //! via `web_search_exa` 2026-06-18 and the dfjte6/aimlapi

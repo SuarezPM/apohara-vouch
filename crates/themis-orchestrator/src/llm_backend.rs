@@ -25,7 +25,7 @@
 use themis_agents::llm::{AIMLAPIBackend, FeatherlessBackend};
 
 /// Default model for the AIML API provider (Anthropic Sonnet 4.5
-/// via the AIML API gateway — the Fable 5 workaround + the
+/// via the AIML API gateway — the export-control workaround + the
 /// "different agents want different brains" claim).
 pub const AIML_API_MODEL: &str = "anthropic/claude-sonnet-4.5";
 

@@ -153,7 +153,7 @@ THEMIS 3.0 is a true three-sponsor integration. **We use BAND as the actual coll
   <!-- Band logo (inline SVG, no external image hosting) -->
   <a href="https://bandofagents.dev"><img alt="Band" src="https://img.shields.io/badge/Band-(thenvoi)-0a0e1a?style=for-the-badge&logoColor=d4a017&labelColor=0a0e1a"></a>
   <!-- AI/ML API logo (text-only fallback) -->
-  <a href="https://aimlapi.com"><img alt="AI/ML API" src="https://img.shields.io/badge/AI%2FML%20API-Claude%20Fable%205-d4a017?style=for-the-badge&logoColor=0a0e1a&labelColor=0a0e1a"></a>
+  <a href="https://aimlapi.com"><img alt="AI/ML API" src="https://img.shields.io/badge/AI%2FML%20API-Claude%20Sonnet%204.5-d4a017?style=for-the-badge&logoColor=0a0e1a&labelColor=0a0e1a"></a>
   <!-- Featherless AI logo (text-only fallback) -->
   <a href="https://featherless.ai"><img alt="Featherless AI" src="https://img.shields.io/badge/Featherless%20AI-Qwen3%2C%20Llama--70B-10b981?style=for-the-badge&logoColor=0a0e1a&labelColor=0a0e1a"></a>
 </p>
@@ -165,7 +165,7 @@ These are the actual call sites in the production binary (`crates/themis-band-cl
 | Sponsor | Surface | Wired in production | Volume per demo run | Volume per 1K-invoice bench |
 |---------|---------|---------------------|---------------------|------------------------------|
 | **Band** (thenvoi-sdk 0.2.11) | Phoenix Channels WebSocket (`wss://app.band.ai/api/v1/socket/websocket`) | `themis-band-client` subprocess over `band-sdk[langgraph]`; `ScriptedBandRoom` for deterministic demo | **6 agents** in 1 Band room, connected via WebSocket — every `@mention` handoff is a real Phoenix Channels event | 6 agents × ~12 messages/invoice = **~12K WebSocket frames** over 1K invoices |
-| **AI/ML API** (Claude Fable 5) | Anthropic-compatible `/v1/messages` | `AnthropicCompatibleBackend` in `rig-core` 0.38, env-gated by `AIML_API_KEY` | FraudAuditor + GaapClassifier high-stakes calls (≈8 calls/run) | **~50+ AIML calls / 1K-invoice bench** (FraudAuditor + GaapClassifier per invoice) |
+| **AI/ML API** (Claude Sonnet 4.5) | Anthropic-compatible `/v1/messages` | `AnthropicCompatibleBackend` in `rig-core` 0.38, env-gated by `AIML_API_KEY` | FraudAuditor + GaapClassifier high-stakes calls (≈8 calls/run) | **~50+ AIML calls / 1K-invoice bench** (FraudAuditor + GaapClassifier per invoice) |
 | **Featherless AI** (Qwen3-Coder-30B + Llama-3.3-70B) | OpenAI-compatible `/v1/chat/completions` | `FeatherlessBackend` in `rig-core` 0.38, env-gated by `FEATHERLESS_API_KEY` | Extractor + PO Matcher + Compressor (≈7 calls/run) | **~50+ Featherless calls / 1K-invoice bench** (Extractor + Compressor per invoice) |
 
 **Total per demo run**: 6 Band-connected agents, 8 AI/ML API calls, 7 Featherless calls, plus 3 deterministic agents (PO Matcher / Provenance Signer / Regression Tester) that emit no LLM traffic.

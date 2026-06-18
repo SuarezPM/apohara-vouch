@@ -12,7 +12,7 @@ EU AI Act Art. 12/26 + NIST AI RMF + OWASP Agentic 2026 simultaneously, for two
 fictitious companies on two trust domains.
 
 - **Hackathon:** Band of Agents Hackathon (12-19 jun 2026). Track 3 (Regulated & High-Stakes).
-- **Sponsors:** Band (thenvoi) · AI/ML API (Claude Fable 5) · Featherless AI (Qwen3-Coder-30B)
+- **Sponsors:** Band (thenvoi) · AI/ML API (Claude Sonnet 4.5 via AIML API gateway) · Featherless AI (Qwen3-Coder-30B)
 - **Demo:** `https://themis.apohara.dev` (Vercel + Supabase)
 - **Repo:** `https://github.com/SuarezPM/apohara-themis`
 - **License:** MIT · Author: Pablo M. Suarez (@SuarezPM)
@@ -63,7 +63,7 @@ cargo run --bin themis-verify  # offline verification of any evidence packet
 
 ## 6. Multi-provider & secrets (chmod 600 outside repo)
 
-- Claude Fable 5: AI/ML API ($10 hackathon credits via Band, first 500)
+- Claude Sonnet 4.5 (via AI/ML API gateway, $10 hackathon credits, first 500)
 - Qwen3-Coder-30B: Featherless ($25/participant, code BOA26, valid 1 month)
 - Band Pro promo: `BANDHACK26` (1 month free, requires card)
 - All secrets: `~/.config/apohara/secrets.env` (chmod 600, outside repo)
