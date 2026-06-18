@@ -26,10 +26,11 @@ use serde::Deserialize;
 use serde_json::json;
 use themis_compliance::service::ComplianceReport;
 use themis_evidence::packet::SealedPacket;
+use themis_evidence::sealchain_wrap::{C2paReceipt, SealChainWrapper};
 use themis_frontend::{APP_CSS, APP_JS, COMPLIANCE_HTML, INDEX_HTML, TOKENS_CSS};
 use tokio_stream::wrappers::BroadcastStream;
 
-use crate::events::{Event, EventBus};
+use crate::events::{Event, EventBus, EU_REGISTRATION_ID};
 use crate::fixtures::load_all;
 use crate::orchestrator::Orchestrator;
 use crate::a2a_handler;
@@ -68,6 +69,15 @@ pub struct AppState {
     /// endpoint serves this directly. Empty when the binary is built
     /// without the evidence wiring (mock-only path).
     pub sealed: DashMap<uuid::Uuid, SealedPacket>,
+    /// C-10: per-packet-id → C2PA receipt produced by the
+    /// SealChain wrapper after the Evidence Packet is sealed. The
+    /// `/packets/:id/c2pa` endpoint serves this directly.
+    pub c2pa_receipts: DashMap<uuid::Uuid, C2paReceipt>,
+    /// C-10: the SealChain wrapper. `None` when initialization fails
+    /// (e.g. read-only filesystem); in that case the wrap step is
+    /// silently skipped — the underlying Ed25519+BLAKE3 chain is
+    /// still verifiable through `themis-verify`.
+    pub sealchain_wrapper: Option<std::sync::Arc<SealChainWrapper>>,
     /// LLM provider model id announced to the SSE stream at the
     /// start of every run. Comes from `LlmBackend::model_id()` at
     /// binary startup; defaults to `"mock-fallback"` in tests.
@@ -95,6 +105,14 @@ pub fn build_default_state(
     // `Arc`; the AppState holds the canonical one.
     let bus = std::sync::Arc::new(crate::events::EventBus::new(1024));
     let orch = orch.with_event_bus(bus.clone());
+    // C-10: try to bring up the SealChain wrapper. If keystore
+    // init fails (e.g. read-only filesystem) the wrap step is
+    // skipped for the lifetime of this process; the Evidence
+    // Packet Ed25519+BLAKE3 chain is still verifiable through
+    // `themis-verify`.
+    let sealchain_wrapper = SealChainWrapper::new()
+        .ok()
+        .map(std::sync::Arc::new);
     AppState {
         orchestrator: std::sync::Arc::new(tokio::sync::Mutex::new(orch)),
         event_bus: bus,
@@ -102,6 +120,8 @@ pub fn build_default_state(
         reports: DashMap::new(),
         packets: DashMap::new(),
         sealed: DashMap::new(),
+        c2pa_receipts: DashMap::new(),
+        sealchain_wrapper,
         model_id,
         band_room: Some(room_concrete),
         sponsor_stack: crate::events::SponsorStackInfo::default(),
@@ -365,7 +385,7 @@ async fn post_invoices(
     state
         .packets
         .insert(packet.packet.packet_id, packet.clone());
-    if let Some(s) = sealed {
+    if let Some(s) = sealed.clone() {
         // Key by the SignedPacket's packet_id (the id the
         // frontend already knows), not the SealedPacket's
         // internal id (which is a fresh UUIDv4 minted by
@@ -376,6 +396,29 @@ async fn post_invoices(
         run_id,
         packet_id: packet.packet.packet_id,
     });
+
+    // C-10: wrap the SealedPacket as a C2PA-stamped receipt via
+    // the SealChain wrapper. The wrap step never fails outright
+    // (the wrapper falls back to a clearly-labeled mock receipt
+    // on any sealchain error). Emitted AFTER the EvidenceSealed
+    // event so the timeline is ordered (Evidence first, C2PA
+    // stamp second).
+    if let (Some(wrapper), Some(s)) = (state.sealchain_wrapper.as_ref(), sealed.as_ref()) {
+        if let Ok(receipt) = wrapper.wrap_packet(s, EU_REGISTRATION_ID) {
+            let mock = receipt.mock;
+            state
+                .c2pa_receipts
+                .insert(packet.packet.packet_id, receipt);
+            state.event_bus.publish(Event::SealChainWrapped {
+                run_id,
+                packet_id: packet.packet.packet_id,
+                eu_registration_id: EU_REGISTRATION_ID.to_string(),
+                mock,
+                timestamp: chrono::Utc::now(),
+            });
+        }
+    }
+
     state.event_bus.publish(Event::RunFinished { run_id });
     Ok(Json(json!({
         "run_id": run_id,
@@ -717,6 +760,8 @@ mod tests {
             reports: DashMap::new(),
             packets: DashMap::new(),
             sealed: DashMap::new(),
+            c2pa_receipts: DashMap::new(),
+            sealchain_wrapper: None,
             model_id: "mock-fallback".to_string(),
             band_room: None,
             sponsor_stack: crate::events::SponsorStackInfo::default(),

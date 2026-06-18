@@ -208,6 +208,28 @@ pub enum Event {
         /// UTC timestamp at which the disclosure was emitted.
         timestamp: chrono::DateTime<chrono::Utc>,
     },
+    /// C-10: a freshly-sealed Evidence Packet has been wrapped as a
+    /// C2PA-stamped receipt by the SealChain wrapper. The frontend
+    /// renders this as a "C2PA-stamped" badge on the receipt tile;
+    /// `mock == true` means the wrapper hit the fallback path (no
+    /// real Ed25519 signature on the C2PA stamp; the underlying
+    /// Evidence Packet Ed25519 + BLAKE3 chain is still intact and
+    /// independently verifiable).
+    SealChainWrapped {
+        /// The run id.
+        run_id: Uuid,
+        /// The Evidence Packet UUID that was wrapped.
+        packet_id: Uuid,
+        /// EU AI Act Article 49 registration id embedded in the
+        /// Art 50 assertion.
+        eu_registration_id: String,
+        /// True iff the wrapper fell back to the mock path. The
+        /// judge can see this in the badge ("C2PA-stamped (mock)"
+        /// vs "C2PA-stamped").
+        mock: bool,
+        /// UTC timestamp when the wrap completed.
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
 }
 
 /// Sponsor stack labels carried by `AppState` and embedded in
@@ -251,6 +273,7 @@ impl Event {
             Event::IncidentReported { .. } => "incident_reported",
             Event::SponsorStack { .. } => "sponsor_stack",
             Event::AiDisclosure { .. } => "ai_disclosure",
+            Event::SealChainWrapped { .. } => "sealchain_wrapped",
         }
     }
 }

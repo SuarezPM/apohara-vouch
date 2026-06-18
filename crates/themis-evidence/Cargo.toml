@@ -34,6 +34,16 @@ sigstore-trust-root = "0.8"
 sigstore-types = "0.8"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 serde_json_canonicalizer = "0.3"
+# Used by sealchain_wrap mock-fallback (SHA-256 fingerprint of the
+# payload bytes for the mock preimage hex). sha2 is already a
+# workspace-level dep, so this just references it directly.
+sha2 = "0.10"
+# apohara-sealchain-core (C-10 / G30): wraps the Evidence Packet as a
+# C2PA-stamped receipt. We use the default `native` feature set so we
+# get `Keys` + `seal_deterministic` + `verify` — the keystore is gated
+# `native` in the upstream crate. The `native` build needs
+# rust-version >= 1.88 (bumped in workspace root).
+apohara-sealchain-core = { path = "/home/thelinconx/apohara-sealchain/crates/apohara-sealchain-core" }
 # Rekor v2 gRPC stack (ADR 0010). Pinned to 0.14 for tonic/prost to
 # match the current stable on crates.io as of 2026-06-17. The
 # `transport` feature pulls in HTTP/2 connector + TLS roots;
