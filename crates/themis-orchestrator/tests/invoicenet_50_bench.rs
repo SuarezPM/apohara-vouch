@@ -28,6 +28,23 @@
 //! Same `GoldLabel` → same canned response → same `Outcome`,
 //! deterministically.
 //!
+//! **What this bench measures (and what it doesn't):**
+//!
+//! This bench validates the BAAAR gate end-to-end on the real
+//! pipeline — FraudAuditor → BaaarGate → Outcome mapping —
+//! with a deterministic MockLlmProvider keyed on the gold label.
+//! It does NOT measure the gate's statistical accuracy on
+//! real-world fraud patterns, because the canned response is
+//! constructed from the gold label (tautological by construction).
+//! The recall=1.0 / FPR=0.0 numbers prove the GATE LOGIC is
+//! deterministic and the pipeline wiring is correct; they do not
+//! prove the gate catches fraud that the LLM does not already
+//! flag.
+//!
+//! To measure real-world accuracy: run `public_bench.rs` against
+//! `fixtures/invoice_net_sample_50.csv` with real LLM providers
+//! (AIML_API_KEY + FEATHERLESS_API_KEY set), not the mock.
+//!
 //! To swap in real LLM runs:
 //! 1. Replace `real_themis_predictions()` with code that calls
 //!    the orchestrator on each row from `invoice_net_sample_50.csv`.

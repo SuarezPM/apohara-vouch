@@ -5,6 +5,8 @@
 > [`docs/submission.md`](submission.md); this file is the
 > copy-paste-ready summary for the form.
 
+> **⚠️ TODO BEFORE SUBMIT:** Record the video per `docs/video-v5-script.md` (7 shots, 3–5 min, OBS or similar). Upload to YouTube. Paste the URL into section 5 below AND into the `docs/video-v5.md` placeholder. **Deadline: 19 jun 17:00 CET** (~25h at the time of this audit).
+
 ---
 
 ## 1. Project Title
@@ -18,7 +20,7 @@ THEMIS — Multi-agent AP invoice fraud detection with regulator-grade evidence
 ## 2. Short Description (≤500 chars)
 
 ```
-THEMIS is a 5-agent Rust system for AP invoice fraud detection via 1 real Band room (6 agents over WebSocket). BAAAR kill-switch fires 10/10. Ed25519+BLAKE3 Evidence Packets satisfy DORA, EU AI Act, NIST AI RMF, OWASP Agentic. 50+ real AI/ML API calls + 50+ real Featherless calls (Qwen3-Coder-30B). Multi-tenant Ed25519 + Rekor v2; offline-verifiable in <30s. Powered by Band, AI/ML API, Featherless AI.
+THEMIS is a multi-agent Rust system for AP invoice fraud detection via 1 real Band room (6 Rust agents + 1 PydanticAI peer over WebSocket). BAAAR kill-switch fires 10/10. Ed25519+BLAKE3 Evidence Packets satisfy DORA, EU AI Act, NIST AI RMF, OWASP Agentic. 50+ real AI/ML API calls + 50+ real Featherless calls (Qwen3-Coder-30B + Llama-3.3-70B). Multi-tenant Ed25519 + Rekor v2 + RFC 3161 full chain verification; offline-verifiable in <30s. Powered by Band, AI/ML API, Featherless AI.
 ```
 
 ---

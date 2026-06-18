@@ -28,9 +28,11 @@ A judge can verify all three with one command each. No setup, no env vars.
 
 | | Result | How to reproduce |
 |---|---|---|
-| **InvoiceNet-50 recall** | **1.000** vs 0.800 baseline single-LLM | `cargo test -p themis-orchestrator --test invoicenet_50_bench -- --ignored --nocapture` |
-| **BAAAR HALT deterministic** | **10/10** on varied LLM inputs | `cargo test -p themis-orchestrator ac4_baaar_10_of_10_deterministic` |
-| **Offline verify** | **<30 s**, Ed25519 + BLAKE3 + RFC 3161 chain | `cargo run --release --bin themis-verify -- <packet.json> <sig.hex>` |
+| **BAAAR gate: 50/50 deterministic** on the real FraudAuditor + gate pipeline | **50/50** | `cargo test -p themis-orchestrator --test invoicenet_50_bench -- --nocapture` |
+| **BAAAR HALT deterministic** on varied LLM inputs (10 different invoices) | **10/10** | `cargo test -p themis-orchestrator ac4_baaar_10_of_10_deterministic` |
+| **Offline verify** | **<30 s**, Ed25519 + BLAKE3 + Rekor v2 + RFC 3161 full chain | `cargo run --release --bin themis-verify -- <packet.json> <sig.hex>` |
+
+> The 50/50 validates the **BAAAR gate end-to-end on the real pipeline** (FraudAuditor → BaaarGate → Outcome mapping, with a deterministic MockLlmProvider keyed on the gold label). It does NOT measure gate accuracy on real-world fraud patterns — for that, run `public_bench.rs` against `fixtures/invoice_net_sample_50.csv` with real LLM providers. The gate's logic is exercised in production; the gate's statistical accuracy requires real LLM calls against a labeled dataset.
 
 > These are the only numbers that matter. Everything else is plumbing.
 
