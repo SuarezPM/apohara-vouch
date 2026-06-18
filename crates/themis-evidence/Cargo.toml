@@ -44,6 +44,12 @@ sha2 = "0.10"
 # `native` in the upstream crate. The `native` build needs
 # rust-version >= 1.88 (bumped in workspace root).
 apohara-sealchain-core = { path = "/home/thelinconx/apohara-sealchain/crates/apohara-sealchain-core" }
+# RFC 3161 strict verification (FIX-2): parse the CMS ContentInfo
+# (signedData → TSTInfo). `cms` uses `der` (with `const-oid`)
+# internally for the ASN.1/DER primitives.
+cms = "0.2"
+der = "0.7"
+const-oid = "0.9"
 # SaaS multi-tenant key derivation (FIX-6): HKDF-SHA256 derives a
 # deterministic 32-byte Ed25519 seed from MASTER_SEED + tenant_id.
 # `hkdf` 0.12 is paired with `sha2` 0.10 (already a workspace dep).
