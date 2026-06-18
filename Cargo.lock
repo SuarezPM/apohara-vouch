@@ -4532,6 +4532,7 @@ dependencies = [
  "ed25519-dalek",
  "hex",
  "rand 0.8.6",
+ "regex",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -4559,6 +4560,15 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "uuid",
+]
+
+[[package]]
+name = "themis-bench"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -4636,6 +4646,7 @@ dependencies = [
  "printpdf",
  "proptest",
  "qrcode",
+ "regex",
  "reqwest 0.12.28",
  "serde",
  "serde_json",

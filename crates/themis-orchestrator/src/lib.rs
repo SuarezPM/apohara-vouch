@@ -46,6 +46,11 @@ pub mod baaar_z3;
 /// 3-state breaker (`Closed` / `Open` / `HalfOpen`), threshold=5
 /// failures, 30s timeout, exponential backoff 100/200/400/800/1600ms.
 pub mod circuit_breaker;
+/// Dual-LLM split — privileged + quarantined contexts (Story C-07 /
+/// G14 / AC7, ASI01 3rd defense). Pattern from Microsoft Zero Trust
+/// SFI 2026. See `dual_llm.rs` for the full surface and the MVP
+/// scope (trait + mock; production wiring lands in a follow-up).
+pub mod dual_llm;
 /// INV-15 verification seam at the LLM call boundary
 /// (Story C-03 / G14 / G19 / AC3). Pairs with
 /// `themis-compliance::inv15` — this module is the wiring, not

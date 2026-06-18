@@ -36,6 +36,11 @@ tokio-stream = { version = "0.1", features = ["sync"] }
 printpdf = "0.7"
 qrcode = "0.14"
 parking_lot = "0.12"
+# C-07 / G14 / AC7: redaction patterns for the Dual-LLM split
+# (privileged → quarantined). `regex` is already in the dep tree
+# transitively via axum; adding it as a direct dep here is a
+# declaration, not a new download.
+regex = "1"
 # C-13 / G16, G28 / AC13: HMAC-SHA512 master-seed derivation for the
 # per-tenant keyring. The hmac crate is the de-facto Rust HMAC
 # implementation; the 0.12 series is API-compatible with sha2 0.10
