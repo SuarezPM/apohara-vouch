@@ -1,0 +1,19 @@
+[package]
+name = "vouch-aibom"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+license = "MIT"
+authors = ["Pablo M. Suarez <suarezpm@csnat.unt.edu.ar>"]
+description = "VOUCH AI-BOM — CycloneDX 1.6 AI Bill of Materials builder"
+
+[dependencies]
+vouch-compliance = { path = "../vouch-compliance" }
+themis-compliance = { path = "../themis-compliance" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+chrono = { version = "0.4", default-features = false, features = ["serde", "clock"] }
+
+[dev-dependencies]
+proptest = "1"

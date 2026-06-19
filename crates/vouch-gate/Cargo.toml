@@ -1,0 +1,18 @@
+[package]
+name = "vouch-gate"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+license = "MIT"
+authors = ["Pablo M. Suarez <suarezpm@csnat.unt.edu.ar>"]
+description = "VOUCH BAAAR kill-switch gate — deterministic 5-condition halt"
+
+[dependencies]
+themis-agents = { path = "../themis-agents" }
+themis-orchestrator = { path = "../themis-orchestrator" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+
+[dev-dependencies]
+proptest = "1"

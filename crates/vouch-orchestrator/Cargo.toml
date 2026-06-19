@@ -1,0 +1,36 @@
+[package]
+name = "vouch-orchestrator"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+license = "MIT"
+authors = ["Pablo M. Suarez <suarezpm@csnat.unt.edu.ar>"]
+description = "VOUCH orchestrator — POST /seal HTTP endpoint + room lifecycle"
+
+[dependencies]
+vouch-chain = { path = "../vouch-chain" }
+vouch-evidence = { path = "../vouch-evidence" }
+vouch-gate = { path = "../vouch-gate" }
+vouch-receipt = { path = "../vouch-receipt" }
+vouch-aibom = { path = "../vouch-aibom" }
+vouch-compliance = { path = "../vouch-compliance" }
+
+themis-orchestrator = { path = "../themis-orchestrator" }
+themis-agents = { path = "../themis-agents" }
+themis-evidence = { path = "../themis-evidence" }
+
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+tower = "0.5"
+tower-http = { version = "0.5", features = ["trace"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", default-features = false, features = ["serde", "clock"] }
+blake3 = "1"
+ed25519-dalek = "2"
+
+[dev-dependencies]
+reqwest = { version = "0.12", features = ["json"] }
+proptest = "1"
