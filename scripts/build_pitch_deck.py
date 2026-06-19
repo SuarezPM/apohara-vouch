@@ -283,7 +283,7 @@ def agent_table():
             "6",
             "@RedTeamAuditor",
             "Anthropic SDK",
-            "claude-opus-4-7",
+            "claude-opus-4-5",
             "AI/ML API",
         ],
         [
@@ -828,7 +828,7 @@ def aimlapi_prize_slide():
                     ],
                     [
                         "@RedTeamAuditor",
-                        "claude-opus-4-7 — adversarial audit, deterministic CRITICAL finding via Hypothesis",
+                        "claude-opus-4-5 — adversarial audit, deterministic CRITICAL finding via Hypothesis",
                     ],
                     [
                         "@ApprovalManager",

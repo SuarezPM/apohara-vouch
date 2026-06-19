@@ -28,7 +28,7 @@ The agent composition:
 | 3 | `@VendorResearcher` | LangGraph | `meta-llama/Llama-3.3-70B-Instruct` | Featherless |
 | 4 | `@FinanceRiskAnalyst` | Pydantic AI | `claude-sonnet-4-6` | AI/ML API |
 | 5 | `@LegalPolicyChecker` | CrewAI | `Qwen/Qwen3-Coder-30B-A3B-Instruct` | Featherless |
-| 6 | `@RedTeamAuditor` | Anthropic SDK | `claude-opus-4-7` | AI/ML API |
+| 6 | `@RedTeamAuditor` | Anthropic SDK | `claude-opus-4-5` | AI/ML API |
 | 7 | `@ComplianceVeto` | Pydantic AI | `claude-haiku-4-5` | AI/ML API (SECOND Band account) |
 | 8 | `@EvidenceClerk` | LangGraph | `deepseek-ai/DeepSeek-V3-0324` | Featherless |
 | 9 | `@ApprovalManager` | CrewAI | `claude-sonnet-4-6` | AI/ML API |
@@ -51,7 +51,7 @@ gateway.
 | `@Orchestrator` | `openai/gpt-5.4` | 9-state machine routing; emits `thenvoi_send_event` on every transition |
 | `@IntakeAgent` | `claude-haiku-4-5` | Structured extraction into typed `ProcurementCase` (9 fields) |
 | `@FinanceRiskAnalyst` | `claude-sonnet-4-6` | RiskScore with citation grounding; monotonic in `amount_eur`; ≥85% cache hit |
-| `@RedTeamAuditor` | `claude-opus-4-7` | Adversarial audit; 100/100 deterministic `CRITICAL` finding via Hypothesis |
+| `@RedTeamAuditor` | `claude-opus-4-5` | Adversarial audit; 100/100 deterministic `CRITICAL` finding via Hypothesis |
 | `@ComplianceVeto` (2nd Band account) | `claude-haiku-4-5` | Binding veto over Critical findings; 100/100 deterministic escalation routing |
 | `@ApprovalManager` | `claude-sonnet-4-6` | DecisionMemo + C2PA PDF + human sign-off gate |
 

@@ -161,7 +161,7 @@ Single Rust binary: `target/release/vouch-verify` (~570 KB). Single Python packa
 | Sponsor | Surface | Load-bearing in | Distinct models |
 |---|---|---|---|
 | **Band** | Chat room "vouch-procurement-court" + 7 platform tools (`thenvoi_send_message`, `send_event`, `add_participant`, `lookup_peers`, `create_chatroom`, ...) | 9 of 9 agents | 4 adapters (LangGraph, CrewAI, Pydantic AI, Anthropic SDK) |
-| **AI/ML API** | OpenAI-compatible + Anthropic-compatible gateway, `SwapKey` model swap | 6 of 9 agents | 4 models: `gpt-5.4`, `claude-haiku-4-5`, `claude-sonnet-4-6`, `claude-opus-4-7` |
+| **AI/ML API** | OpenAI-compatible + Anthropic-compatible gateway, `SwapKey` model swap | 6 of 9 agents | 4 models: `gpt-5.4`, `claude-haiku-4-5`, `claude-sonnet-4-6`, `claude-opus-4-5` |
 | **Featherless AI** | Serverless inference, 32k+ open-source models, flat-rate | 3 of 9 agents | 3 models: `meta-llama/Llama-3.3-70B-Instruct`, `Qwen/Qwen3-Coder-30B-A3B-Instruct`, `deepseek-ai/DeepSeek-V3-0324` |
 
 ---

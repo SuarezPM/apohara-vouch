@@ -16,7 +16,34 @@ all-features = false
 # will fetch the latest; subsequent runs are fast.
 db-path = "~/.cargo/advisory-db"
 yanked = "warn"
-ignore = []
+ignore = [
+  # RUSTSEC-2023-0071 — Marvin attack (RSA timing sidechannel) in
+  # rsa v0.9.10, transitively via c2pa v0.85.2 -> apohara-sealchain-core
+  # -> themis-evidence. RustCrypto: "No safe upgrade is available" jun 2026.
+  #
+  # Threat-model analysis: VOUCH verification is offline — verifier runs
+  # locally on operator's machine, attacker has no remote timing channel.
+  # The Marvin attack requires observing decryption timing on the same
+  # machine with the private key. Ed25519 + BLAKE3 + RFC 3161 doesn't use
+  # RSA for signing; c2pa pulls rsa only for legacy X.509 chain validation
+  # that VOUCH doesn't exercise at verify time (Rekor v2 + transparency
+  # log does the chain validation).
+  #
+  # Tracked for removal: when c2pa-rs ships non-rsa chain validator
+  # (q3 2026 ETA), drop the dep and remove this ignore. See issue #47.
+  "RUSTSEC-2023-0071",
+  # RUSTSEC-2024-0370 — proc-macro-error v1.0.4 is unmaintained (no commits
+  # for 2 years, no releases for 4). Pulled in transitively via
+  # static-regular-grammar v2.0.2. "No safe upgrade is available" jun 2026.
+  #
+  # Threat-model analysis: proc-macro-error is a *build-time* dependency
+  # only — it never ships in the vouch-verify binary. An unmaintained
+  # build-time crate cannot affect runtime signing, verification, or
+  # Ed25519/BLAKE3 chain integrity.
+  #
+  # Tracked for removal: depends on proc-macro2 ecosystem cleanup.
+  "RUSTSEC-2024-0370",
+]
 
 [licenses]
 allow = [
