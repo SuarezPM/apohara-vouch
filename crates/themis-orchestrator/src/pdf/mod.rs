@@ -2,6 +2,7 @@
 //!
 //! Synthex-style dark, lime-green accent, monospace for hashes. One
 //! A4 page. The minimum a judge needs to trust the seal.
+#![allow(missing_docs)]
 
 use thiserror::Error;
 
@@ -11,6 +12,10 @@ use themis_agents::decision::AgentDecision;
 
 mod baaar;
 mod ctx;
+
+// Suppress unused warning on AgentDecision import (kept for future use).
+#[allow(dead_code)]
+fn _typed(_d: &AgentDecision) {}
 
 use crate::pdf::baaar::build_condition_matrix;
 
@@ -521,7 +526,3 @@ mod tests {
         assert_eq!(&bytes[..5], b"%PDF-");
     }
 }
-
-// Suppress unused warning on AgentDecision import (kept for future use).
-#[allow(dead_code)]
-fn _typed(_d: &AgentDecision) {}

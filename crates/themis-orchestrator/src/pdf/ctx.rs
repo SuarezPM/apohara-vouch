@@ -3,6 +3,7 @@
 //! Hallmark · macrostructure: Receipt (one-pager) · tone: technical-trust
 //! · anchor hue: lime-green · theme: Synthex dark
 //!
+#![allow(missing_docs)]
 //! Design language: dark background, lime/green accent (Apahara brand
 //! from the pitch deck), monospace for hashes and code, no hairlines
 //! (use lime rule or 1.4mm black bar), generous whitespace.
@@ -134,6 +135,7 @@ impl<'a> Ctx<'a> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn write(&self, page: &Page, text: &str, x: f32, y: f32, size: f32, bold: bool) {
         let font = if bold {
             self.font_bold

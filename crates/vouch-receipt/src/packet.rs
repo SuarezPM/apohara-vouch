@@ -81,6 +81,7 @@ impl EvidencePacket {
     /// actual deployer, not a placeholder). The audit (#867,
     /// finding P1) flagged this; the fix makes the value
     /// explicit at every call site.
+    #[allow(clippy::too_many_arguments)]
     pub fn build(
         case_id: impl Into<String>,
         start_time: DateTime<Utc>,
@@ -134,6 +135,7 @@ impl EvidencePacket {
     /// from `VOUCH_OPERATOR_EMAIL`. Returns Err if the env var
     /// is unset or blank — the audit (#867) flagged the previous
     /// hardcoded value as a regulatory blocker.
+    #[allow(clippy::too_many_arguments)]
     pub fn build_with_env(
         case_id: impl Into<String>,
         start_time: DateTime<Utc>,

@@ -40,6 +40,11 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+      - name: Clone apohara-sealchain sibling (for sealchain-wrap path dep)
+        run: |
+          if [ -n "$APOHARA_SEALCHAIN_TOKEN" ]; then
+            git clone --depth 1 https://x-access-token:${APOHARA_SEALCHAIN_TOKEN}@github.com/SuarezPM/apohara-sealchain.git /home/runner/work/apohara-sealchain
+          fi
       - name: Install cargo-deny
         run: cargo install --locked cargo-deny
       - run: cargo deny check licenses
@@ -56,6 +61,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: Clone apohara-sealchain sibling (for sealchain-wrap path dep)
+        run: |
+          if [ -n "$APOHARA_SEALCHAIN_TOKEN" ]; then
+            git clone --depth 1 https://x-access-token:${APOHARA_SEALCHAIN_TOKEN}@github.com/SuarezPM/apohara-sealchain.git /home/runner/work/apohara-sealchain
+          fi
       - uses: rustsec/audit-action@17a69828de95e6c54e64b8dacde37b86ed00860d # v0.21.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

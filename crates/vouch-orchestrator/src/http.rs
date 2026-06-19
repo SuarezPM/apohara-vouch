@@ -144,6 +144,7 @@ impl ChainRegistry {
         let entry = map
             .entry(tenant_id.to_string())
             .or_insert_with(|| std::sync::Mutex::new(Chain::new()));
+        #[allow(clippy::mut_mutex_lock)] // chain.append needs &mut self
         let mut chain = entry.lock().expect("chain poisoned");
         chain
             .append(payload)
