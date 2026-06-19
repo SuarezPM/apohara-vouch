@@ -34,16 +34,19 @@ of the registered agents. It is NOT a new Band wrapper.
 """
 
 from __future__ import annotations
+import os
+from pathlib import Path
+
+from llm_secrets import load_all
+# Backwards-compat alias (M1 refactor: replaced local load_secrets() with llm_secrets)
+load_secrets = load_all
 
 import json
 import logging
-import os
 import uuid
-from pathlib import Path
 from typing import Any, Literal, TypedDict
 
 import httpx
-from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
@@ -55,7 +58,6 @@ logger = logging.getLogger(__name__)
 # Secrets (AC-1.7) — loaded from ~/.config/apohara/secrets.env, NEVER source.
 # ---------------------------------------------------------------------------
 
-SECRETS_PATH = Path(os.path.expanduser("~/.config/apohara/secrets.env"))
 
 # 9-state machine (AC-1.2). The state is carried on the graph state as
 # the literal string; each node asserts the expected predecessor.
@@ -72,31 +74,6 @@ ORCHESTRATOR_STATES: tuple[str, ...] = (
     "DECISION",
     "DONE",
 )
-
-
-def load_secrets() -> dict[str, str]:
-    """Load AIML/FEATHERLESS API keys from secrets.env.
-
-    Returns a dict of {AIML_API_KEY, AIML_API_BASE_URL,
-    FEATHERLESS_API_KEY, FEATHERLESS_API_BASE_URL}. Never raises
-    on a missing file (returns empty dict + a logger.warning) so
-    tests can run without the real secrets.
-    """
-    if not SECRETS_PATH.exists():
-        logger.warning("secrets.env not found at %s", SECRETS_PATH)
-        return {}
-    # override=False so the existing process env wins; we only fill gaps.
-    load_dotenv(SECRETS_PATH, override=False)
-    return {
-        "AIML_API_KEY": os.environ.get("AIML_API_KEY", ""),
-        "AIML_API_BASE_URL": os.environ.get(
-            "AIML_API_BASE_URL", "https://api.aimlapi.com/v1"
-        ),
-        "FEATHERLESS_API_KEY": os.environ.get("FEATHERLESS_API_KEY", ""),
-        "FEATHERLESS_API_BASE_URL": os.environ.get(
-            "FEATHERLESS_API_BASE_URL", "https://api.featherless.ai/v1"
-        ),
-    }
 
 
 # ---------------------------------------------------------------------------

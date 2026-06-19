@@ -60,15 +60,17 @@ Implementation notes
 """
 
 from __future__ import annotations
+from pathlib import Path
+
+from llm_secrets import load_aiml
+# Backwards-compat alias (M1 refactor: replaced local load_secrets() with llm_secrets)
+load_secrets = load_aiml
 
 import json
 import logging
-import os
 import uuid
-from pathlib import Path
 from typing import Any, Literal
 
-from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -105,20 +107,6 @@ class VetoDecision(BaseModel):
 # Secrets (AC-7b.1)
 # ---------------------------------------------------------------------------
 
-SECRETS_PATH = Path(os.path.expanduser("~/.config/apohara/secrets.env"))
-
-
-def load_secrets() -> dict[str, str]:
-    if not SECRETS_PATH.exists():
-        logger.warning("secrets.env not found at %s", SECRETS_PATH)
-        return {}
-    load_dotenv(SECRETS_PATH, override=False)
-    return {
-        "AIML_API_KEY": os.environ.get("AIML_API_KEY", ""),
-        "AIML_API_BASE_URL": os.environ.get(
-            "AIML_API_BASE_URL", "https://api.aimlapi.com/v1"
-        ),
-    }
 
 
 # ---------------------------------------------------------------------------

@@ -52,14 +52,15 @@ Implementation notes
 
 from __future__ import annotations
 
+from llm_secrets import load_aiml_only
+# Backwards-compat alias (M1 refactor: replaced local load_secrets() with llm_secrets)
+load_secrets = load_aiml_only
+
 import json
 import logging
-import os
 import uuid
-from pathlib import Path
 from typing import Any, Literal
 
-from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -98,15 +99,6 @@ class VetoDecision(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-SECRETS_PATH = Path(os.path.expanduser("~/.config/apohara/secrets.env"))
-
-
-def load_secrets() -> dict[str, str]:
-    """Mirror of compliance_veto.load_secrets (tests need not depend on it)."""
-    if not SECRETS_PATH.exists():
-        return {}
-    load_dotenv(SECRETS_PATH, override=False)
-    return {"AIML_API_KEY": os.environ.get("AIML_API_KEY", "")}
 
 
 def _has_critical(risk: Any, policy: Any) -> bool:

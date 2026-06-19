@@ -64,19 +64,21 @@ Implementation notes (deviations from the S-08 plan)
 """
 
 from __future__ import annotations
+import os
+from pathlib import Path
+
+from llm_secrets import load_featherless
+# Backwards-compat alias (M1 refactor: replaced local load_secrets() with llm_secrets)
+load_secrets = load_featherless
 
 import json
-import os
 import logging
-import os
 import subprocess
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, Literal, TypedDict
 
 import httpx
-from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
@@ -88,26 +90,6 @@ logger = logging.getLogger(__name__)
 # Secrets (AC-8.1)
 # ---------------------------------------------------------------------------
 
-SECRETS_PATH = Path(os.path.expanduser("~/.config/apohara/secrets.env"))
-
-
-def load_secrets() -> dict[str, str]:
-    """Load FEATHERLESS API key + base URL from secrets.env.
-
-    Returns ``{FEATHERLESS_API_KEY, FEATHERLESS_API_BASE_URL}``. Empty
-    strings for missing keys so unit tests can run without real
-    secrets.
-    """
-    if not SECRETS_PATH.exists():
-        logger.warning("secrets.env not found at %s", SECRETS_PATH)
-        return {}
-    load_dotenv(SECRETS_PATH, override=False)
-    return {
-        "FEATHERLESS_API_KEY": os.environ.get("FEATHERLESS_API_KEY", ""),
-        "FEATHERLESS_API_BASE_URL": os.environ.get(
-            "FEATHERLESS_API_BASE_URL", "https://api.featherless.ai/v1"
-        ),
-    }
 
 
 # ---------------------------------------------------------------------------
