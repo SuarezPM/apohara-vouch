@@ -3,8 +3,11 @@
 //!
 //! The trait is abstract enough to wrap Anthropic, OpenAI-compat
 //! (DeepSeek, Qwen3-Coder via Featherless), Z.ai (GLM-5.1), and
-//! Google (Gemini 3.1 Flash-Lite). Each provider has a stub impl in
-//! this module — real HTTP wiring is a follow-up sprint.
+//! Google (Gemini 3.1 Flash-Lite). Real HTTP wiring lives in each
+//! agent module (orchestrator, finance_risk, vendor_researcher, ...)
+//! via `build_aiml_pydantic_agent`, `build_featherless_llm`, and the
+//! per-agent `*_chat_completions_llm` helpers. This module owns the
+//! trait + schema; the agents own the transport.
 //!
 //! ## Testing
 //!
