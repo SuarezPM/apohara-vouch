@@ -1,14 +1,17 @@
-# THEMIS Specification
+# Apohara VOUCH Specification
 
-**Last updated:** 2026-06-17 · post-ISO-42001 + threat model.
-**Status:** Demo-ready. 2 days to submission (2026-06-19).
+**Last updated:** 2026-06-19 · post-rename sprint + audit remediation.
+**Status:** Demo-deployed. Submission closed. The spec below describes
+the original THEMIS design that was the seed of VOUCH; for the
+current VOUCH architecture see README.md and `crates/vouch-agents/`.
 
 ## 1. What this is
 
-THEMIS is a 5-agent Rust system for buyer-side Accounts Payable
-invoice fraud detection. It coordinates through Band (thenvoi),
-processes real Stanford InvoiceNet data, and emits a
-cryptographically-signed **Evidence Packet** that satisfies:
+Apohara VOUCH (originally THEMIS) is a 9-agent multi-framework system
+for buyer-side Accounts Payable invoice fraud detection. It
+coordinates through Band (thenvoi), processes real Stanford InvoiceNet
+data, and emits a cryptographically-signed **Evidence Packet** that
+satisfies:
 
 - DORA Art. 9/10/17 (resilience, incident detection, reporting)
 - EU AI Act Art. 12/26 (transparency, deployer info)
@@ -20,10 +23,10 @@ Wayne Enterprises).
 
 > **Naming note.** Apotheon THEMIS is a separate commercial product
 > (Apotheon whitepaper, feb 2026) that uses the same Greek-mythology
-> name. THEMIS 2.0 (`apohara-themis`, this repository) is the
-> open-source Band-of-Agents hackathon entry. The two products are
-> unrelated: different code, different architecture, different
-> vendor, different domain.
+> name. Apohara VOUCH (formerly THEMIS 2.0, `apohara-themis` /
+> `apohara-vouch` repositories) is the open-source Band-of-Agents
+> hackathon entry. The two products are unrelated: different code,
+> different architecture, different vendor, different domain.
 
 ## 2. Architecture (current)
 
