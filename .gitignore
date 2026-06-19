@@ -90,3 +90,28 @@ crates/themis-evidence/proto/rekor/v2/.omc/
 # ─── Unrelated side-projects (kept locally, not VOUCH) ──────────────
 # /site/ — landing page experiments for other products
 /site/
+
+# ─── Internal-only Claude Code state (judges don't need this) ────────
+# The .claude/rules/ are kept (contributor style guides). The
+# settings.json + memory-routing-protocol.md are operator-only.
+/.claude/settings.json
+/.claude/memory-routing-protocol.md
+# Keep tracking future rule additions under .claude/rules/.
+# !/.claude/rules/
+
+# ─── Internal docs (audits, ADRs, video scripts, eval notes) ─────────
+# These were tracked historically; keep them out of the public
+# surface. The repo carries SPEC.md + submission-final.md +
+# JUDGE-QUICKSTART.md + threat-model.md + aibom.md + COMPLIANCE-FINAL.md
+# — anything more is operator/development material.
+/docs/THREAT_MODEL.md
+/docs/vertical-pivot-eval.md
+/docs/cross-prize-narrative.md
+/docs/US-05-measurement-gate.md
+/docs/adr/
+/docs/audit/
+/docs/themis-baabar-design.md
+/docs/video-script.md
+/docs/video-v4-script.md
+/docs/video-v5-script.md
+/docs/video-v5.md

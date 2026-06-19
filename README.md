@@ -257,3 +257,5 @@ All 42K LOC Rust + 1K Python + 5K docs are MIT-licensed. Fork, vendor, sell. We 
 
 <sub>Built for the <a href="https://lablab.ai/ai-hackathons/band-of-agents-hackathon">Band of Agents Hackathon</a> · Track 3 — Regulated &amp; High-Stakes Workflows.</sub>
 <sub>The 9-agent cross-framework court pattern, the cross-account Compliance Veto, the BLAKE3 + Ed25519 + RFC 3161 chain verification, and the CycloneDX 1.6 AIBOM are the reusable artifacts. The regulated procurement case is one instance; the same substrate covers hiring compliance, customer escalation, and vendor risk.</sub>
+
+> 📘 **Judges, evaluators, and reviewers** — see **[docs/JUDGE-QUICKSTART.md](./docs/JUDGE-QUICKSTART.md)** for a 1-page, 3-command path to verify the product in under 5 minutes. Includes the 1-page printable Evidence Receipt PDF you can inspect offline.
