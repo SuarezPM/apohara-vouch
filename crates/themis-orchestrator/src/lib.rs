@@ -65,6 +65,9 @@ pub mod events;
 pub mod featherless_openclaw;
 pub mod fixtures;
 pub mod http;
+/// TOML override layer on top of `routing.rs`. See
+/// `routing_config.rs` for the schema.
+pub mod routing_config;
 /// Per-agent LLM backend routing (Story Ola-C). Maps each
 /// agent name to its provider: `fraud_auditor` → Featherless
 /// (Qwen3-Coder-30B-A3B-Instruct); the other 5 LLM-driven

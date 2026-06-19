@@ -1,0 +1,35 @@
+# Per-agent LLM backend routing configuration.
+#
+# This file lets an operator override the hardcoded model ids in
+# crates/themis-orchestrator/src/routing.rs without recompiling.
+# Loaded at startup via `RoutingConfig::load_or_default` (which
+# falls back to the constants in routing.rs if the file is absent
+# or any field is missing).
+#
+# Use cases:
+#   - Add a new model (e.g. swap Llama-3.3-70B for Llama-3.1-405B)
+#     without touching code.
+#   - A/B test a model on a single agent without touching the
+#     others.
+#   - Pin a specific model version for a reproducible bench run.
+#
+# The schema is intentionally narrow: only the 3 LLM-driven model
+# ids. Adding fields is safe (unknown fields are ignored), but
+# renaming one requires updating both this file AND the const
+# defaults in routing.rs.
+
+[fraud_auditor]
+# Backend is fixed to Featherless (the lineage decided at S-13).
+# Only the model id is configurable.
+model = "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+
+[gaap_classifier]
+# 3rd lineage (Featherless Llama-3.3-70B-Instruct). Same shape.
+model = "meta-llama/Llama-3.3-70B-Instruct"
+
+[aiml_api]
+# Default model for the 4 LLM-driven agents on AIML API
+# (extractor + demo_narrator + regression_tester + audit_watchdog),
+# AND the fallback for fraud_auditor / gaap_classifier when their
+# FEATHERLESS_API_KEY is unset.
+model = "anthropic/claude-sonnet-4-6"
