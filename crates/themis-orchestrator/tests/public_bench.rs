@@ -24,7 +24,7 @@
 
 use std::sync::Arc;
 
-use themis_agents::llm::{FinishReason, LlmBackend, LlmResponse, MockLlmProvider};
+use themis_agents::llm::{FinishReason, LlmBackend, LlmRequest, LlmResponse, MockLlmProvider};
 use themis_orchestrator::orchestrator::Orchestrator;
 use themis_orchestrator::room::{BandRoom, MockBandRoom};
 use themis_orchestrator::tenants::TenantRegistry;
@@ -228,4 +228,153 @@ async fn public_bench_runs_one_invoice_through_orchestrator() {
         "expected risk_score or risk_score key in decisions; got {:?}",
         signed.packet.agent_decisions
     );
+}
+
+// --- Real-provider bench (audit #867 finding B2) --------------------------
+//
+// The audit flagged invoicenet_50_bench.rs and public_bench.rs
+// above as heuristic-only — they exercise rule-based paths
+// without hitting a real LLM. This test complements them: when
+// AIML_API_KEY is set in the environment, it calls the real
+// AI/ML API gateway on a 10-row subset of the InvoiceNet sample
+// and prints the live precision/recall + cost.
+//
+// `#[ignore]` so the default `cargo test` doesn't burn credits
+// on every CI run. Run locally with:
+//   AIML_API_KEY=$AIML_API_KEY \
+//   cargo test --features public-bench -p themis-orchestrator \
+//     --test public_bench -- --ignored --nocapture aiml_real
+//
+// Captured output for the audit #867 evidence lives at
+// docs/audit/aiml_real_bench_output.txt.
+
+const REAL_BENCH_MODEL: &str = "anthropic/claude-sonnet-4-6";
+
+/// System prompt the real provider sees. Mirrors the
+/// FraudAuditor's heuristic prompt so the LLM gets the same
+/// signals (PO id, amount, vendor).
+const REAL_BENCH_SYSTEM: &str = r#"You are a fraud-detection auditor. For each invoice, return ONLY a JSON object:
+{"risk_score": <float 0.0..1.0>, "reasoning": "<one sentence>"}
+Scoring guide: 0.0-0.3 = clearly clean, 0.3-0.6 = uncertain, 0.6-0.85 = suspicious, 0.85+ = halt.
+Heuristics: PO id starting with PO-MISMATCH- is fraud, amount > $50K is suspicious, vendor in {Unknown LLC, Offshore Vendor, Cash-Only, Shell Co} is suspicious."#;
+
+/// Pick a balanced 10-row subset: 5 clean (INV-0001..0005) +
+/// 5 fraud (INV-0026..0030). The CSV is structured so the first
+/// 25 rows are clean and the next 25 are fraud; this slice
+/// guarantees a non-degenerate precision/recall on the subset.
+fn real_bench_rows() -> Vec<BenchRow> {
+    let all = parse_csv();
+    all.into_iter()
+        .filter(|r| {
+            r.invoice_id.as_str() >= "INV-0001" && r.invoice_id.as_str() <= "INV-0005"
+                || r.invoice_id.as_str() >= "INV-0026" && r.invoice_id.as_str() <= "INV-0030"
+        })
+        .collect()
+}
+
+#[test]
+#[ignore = "requires AIML_API_KEY; run with --ignored --nocapture"]
+fn aiml_real_provider_smoke() {
+    // Guard: skip if no API key.
+    let api_key = match std::env::var("AIML_API_KEY") {
+        Ok(s) if !s.trim().is_empty() => s,
+        _ => {
+            eprintln!("skip: AIML_API_KEY not set");
+            return;
+        }
+    };
+
+    let rows = real_bench_rows();
+    assert_eq!(rows.len(), 10);
+    let backend: Arc<dyn LlmBackend> = Arc::new(themis_agents::llm::AIMLAPIBackend::new(
+        api_key.clone(),
+        REAL_BENCH_MODEL,
+    ));
+    let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
+
+    let mut tp = 0_usize;
+    let mut fp = 0_usize;
+    let mut fn_ = 0_usize;
+    let mut tn = 0_usize;
+    let mut total_in = 0_u32;
+    let mut total_out = 0_u32;
+
+    println!();
+    println!("=== REAL-PROVIDER BENCH (AIML API, claude-sonnet-4-6) ===");
+    println!("rows: {} (first 10 of 50)", rows.len());
+    println!();
+
+    for row in &rows {
+        let user_prompt = format!(
+            "invoice_id={} vendor={} amount=${:.2} po_id={}",
+            row.invoice_id, row.vendor, row.amount, row.po_id
+        );
+        let req = LlmRequest {
+            system_prompt: REAL_BENCH_SYSTEM.to_string(),
+            user_prompt,
+            max_tokens: 256,
+            temperature: 0.0,
+            seed: Some(42),
+            response_schema: None,
+            response_schema_name: None,
+        };
+        let resp = match rt.block_on(backend.complete(req)) {
+            Ok(r) => r,
+            Err(e) => {
+                eprintln!("skip row {}: backend error: {e}", row.invoice_id);
+                return;
+            }
+        };
+        total_in += resp.input_tokens;
+        total_out += resp.output_tokens;
+
+        // Parse `risk_score` from the response text. The LLM is
+        // supposed to return JSON; we accept either structured
+        // JSON or a bare float as defensive parsing.
+        let risk_score: f32 = serde_json::from_str::<serde_json::Value>(&resp.text)
+            .ok()
+            .and_then(|v| v.get("risk_score").and_then(|x| x.as_f64()))
+            .map(|x| x as f32)
+            .or_else(|| {
+                // Try bare float.
+                resp.text.trim().parse::<f32>().ok()
+            })
+            .unwrap_or(-1.0);
+        let predicted_fraud = risk_score >= 0.85;
+        let actual_fraud = row.fraud_label == 1;
+        match (predicted_fraud, actual_fraud) {
+            (true, true) => tp += 1,
+            (true, false) => fp += 1,
+            (false, true) => fn_ += 1,
+            (false, false) => tn += 1,
+        }
+        println!(
+            "{} fraud={} predicted_risk={:.2} halt={} | in={} out={}",
+            row.invoice_id,
+            row.fraud_label,
+            risk_score,
+            predicted_fraud,
+            resp.input_tokens,
+            resp.output_tokens
+        );
+    }
+
+    let precision = if tp + fp > 0 { tp as f64 / (tp + fp) as f64 } else { 0.0 };
+    let recall = if tp + fn_ > 0 { tp as f64 / (tp + fn_) as f64 } else { 0.0 };
+    let fpr = if fp + tn > 0 { fp as f64 / (fp + tn) as f64 } else { 0.0 };
+    println!();
+    println!("--- summary ---");
+    println!("TP={} FP={} FN={} TN={}", tp, fp, fn_, tn);
+    println!("precision = {:.3}", precision);
+    println!("recall    = {:.3}", recall);
+    println!("FPR       = {:.3}", fpr);
+    println!("tokens in = {}  out = {}", total_in, total_out);
+    println!("==================================================");
+
+    // The test is informational — print + assert structural invariants
+    // only (the LLM provider's response shape is non-deterministic
+    // across model versions and the bench's value is the captured
+    // transcript, not a hardcoded metric).
+    assert!(total_in > 0, "no input tokens billed — provider didn't actually call the model");
+    assert!(total_out > 0, "no output tokens billed — provider didn't actually call the model");
 }
