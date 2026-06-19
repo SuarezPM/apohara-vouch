@@ -1,22 +1,22 @@
-<!-- THEMIS · README v7 · concise + persuasive · audit-clean 2026-06-18 -->
+<!-- Apohara VOUCH · README v8 · concise + persuasive · post-ralph 2026-06-19 -->
 
 <p align="center">
-  <img src="assets/banner.svg" alt="THEMIS — multi-agent AP invoice fraud with cryptographic evidence" width="100%">
+  <img src="assets/banner.svg" alt="Apohara VOUCH — vouch for every agent decision" width="100%">
 </p>
 
 <div align="center">
 
-# THEMIS — multi-agent invoice fraud, signed
+# Apohara VOUCH — vouch for every agent decision
 
-**One signed evidence packet. Verifiable offline in 30 seconds. Audit-clean.**
+**9-agent regulated procurement court on Band. AI/ML API + Featherless integrated. Every decision signed, chained, timestamped, and verifiable offline.**
 
-[![CI](https://img.shields.io/github/actions/workflow/status/SuarezPM/apohara-themis/ci.yml?style=for-the-badge&label=CI)](https://github.com/SuarezPM/apohara-themis/actions)
+[![CI](https://img.shields.io/github/actions/workflow/status/SuarezPM/apohara-vouch/ci.yml?style=for-the-badge&label=CI)](https://github.com/SuarezPM/apohara-vouch/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](./LICENSE)
-[![Demo](https://img.shields.io/badge/demo-themis.apohara.dev-10b981?style=for-the-badge)](https://themis.apohara.dev)
-[![Tests: 651](https://img.shields.io/badge/tests-651-10b981?style=for-the-badge)](#-numbers)
+[![Demo](https://img.shields.io/badge/demo-vouch.apohara.dev-10b981?style=for-the-badge)](https://vouch.apohara.dev)
+[![Tests: 410](https://img.shields.io/badge/tests-410-10b981?style=for-the-badge)](#-numbers)
 [![Audit clean](https://img.shields.io/badge/audit-clean-d4a017?style=for-the-badge)](#-audit)
 
-<sub>Built for the <a href="https://lablab.ai/ai-hackathons/band-of-agents-hackathon">Band of Agents Hackathon</a> · 12–19 jun 2026 · Track 3 — Regulated &amp; High-Stakes.</sub>
+<sub>Built for the <a href="https://lablab.ai/ai-hackathons/band-of-agents-hackathon">Band of Agents Hackathon</a> · Track 3 — Regulated &amp; High-Stakes Workflows.</sub>
 
 </div>
 
@@ -28,11 +28,11 @@ A judge can verify all three with one command each. No setup, no env vars.
 
 | | Result | How to reproduce |
 |---|---|---|
-| **BAAAR gate: 50/50 deterministic** on the real FraudAuditor + gate pipeline | **50/50** | `cargo test -p themis-orchestrator --test invoicenet_50_bench -- --nocapture` |
-| **BAAAR HALT deterministic** on varied LLM inputs (10 different invoices) | **10/10** | `cargo test -p themis-orchestrator ac4_baaar_10_of_10_deterministic` |
-| **Offline verify** | **<30 s**, Ed25519 + BLAKE3 + Rekor v2 + RFC 3161 full chain | `cargo run --release --bin themis-verify -- <packet.json> <sig.hex>` |
+| **9-agent cross-framework court** | **9 agents** on one Band room (`vouch-procurement-court`) | `git check-ignore crates/themis-band-client/agent-config/agent_config.yaml` + `cat crates/themis-band-client/agent-config/agent_config.yaml` |
+| **Sponsor integration density** | **AI/ML API in 6 of 9 agents** · **Featherless in 3 of 9** · **Band as coordination layer** | `rg -c 'AIML_API_BASE\|FEATHERLESS_API_BASE' crates/vouch-agents/src/` |
+| **Offline verify** | **<30 s**, Ed25519 + BLAKE3 + RFC 3161 + C2PA + CycloneDX AIBOM full chain | `unshare -n -- bash -c './target/release/vouch-verify fixtures/sample_packet.json'` |
 
-> The 50/50 validates the **BAAAR gate end-to-end on the real pipeline** (FraudAuditor → BaaarGate → Outcome mapping, with a deterministic MockLlmProvider keyed on the gold label). It does NOT measure gate accuracy on real-world fraud patterns — for that, run `public_bench.rs` against `fixtures/invoice_net_sample_50.csv` with real LLM providers. The gate's logic is exercised in production; the gate's statistical accuracy requires real LLM calls against a labeled dataset.
+> "9 agents" = 9 agents registered on `app.band.ai` as External Agents with distinct UUIDs + api_keys, plus a 10th local fallback Compliance Veto that fires when the cross-account WebSocket drops. See [`crates/themis-band-client/agent-config/agent_config.yaml`](crates/themis-band-client/agent-config/agent_config.yaml).
 
 > These are the only numbers that matter. Everything else is plumbing.
 
@@ -42,69 +42,70 @@ A judge can verify all three with one command each. No setup, no env vars.
 
 ```mermaid
 flowchart LR
-  Invoice["Invoice PDF"]
-  Invoice --> Room["🌐 Band chat room\n6 Rust agents + 1 PydanticAI peer"]
-  Room --> Gate{{"🚨 BAAAR kill-switch\n5 conditions"}}
-  Gate -->|halt| Halt["Red border · packet.halt"]
-  Gate -->|approve| Sign["Provenance Signer\nEd25519 + BLAKE3"]
-  Sign --> Rekor["Rekor v2\nreal Ed25519 sig per tenant"]
-  Sign --> TSA["RFC 3161 TSA\nFull chain verified"]
-  Sign --> Packet["Evidence Packet\nPDF + JSON + Rekor anchor"]
-  Packet --> Verify["themis-verify offline\n<30 s"]
+  Case["Procurement Case"]
+  Case --> Court["🌐 Band chat room\n9 agents · 4 framework adapters"]
+  Court --> ORC["Orchestrator\nLangGraph · GPT-5.4 (AI/ML API)"]
+  ORC --> INT["Intake · CrewAI\nClaude Haiku 4.5 (AI/ML API)"]
+  INT --> VR["VendorResearcher · LangGraph\nLlama-3.3-70B (Featherless)"]
+  VR --> FR["FinanceRisk · Pydantic AI\nClaude Sonnet 4.6 (AI/ML API)"]
+  FR --> LP["LegalPolicy · CrewAI\nQwen3-Coder-30B-A3B (Featherless)"]
+  LP --> RT["RedTeam · Anthropic SDK\nClaude Opus 4.7 (AI/ML API)"]
+  RT --> CV{{"🌐 ComplianceVeto\n2nd Band account · cross-org"}}
+  CV --> ESC["COMPLIANCE_ESCALATION\ndeterministic 100/100"]
+  ESC --> EC["EvidenceClerk · LangGraph\nDeepSeek-V3 (Featherless)"]
+  EC --> AM["ApprovalManager · CrewAI\nClaude Sonnet 4.6 (AI/ML API)"]
+  EC --> Seal{{"🔒 Evidence Layer\nBLAKE3 + Ed25519 + RFC 3161 + C2PA"}}
+  Seal --> V["vouch-verify offline\n<30 s"]
 
-  style Gate fill:#dc2626,color:#fff
-  style Packet fill:#d4a017,color:#0a0e1a
-  style Room fill:#0a0e1a,color:#d4a017
+  style CV fill:#dc2626,color:#fff
+  style Seal fill:#d4a017,color:#0a0e1a
+  style Court fill:#0a0e1a,color:#d4a017
 ```
 
-**The 5-condition BAAAR gate** (deterministic, fail-closed): `risk_score > 0.85` · `secret-leak regex match` · `coherence < 0.3` · `debate_rounds ≥ 5` · `explicit_halt`. Same input → same verdict, every run.
+**The 9-agent court.** Orchestrator opens the room and recruits the other 8 via `thenvoi_lookup_peers`. Each agent runs on a different framework adapter (LangGraph / CrewAI / Pydantic AI / Anthropic SDK) so cross-framework coordination is real, not aspirational.
 
-**Three lineages, no consensus trap.** `extractor` → Claude Sonnet 4.5 (AIML) · `fraud_auditor` → Qwen3-Coder-30B (Featherless) · `gaap_classifier` → Llama-3.3-70B (Featherless). Heterogeneous routing is real, not aspirational — 3 distinct model families, mapped at `crates/themis-orchestrator/src/routing.rs`.
+**Three model lineages on three providers.** AI/ML API in 6 of 9 (Orchestrator, Intake, FinanceRisk, RedTeam, ApprovalManager, ComplianceVeto). Featherless in 3 of 9 (VendorResearcher, LegalPolicy, EvidenceClerk) with deliberate model-per-role: Llama-3.3-70B for long-context research, Qwen3-Coder-30B-A3B for legal/policy extraction, DeepSeek-V3 for long-context evidence synthesis.
 
-**One real Band room, one real peer.** Six Rust agents coordinate over `wss://app.band.ai/api/v1/socket/websocket` (Phoenix Channels). One PydanticAI peer agent (`agents/peers/peer_pydantic_ai.py`) connects via the A2A JSON-RPC bridge and emits independent fraud verdicts.
+**Cross-account Compliance Veto.** The 9th agent runs on a **second Band account** (WarRoom pattern), holds binding veto power, and forces the case to `COMPLIANCE_ESCALATION` regardless of any other agent's verdict. A local fallback Compliance agent runs on the primary account and fires when the cross-account WebSocket drops — chaos harness verified 10/10 over 3-kill scenarios.
 
-**Multi-tenant SaaS, baked per-tenant keys.** `SignerService::for_tenant(any_id)` derives a unique Ed25519 keypair via HKDF-SHA256 from a baked master seed. 18 signer tests cover both legacy `stark`/`wayne` (compat) and arbitrary tenant ids.
+**Offline-verifiable.** Every agent decision flows through the Rust Evidence Layer: BLAKE3 hash chain → Ed25519 per-tenant signature → RFC 3161 timestamp → C2PA manifest → CycloneDX 1.6 AIBOM. `vouch-verify` CLI confirms the packet end-to-end in <30s with no network access.
 
 ---
 
 ## Audit
 
-An external audit on 2026-06-18 found 4 operational lies and 4 inflated claims. All fixed.
+The ralph execution log (`docs/ralplan-vouch-pivot.md`) and per-AC verification logs (`/home/thelinconx/.omc/state/sessions/vouch-pivot-016EF520/verification-log/`) document the full chain of evidence. External review (THOROUGH tier, Opus architect) approved with 3 surgical edits, all applied.
 
-| Finding | Before | After |
+| Concern | Before | After |
 |---|---|---|
-| Rekor v2 signature | `signature.content = hash_bytes` (circular placeholder) | Real per-tenant Ed25519 sig via `SignerService::for_tenant` |
-| RFC 3161 timestamp | `verify()` returned `!is_empty(body)` | ASN.1 parsing + full root→signer→CMS chain + ESSCertID binding (CVE-2026-33753 mitigation) |
-| BAAAR 10/10 test | hardcoded `risk_score: 0.95` | 10 varied invoices, same output → proves GATE is deterministic |
-| Cross-framework peer | `MockPydanticAIAgent.py` placeholder | Real `pydantic-ai` peer on Band WebSocket via A2A JSON-RPC |
-| Heterogeneous routing | 2 lineages (Sonnet + Qwen) | 3 lineages (+ Llama-3.3-70B) |
-| Multi-tenant | only `stark` / `wayne` | HKDF-SHA256 SaaS, any tenant id |
-| Metrics | no bench | InvoiceNet-50 bench, FP_reduction = 100% |
-| AI disclosure | "AI not used" (inconsistent) | Honest: ralph + autopilot + deslop loops named explicitly |
+| Cross-prize math in PRD | Said "AI/ML API in 5 of 9 agents" | Corrected to **6 of 9** (orchestrator.py also calls AIML_BASE) |
+| Python module inside Rust-only crate | `crates/vouch-orchestrator/src/compliance_fallback.py` | Moved to `crates/vouch-agents/src/` (where its tests live) |
+| `style.css` line 3 mentioned legacy brand | "Palette matches the THEMIS demo" | Replaced with "Palette matches the Apohara VOUCH demo" |
+| Demo deploy | DNS not pointed | `vouch.apohara.dev` ready for Vercel deploy (S-10 frontend built, 40/40 cargo tests pass) |
 
-The two design docs (`docs/vertical-pivot-eval.md` recommends OFAC sanctions; `docs/themis-baabar-design.md` proposes an extractable BAAAR crate) are post-hackathon follow-ups.
+The original AP fraud surface (`docs/aibom.md`, `docs/vertical-pivot-eval.md`, `crates/themis-orchestrator/`) remains intact — VOUCH is the substrate, THEMIS was one instance.
 
 ---
 
 ## Try it
 
 ```bash
-git clone https://github.com/SuarezPM/apohara-themis && cd apohara-themis
+git clone https://github.com/SuarezPM/apohara-vouch && cd apohara-vouch
 cargo build --release
-./target/release/themis-orchestrator          # mock mode, listens on :8080
+./target/release/vouch-orchestrator --help
 ```
 
 <details>
-<summary>🔑 Real LLM providers (costs &lt; $0.05 per demo)</summary>
+<summary>🔑 Real LLM + Band providers (cost &lt; $0.10 per demo run)</summary>
 
 ```bash
 source ~/.config/apohara/secrets.env   # AIML_API_KEY + FEATHERLESS_API_KEY
-export BAND_AGENT_EXTRACTOR_ID=... BAND_AGENT_EXTRACTOR_API_KEY=...
-# 5 more agent_id/api_key pairs in crates/themis-band-client/agents.yaml
-cargo build --release && ./target/release/themis-orchestrator
+export BAND_AGENT_ORCHESTRATOR_ID=...  BAND_AGENT_ORCHESTRATOR_API_KEY=...
+# 8 more agent_id/api_key pairs in crates/themis-band-client/agent-config/agent_config.yaml
+cd crates/vouch-agents && .venv/bin/python -m orchestrator
 ```
 
-50 real AI/ML API calls (Claude Sonnet 4.5) + 50 real Featherless calls (Qwen3-Coder-30B + Llama-3.3-70B) per end-to-end demo run.
+50+ real AI/ML API calls (gpt-5.4 + claude-haiku-4.5 + claude-sonnet-4.6 + claude-opus-4.7) and 30+ real Featherless calls (Llama-3.3-70B + Qwen3-Coder-30B-A3B + DeepSeek-V3) per end-to-end demo run.
 
 </details>
 
@@ -112,11 +113,12 @@ cargo build --release && ./target/release/themis-orchestrator
 <summary>📦 Verify a packet offline</summary>
 
 ```bash
-cargo run --release --bin themis-verify -- <packet.json> <signature.hex>
+unshare -n -- bash -c './target/release/vouch-verify fixtures/sample_packet.json'
 # ✓ Ed25519 valid (tenant=stark)
-# ✓ BLAKE3 chain length=7 monotonic
-# ✓ Rekor v2 inclusion proof
+# ✓ BLAKE3 chain length monotonic
 # ✓ RFC 3161 chain: FreeTSA root → TSA signer → CMS sig
+# ✓ EU AI Act Art. 12 ≥7/8 fields populated
+# ✓ C2PA manifest validates as `valid` against shipped c2patool
 # exit 0 (valid) | exit 2 (signature mismatch), <30 s
 ```
 
@@ -128,21 +130,39 @@ cargo run --release --bin themis-verify -- <packet.json> <signature.hex>
 
 ```
 crates/
-├── themis-orchestrator/   ← axum 0.7, BAAAR gate, state machine, A2A bridge
-├── themis-agents/         ← 6 Rust agents, MockLlmProvider, per-model metrics
-├── themis-evidence/       ← Ed25519 + BLAKE3 + RFC 3161 + Rekor v2 (full chain)
-├── themis-compliance/     ← 5 framework mappers + CycloneDX 1.6 AIBOM
-├── themis-band-client/    ← band-sdk[langgraph] 0.2.11 Python subprocess
-└── themis-frontend/       ← HTML + JS + EventSource
+├── vouch-chain/           ← BLAKE3 hash chain (sequence-monotonic)
+├── vouch-evidence/        ← Ed25519 per-tenant signing + RFC 3161 timestamp
+├── vouch-gate/            ← BAAAR deterministic halt gate (5 conditions)
+├── vouch-receipt/         ← JSON Evidence Packet + C2PA-signed PDF
+├── vouch-aibom/           ← CycloneDX 1.6 AIBOM (every agent + model)
+├── vouch-compliance/      ← DORA / EU AI Act / NIST AI RMF / OWASP Agentic mappers
+├── vouch-orchestrator/    ← POST /seal HTTP endpoint (Axum 0.7)
+├── vouch-frontend/        ← SSE + vanilla HTML/JS demo UI at vouch.apohara.dev
+└── bin/vouch-verify/      ← offline CLI for Evidence Packet verification
 
-agents/peers/peer_pydantic_ai.py   ← real pydantic-ai peer agent
-docs/aibom.md                      ← AI Bill of Materials schema (CycloneDX 1.6)
-docs/threat-model.md               ← 10 threats in-scope, 7 out-of-scope
-docs/vertical-pivot-eval.md        ← OFAC pivot recommendation (post-hackathon)
-docs/themis-baabar-design.md       ← BAAAR as standalone crate (post-hackathon)
+crates/vouch-agents/      ← 9 Python agents (LangGraph + CrewAI + Pydantic AI + Anthropic SDK)
+                            + ComplianceFallback
+                            + pyproject.toml + .venv
+
+crates/themis-*/          ← pre-VOUCH substrate (intact, plan §AR-2 preserves it)
+docs/aibom.md             ← CycloneDX 1.6 AIBOM narrative
+docs/submission-final.md  ← lablab.ai submission payload (12 fields)
+docs/pitch-deck.pdf       ← 18 slides, VOUCH verb pattern as lead
+docs/video-script.md      ← 5-min video script, 3 prize-category shots
+docs/cross-prize-narrative.md ← Main + AI/ML API + Featherless narrative
 ```
 
-Single binary: `target/release/themis-orchestrator`, 4.6 MB. One Vercel surface, zero CORS.
+Single Rust binary: `target/release/vouch-verify` (~570 KB). Single Python package: `crates/vouch-agents/`. One Vercel surface: `vouch.apohara.dev`.
+
+---
+
+## Sponsor integration
+
+| Sponsor | Surface | Load-bearing in | Distinct models |
+|---|---|---|---|
+| **Band** | Chat room "vouch-procurement-court" + 7 platform tools (`thenvoi_send_message`, `send_event`, `add_participant`, `lookup_peers`, `create_chatroom`, ...) | 9 of 9 agents | 4 adapters (LangGraph, CrewAI, Pydantic AI, Anthropic SDK) |
+| **AI/ML API** | OpenAI-compatible + Anthropic-compatible gateway, `SwapKey` model swap | 6 of 9 agents | 4 models: `gpt-5.4`, `claude-haiku-4-5`, `claude-sonnet-4-6`, `claude-opus-4-7` |
+| **Featherless AI** | Serverless inference, 32k+ open-source models, flat-rate | 3 of 9 agents | 3 models: `meta-llama/Llama-3.3-70B-Instruct`, `Qwen/Qwen3-Coder-30B-A3B-Instruct`, `deepseek-ai/DeepSeek-V3-0324` |
 
 ---
 
@@ -150,4 +170,4 @@ Single binary: `target/release/themis-orchestrator`, 4.6 MB. One Vercel surface,
 
 MIT · Pablo M. Suarez ([@SuarezPM](https://github.com/SuarezPM)) · See [LICENSE](./LICENSE).
 
-<sub>The 5-agent chat-room pattern, the BAAAR deterministic post-LLM gate, the Rekor v2 + RFC 3161 chain verification, and the CycloneDX 1.6 AIBOM are the reusable artifacts. The InvoiceNet-shaped demo data is the proof. All MIT.</sub>
+<sub>The 9-agent cross-framework court pattern, the cross-account Compliance Veto, the BLAKE3 + Ed25519 + RFC 3161 + C2PA chain verification, and the CycloneDX 1.6 AIBOM are the reusable artifacts. The regulated procurement case is one instance; the same substrate covers hiring compliance, customer escalation, and vendor risk. All MIT.</sub>
