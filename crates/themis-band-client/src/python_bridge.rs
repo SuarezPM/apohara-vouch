@@ -369,7 +369,6 @@ impl PythonBandBridge {
                 match child.try_wait() {
                     Ok(Some(_status)) => {
                         eprintln!("[band-bridge] child exited cleanly during shutdown");
-                        return;
                     }
                     Ok(None) => {
                         // Still running. Try graceful wait with timeout.

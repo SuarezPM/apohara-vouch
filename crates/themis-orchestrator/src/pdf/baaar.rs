@@ -12,6 +12,7 @@ use themis_agents::decision::AgentDecision;
 
 /// Human-readable label for a `BaaarReason`. Used in the "REASON:"
 /// line of the HALT section.
+#[allow(dead_code)]
 pub fn format_baaar_reason(reason: BaaarReason) -> &'static str {
     match reason {
         BaaarReason::RiskScoreExceeded => "risk_score > 0.85",
@@ -145,7 +146,6 @@ pub fn build_condition_matrix(decisions: &[AgentDecision]) -> Vec<(&'static str,
 #[cfg(test)]
 mod tests {
     use super::*;
-    use themis_agents::baaar::Outcome;
     use themis_agents::decision::{AgentDecision, DecisionType};
 
     fn decision_with_assessment(agent_id: &str, payload: serde_json::Value) -> AgentDecision {

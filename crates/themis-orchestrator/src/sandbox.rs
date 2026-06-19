@@ -240,10 +240,12 @@ pub async fn evaluate_policy_file(path: &Path, input: &str) -> Result<Verdict, T
     // rules the operator has defined. `HookInput` is `Default`-derived, so
     // we start from `Default::default()` and only override the fields that
     // matter for evaluation.
-    let mut hook_input = HookInput::default();
-    hook_input.tool_name = Some("UserPromptSubmit".to_string());
-    hook_input.tool_input = serde_json::json!({ "prompt": input });
-    hook_input.prompt = Some(input.to_string());
+    let hook_input = HookInput {
+        tool_name: Some("UserPromptSubmit".to_string()),
+        tool_input: serde_json::json!({ "prompt": input }),
+        prompt: Some(input.to_string()),
+        ..Default::default()
+    };
     // An empty Config keeps the engine's thresholds at the agentguard
     // defaults (block_at=8, warn_at=5) — same as `project_thresholds()`.
     let cfg = AgentGuardConfig::default();

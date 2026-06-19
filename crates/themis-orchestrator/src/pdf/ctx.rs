@@ -9,7 +9,7 @@
 
 use printpdf::{
     path::{PaintMode, WindingOrder},
-    Color, IndirectFontRef, Line, Mm, PdfDocumentReference, PdfLayerReference, Point, Polygon, Rgb,
+    Color, IndirectFontRef, Mm, PdfDocumentReference, PdfLayerReference, Point, Polygon, Rgb,
 };
 
 /// Synthex-style dark palette (default) + a print-friendly light
