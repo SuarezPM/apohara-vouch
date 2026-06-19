@@ -34,12 +34,6 @@ serde_json_canonicalizer = "0.3"
 # payload bytes for the mock preimage hex). sha2 is already a
 # workspace-level dep, so this just references it directly.
 sha2 = "0.10"
-# apohara-sealchain-core (C-10 / G30): wraps the Evidence Packet as a
-# C2PA-stamped receipt. We use the default `native` feature set so we
-# get `Keys` + `seal_deterministic` + `verify` — the keystore is gated
-# `native` in the upstream crate. The `native` build needs
-# rust-version >= 1.88 (bumped in workspace root).
-apohara-sealchain-core = { path = "/home/thelinconx/apohara-sealchain/crates/apohara-sealchain-core", optional = true }
 # RFC 3161 strict verification (FIX-2 → FIX-2b): full chain
 # check. The stack is layered:
 #
@@ -96,15 +90,3 @@ tonic-prost-build = "0.14"
 
 [dev-dependencies]
 tempfile = "3"
-
-[features]
-# `sealchain-wrap` pulls in the upstream `apohara-sealchain-core`
-# crate as a path dependency (C-10 / G30). It's optional because
-# the upstream crate is a sibling repo (`~/apohara-sealchain/`)
-# that's not vendored here — without this feature, the
-# workspace compiles on forks / fresh clones.
-#
-# Local builds that have the sibling repo: `cargo build
-# --features themis-evidence/sealchain-wrap` or
-# `APOHARA_SEALCHAIN_PATH=... .cargo/config.toml [source]`.
-sealchain-wrap = ["dep:apohara-sealchain-core"]

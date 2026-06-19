@@ -22,7 +22,7 @@ uuid = { version = "1", features = ["v4", "v5", "serde"] }
 blake3 = "1"
 hex = "0.4"
 themis-agents = { workspace = true }
-themis-evidence = { workspace = true, features = ["sealchain-wrap"] }
+themis-evidence = { workspace = true }
 themis-compliance = { workspace = true }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 themis-frontend = { workspace = true }

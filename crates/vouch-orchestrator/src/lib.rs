@@ -21,8 +21,8 @@ pub use vouch_compliance::{
     EuAiActMapper, Framework, NistAiRmfMapper, OwaspAgenticMapper,
 };
 pub use vouch_evidence::{
-    C2paReceipt, EvidenceService, FreeTSAAuthority, MockTimestampAuthority, SealedPacket,
-    SignerError, SignerService, TimestampAuthority,
+    EvidenceService, FreeTSAAuthority, MockTimestampAuthority, SealedPacket, SignerError,
+    SignerService, TimestampAuthority,
 };
 pub use vouch_gate::{should_halt, GateInput, Verdict};
 pub use vouch_receipt::{

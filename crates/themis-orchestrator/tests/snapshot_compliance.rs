@@ -86,8 +86,6 @@ fn router_for(f: &DemoInvoice) -> axum::Router {
         reports: dashmap::DashMap::new(),
         packets: dashmap::DashMap::new(),
         sealed: dashmap::DashMap::new(),
-        c2pa_receipts: dashmap::DashMap::new(),
-        sealchain_wrapper: None,
         model_id: mock_llm.model_id().to_string(),
         band_room: None,
         sponsor_stack: themis_orchestrator::events::SponsorStackInfo::default(),

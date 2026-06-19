@@ -1,4 +1,4 @@
-//! vouch-evidence — Ed25519 signer + SealedPacket + RFC 3161 + C2PA.
+//! vouch-evidence — Ed25519 signer + SealedPacket + RFC 3161.
 //!
 //! AC-3.1, AC-3.9: thin re-export shell over `themis-evidence`,
 //! preserving the deep module path (`vouch_evidence::signer::*`
@@ -21,7 +21,7 @@ pub fn version() -> &'static str {
 pub mod packet;
 pub mod signer;
 
-pub use themis_evidence::{chain, persistence, rekor, rekor_v2, sealchain_wrap, timestamp};
+pub use themis_evidence::{chain, persistence, rekor, rekor_v2, timestamp};
 
 // Re-export the most-used public types so callers can `use
 // vouch_evidence::{SignerService, SealedPacket, ...}` without
@@ -38,7 +38,6 @@ pub use themis_evidence::rekor::{
     SigstoreVerifyRekorClient,
 };
 pub use themis_evidence::rekor_v2::RekorV2Client;
-pub use themis_evidence::sealchain_wrap::{C2paReceipt, SealChainError, SealChainWrapper};
 pub use themis_evidence::signer::{KeyPair, SignerError, SignerService, STARK_SEED, WAYNE_SEED};
 pub use themis_evidence::timestamp::{
     FreeTSAAuthority, MockTimestampAuthority, Timestamp, TimestampAuthority, TimestampError,

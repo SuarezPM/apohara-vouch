@@ -40,11 +40,6 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
-      - name: Clone apohara-sealchain sibling (for sealchain-wrap path dep)
-        run: |
-          if [ -n "$APOHARA_SEALCHAIN_TOKEN" ]; then
-            git clone --depth 1 https://x-access-token:${APOHARA_SEALCHAIN_TOKEN}@github.com/SuarezPM/apohara-sealchain.git /home/runner/work/apohara-sealchain
-          fi
       - name: Install cargo-deny
         run: cargo install --locked cargo-deny
       - run: cargo deny check licenses
@@ -61,11 +56,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - name: Clone apohara-sealchain sibling (for sealchain-wrap path dep)
-        run: |
-          if [ -n "$APOHARA_SEALCHAIN_TOKEN" ]; then
-            git clone --depth 1 https://x-access-token:${APOHARA_SEALCHAIN_TOKEN}@github.com/SuarezPM/apohara-sealchain.git /home/runner/work/apohara-sealchain
-          fi
       - uses: rustsec/audit-action@17a69828de95e6c54e64b8dacde37b86ed00860d # v0.21.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -82,7 +72,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           components: rustfmt
-      - run: cargo fmt --all -- --check
+      - run: cargo fmt --all --check
 
   # AC17 — single-binary release-size cap (30 MB per critic
   # amendment). Builds release binaries and runs the gate
@@ -94,28 +84,17 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
-      - name: Clone apohara-sealchain sibling (for sealchain-wrap path dep)
-        # `apohara-sealchain-core` is a path dep behind the
-        # `sealchain-wrap` feature (see crates/themis-evidence/Cargo.toml).
-        # The sibling repo is private; CI clones it with the
-        # secret `APOHARA_SEALCHAIN_TOKEN` (a PAT with `repo` scope
-        # on the apohara org). Without this clone, `cargo build
-        # --features themis-evidence/sealchain-wrap` fails on
-        # `cargo metadata`.
-        run: |
-          if [ -n "$APOHARA_SEALCHAIN_TOKEN" ]; then
-            git clone --depth 1 https://x-access-token:${APOHARA_SEALCHAIN_TOKEN}@github.com/SuarezPM/apohara-sealchain.git /home/runner/work/apohara-sealchain
-          else
-            echo "::warning::APOHARA_SEALCHAIN_TOKEN not set; skipping sealchain sibling clone. Build will use sealchain-wrap OFF (mock fallback path)."
-            exit 0
-          fi
-      - name: Build release binaries (sealchain-wrap on)
-        # The `sealchain-wrap` feature pulls in the path dep that
-        # the previous step cloned. If the clone was skipped
-        # (no secret), the build still succeeds via the mock
-        # fallback (the upstream crate gates `sealchain_wrap` behind
-        # the feature so it's not pulled in).
-        run: cargo build --release --workspace --bins --features themis-evidence/sealchain-wrap
+      - name: Build release binaries (sealchain-wrap OFF by default)
+        # The `sealchain-wrap` feature pulls in the upstream
+        # `apohara-sealchain-core` crate (C-10 / G30). It's a
+        # git dep against the private `SuarezPM/apohara-sealchain`
+        # repo, so CI without the `APOHARA_SEALCHAIN_TOKEN`
+        # secret cannot resolve it. The default OFF build uses
+        # the mock fallback path (`sealchain_wrap` module gated
+        # by the feature). To turn the feature on for a release
+        # build, set `APOHARA_SEALCHAIN_TOKEN` + run `cargo build
+        # --features themis-evidence/sealchain-wrap`.
+        run: cargo build --release --workspace --bins
       - name: Enforce 30 MB cap
         run: bash scripts/check-binary-size.sh
 
@@ -147,13 +126,8 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
-      - name: Clone apohara-sealchain sibling (for sealchain-wrap path dep)
-        run: |
-          if [ -n "$APOHARA_SEALCHAIN_TOKEN" ]; then
-            git clone --depth 1 https://x-access-token:${APOHARA_SEALCHAIN_TOKEN}@github.com/SuarezPM/apohara-sealchain.git /home/runner/work/apohara-sealchain
-          fi
       - name: cargo test --workspace
-        run: cargo test --workspace --all-targets --features themis-evidence/sealchain-wrap
+        run: cargo test --workspace --all-targets
 
   # Python agent tests + cross-account Compliance Veto chaos
   # harness. The chaos harness (test_compliance_fallback_chaos.py)

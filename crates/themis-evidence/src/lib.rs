@@ -32,8 +32,6 @@ pub mod packet;
 pub mod persistence;
 pub mod rekor;
 pub mod rekor_v2;
-#[cfg(feature = "sealchain-wrap")]
-pub mod sealchain_wrap;
 pub mod signer;
 pub mod timestamp;
 
