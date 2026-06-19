@@ -178,7 +178,35 @@ export BAND_AGENT_ORCHESTRATOR_ID=...  BAND_AGENT_ORCHESTRATOR_API_KEY=...
 cd crates/vouch-agents && .venv/bin/python -m orchestrator
 ```
 
-50+ real AI/ML API calls (gpt-5.4 + claude-haiku-4-5 + claude-sonnet-4.5 + claude-opus-4.5) and 30+ real Featherless calls (Llama-3.3-70B + Qwen3-Coder-30B-A3B + DeepSeek-V3) per end-to-end demo run. Cost &lt; $0.10.
+50+ real AI/ML API calls (gpt-5.4 + claude-haiku-4-5 + claude-sonnet-4.5 + claude-opus-4-5) and 30+ real Featherless calls (Llama-3.3-70B + Qwen3-Coder-30B-A3B + DeepSeek-V3) per end-to-end demo run. Cost &lt; $0.10.
+
+---
+
+## ⚡ Quickstart for judges
+
+> **1 page · 3 commands · ~5 minutes cold start.**
+
+The fastest way to verify the product end-to-end without setting up Band credentials:
+
+```bash
+# 1. Clone + build the offline verifier
+git clone https://github.com/SuarezPM/apohara-vouch && cd apohara-vouch
+cargo build --release -p vouch-verify      # ~73 s cold, ~2 s cached
+
+# 2. Verify a real Evidence Packet offline (no env vars, no network)
+./target/release/vouch-verify fixtures/sample_packet.json
+
+# 3. Live demo (no install) — 3-panel UI at vouch.apohara.dev
+#    left: Band room transcript · top-right: per-agent cost
+#    bottom-right: EU AI Act Art. 12 dashboard (8/8 fields)
+open https://vouch.apohara.dev
+```
+
+**What the offline verify proves**: the same `vouch-verify` binary a regulator
+runs on an air-gapped laptop to check that the Evidence Packet was signed
+by the tenant's Ed25519 key, hash-chained via BLAKE3, and meets EU AI
+Act Art. 12 coverage (≥7/8 fields populated). No network, no LLM, no
+platform trust. The 669 KB single static binary fits on a USB stick.
 
 ---
 
@@ -187,7 +215,7 @@ cd crates/vouch-agents && .venv/bin/python -m orchestrator
 Two independent review passes shaped the public surface. **All findings fixed and shipped.**
 
 ### Ralph review (THOROUGH tier, Opus architect)
-3 surgical edits, all applied. See [`docs/ralplan-vouch-pivot.md`](docs/ralplan-vouch-pivot.md) + per-AC verification logs.
+3 surgical edits, all applied. Per-AC verification logs preserved in the ralph session artifacts.
 
 ### Brutal audit (post-submission, 2026-06-19)
 **19 credibility / quality / substance issues** flagged. **All 19 fixed in a single remediation sprint** (commits `ff22424` → `abe37f7`). Highlights:
@@ -258,4 +286,4 @@ All 42K LOC Rust + 1K Python + 5K docs are MIT-licensed. Fork, vendor, sell. We 
 <sub>Built for the <a href="https://lablab.ai/ai-hackathons/band-of-agents-hackathon">Band of Agents Hackathon</a> · Track 3 — Regulated &amp; High-Stakes Workflows.</sub>
 <sub>The 9-agent cross-framework court pattern, the cross-account Compliance Veto, the BLAKE3 + Ed25519 + RFC 3161 chain verification, and the CycloneDX 1.6 AIBOM are the reusable artifacts. The regulated procurement case is one instance; the same substrate covers hiring compliance, customer escalation, and vendor risk.</sub>
 
-> 📘 **Judges, evaluators, and reviewers** — see **[docs/JUDGE-QUICKSTART.md](./docs/JUDGE-QUICKSTART.md)** for a 1-page, 3-command path to verify the product in under 5 minutes. Includes the 1-page printable Evidence Receipt PDF you can inspect offline.
+> 📘 **Judges, evaluators, and reviewers** — see **[Quickstart for judges](#-quickstart-for-judges)** below for a 1-page, 3-command path to verify the product in under 5 minutes.

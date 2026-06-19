@@ -14,18 +14,35 @@ Cargo.lock.bak
 *.pyo
 
 # ─── Local state & archives (not for public consumption) ───────────
-# Pre-THEMIS development archive — kept locally for reference, never published
+# Pre-VOUCH development archive — kept locally for reference, never published
 /.archive/
-# OMC workflow state
+# OMC workflow state (operator-only — never judge-visible)
 /.omc/
 crates/*/.omc/  # noqa: ERA001  # OMC state inside crate subdirs
 # Python virtualenvs (per-crate)
 /.venv/
 crates/*/.venv/  # noqa: ERA001
+# Playwright MCP + Playwright caches
+/.playwright-mcp/
+/playwright-report/
+/playwright/.cache/
+# Node deps (Playwright etc.)
+/node_modules/
 # Session / IDE caches
 /.claude/settings.local.json
 /.claude/sessions/
 /.mcp.json.local
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+# ─── Operator-only AI agent workflow (judges don't need this) ────
+# The AGENTS.md is the renamed internal workflow guide (was CLAUDE.md).
+# Public equivalent lives in README.md + CONTRIBUTING.md.
+# Keeping it local: avoids leaking the AI-assisted dev workflow.
+/AGENTS.md
 
 # ─── Secrets (NEVER commit) ────────────────────────────────────────
 .env
