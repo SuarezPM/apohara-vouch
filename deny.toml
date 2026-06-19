@@ -1,12 +1,13 @@
-# cargo-deny configuration for THEMIS.
+# cargo-deny configuration for Apohara VOUCH.
 # https://embarkstudios.github.io/cargo-deny/
 #
-# R11/US-X02 hardening: enforce no banned licenses, no duplicate
-# crates, no yanked crates, no advisories on our dep set. The
-# pre-commit hook (scripts/install-pre-commit.sh) runs
+# R11/US-X02 hardening: enforce no banned licenses, no copyleft,
+# no duplicate crates, no yanked crates, no advisories on our dep
+# set. The pre-commit hook (scripts/install-pre-commit.sh) runs
 # `cargo deny check` before every commit.
 #
 # Run manually: `cargo deny check`
+# Generate the baseline: `cargo deny check > docs/audit/cargo-deny-baseline.txt`
 
 [graph]
 all-features = false
@@ -53,11 +54,11 @@ allow = [
     "BSD-2-Clause",
     "BSD-3-Clause",
     "ISC",
-    "Unicode-DFS-2016",
     "Unicode-3.0",
+    # Used by icu_collections v2.2.0 (transitive via url -> idna ->
+    # idna_adapter -> icu_normalizer). Pulled by c2pa -> apohara-sealchain.
     "CC0-1.0",
     "Zlib",
-    "OpenSSL",
     "MPL-2.0",
     # CDLA-Permissive-2.0: Mozilla's CA root bundle (webpki-roots).
     # Pulled in transitively by reqwest 0.12 + rustls-tls. The
@@ -73,6 +74,9 @@ multiple-versions = "allow"
 wildcards = "allow"
 highlight = "all"
 deny = []
+# Copyleft detection lives in [licenses] above via the allow-list
+# (MIT/Apache/BSD/etc.) plus confidence-threshold = 0.8 for ambiguous
+# transitive deps.
 skip = []
 skip-tree = []
 
