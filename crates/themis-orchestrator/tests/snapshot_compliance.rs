@@ -358,7 +358,7 @@ fn decode_pdf_text(pdf: &[u8]) -> String {
                 break;
             }
             let hex = &pdf[i + 1..j];
-            if hex.len() % 2 == 0 {
+            if hex.len().is_multiple_of(2) {
                 let mut decoded = Vec::with_capacity(hex.len() / 2);
                 let mut k = 0;
                 while k + 1 < hex.len() {

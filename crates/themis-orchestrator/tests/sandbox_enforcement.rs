@@ -157,10 +157,12 @@ fn test_policy_set_rejects_unknown_command() {
     let policy = PolicySet::load(Some(&path)).expect("load policy");
 
     // A non-allow-listed Bash command: must be Blocked.
-    let mut input = HookInput::default();
-    input.hook_event_name = "PreToolUse".into();
-    input.tool_name = Some("Bash".into());
-    input.tool_input = serde_json::json!({ "command": "rm -rf /" });
+    let input = HookInput {
+        hook_event_name: "PreToolUse".into(),
+        tool_name: Some("Bash".into()),
+        tool_input: serde_json::json!({ "command": "rm -rf /" }),
+        ..Default::default()
+    };
     let v = policy.evaluate(&input, &AgentGuardConfig::default());
     // Clean up the temp file.
     let _ = std::fs::remove_file(&path);

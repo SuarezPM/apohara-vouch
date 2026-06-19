@@ -62,7 +62,7 @@ fn fresh_wrapper() -> SealChainWrapper {
 
 /// Locate the Art 50 assertion inside the C2PA manifest. Returns
 /// `None` when the manifest shape is unexpected.
-fn art50_assertion<'a>(receipt: &'a C2paReceipt) -> Option<&'a serde_json::Value> {
+fn art50_assertion(receipt: &C2paReceipt) -> Option<&serde_json::Value> {
     receipt
         .c2pa_manifest
         .get("manifests")?

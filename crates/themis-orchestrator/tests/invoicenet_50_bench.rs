@@ -206,7 +206,7 @@ fn render_invoice_json(gold: &GoldLabel) -> Vec<u8> {
     };
     let line_items_total = if gold.is_fraud {
         // Fraudulent invoices often have itemized totals that don't add up.
-        amount_eur.wrapping_add((id_hash % 1000) as u64).wrapping_sub(500)
+        amount_eur.wrapping_add(id_hash % 1000).wrapping_sub(500)
     } else {
         // Clean invoices: line items match the header total exactly.
         amount_eur

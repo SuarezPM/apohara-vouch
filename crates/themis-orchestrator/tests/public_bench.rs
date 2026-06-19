@@ -8,7 +8,7 @@
 //!   - recall     = TP / (TP + FN)         target >= 0.85
 //!   - FPR        = FP / (FP + TN)         target <= 0.05
 //!   - FP_reduction_pct = (baseline.FP - aegis.FP) / baseline.FP * 100
-//!                     target >= 20%
+//!     target >= 20%
 //!
 //! The baseline is a `MockLlmProvider` that always
 //! returns `risk_score = 0.5` (a worst-case 50/50

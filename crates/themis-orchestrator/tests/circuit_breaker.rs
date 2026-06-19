@@ -31,7 +31,7 @@ fn test_breaker_opens_at_5_failures_and_rejects() {
             matches!(r, Err(CircuitBreakerError::Inner("nope"))),
             "call {i} should be Inner error, got {r:?}"
         );
-        if (i as u32) + 1 < THRESHOLD {
+        if i + 1 < THRESHOLD {
             assert!(
                 matches!(cb.state(), CircuitState::Closed),
                 "still Closed after {} failures",
