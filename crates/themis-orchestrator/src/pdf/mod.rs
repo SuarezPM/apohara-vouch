@@ -83,13 +83,16 @@ fn render_receipt(
         Outcome::Halt(_) => ("HALT", brand::RED_LIGHT),
     };
 
-    // ── Top bar: numerator (left) + meta (right) ─────────────────
+    // ── Top bar: numerator (left) + seal id (right) ───────────────
     page.set_fill(accent);
     ctx.write(page, "01 / 01 \u{2014} EVIDENCE RECEIPT", 15.0, 285.0, 7.0, true);
     page.reset_color();
-    let meta = format!("{seal_id}  \u{00B7}  {}  \u{00B7}  {}", p.tenant_id, p.invoice_id);
+    // Right-aligned seal id, computed so it never overflows
+    // x=210mm (page right margin). At 7pt bold Helvetica, each
+    // char averages ~2.0mm wide, so 13 chars (VOUCH-XXXXXXXX)
+    // need ~26mm of space.
     page.set_fill(muted);
-    ctx.write(page, &meta, 195.0, 285.0, 7.0, false);
+    ctx.write(page, seal_id, 195.0, 285.0, 7.0, true);
     page.reset_color();
     page.cursor_y = 275.0;
 
@@ -342,8 +345,9 @@ fn render_receipt(
     ctx.write(page, disclaimer, 15.0, 12.0, 6.0, false);
     page.reset_color();
 
+    // Bottom-right: seal id (right-aligned, never overflows).
     page.set_fill(muted);
-    ctx.write(page, seal_id, 195.0, 20.0, 6.5, false);
+    ctx.write(page, seal_id, 195.0, 20.0, 6.5, true);
     page.reset_color();
 
     Ok(())
@@ -394,28 +398,39 @@ fn render_qr(
         smask: None,
     };
     let pdf_image: printpdf::Image = xobject.into();
-    // 32mm QR — large enough to scan reliably from a phone held
-    // 15-20cm away (Synthex uses ~35mm; we use 32mm to fit the
-    // top-right corner without crowding the meta line).
-    let qr_mm = 32.0;
+    // 48mm QR — the sweet spot for a 1-page receipt: large enough
+    // to scan from 30cm (a phone held at desk height), small
+    // enough to leave room for the body content. Positioned at
+    // the TOP-RIGHT of the page, sitting beside the "01 / 01"
+    // numerator and seal-id header line. The verdict block and
+    // body content sit BELOW the QR (cursor_y = 240mm), so the
+    // QR doesn't overlap.
+    let qr_mm = 48.0;
     let qr_pt = qr_mm * 2.834_645_7_f32;
     let pdf_w_pt = w_px as f32;
     let scale = qr_pt / pdf_w_pt;
-    // Position: top-right corner of the body. translate_y in PDF
-    // is bottom-up, so 250mm puts the bottom of the QR at y=250
-    // (which means the top is at ~282mm — well below the header).
+    // Page right margin = 210mm. QR top-right corner: x=192..240
+    // would overflow, so x=152..200 (48mm wide, 10mm right
+    // margin). translate_y in PDF is bottom-up, so 240mm puts
+    // the bottom of the QR at y=240 (top at y=288, below the
+    // header line).
     let transform = printpdf::ImageTransform {
-        translate_x: Some(printpdf::Mm(166.0)),
-        translate_y: Some(printpdf::Mm(250.0)),
+        translate_x: Some(printpdf::Mm(152.0)),
+        translate_y: Some(printpdf::Mm(240.0)),
         scale_x: Some(scale),
         scale_y: Some(scale),
         ..Default::default()
     };
     pdf_image.add_to_layer(page.layer.clone(), transform);
 
-    // QR caption (lime) — sits below the QR block.
-    page.set_fill(brand::LIME);
-    ctx.write(page, "SCAN TO VERIFY", 168.0, 247.0, 6.5, true);
+    // QR caption — dark-green (print-friendly), centered under QR.
+    page.set_fill(brand::LIME_DARK);
+    ctx.write(page, "SCAN TO VERIFY", 153.5, 236.0, 7.0, true);
+    page.reset_color();
+
+    // Sub-caption with the verify URL.
+    page.set_fill(brand::MUTED_LIGHT);
+    ctx.write(page, "vouch.apohara.dev/verify", 153.0, 231.0, 6.0, false);
     page.reset_color();
 }
 
