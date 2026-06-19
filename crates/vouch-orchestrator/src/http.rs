@@ -146,7 +146,7 @@ impl ChainRegistry {
         let entry = map
             .entry(tenant_id.to_string())
             .or_insert_with(|| std::sync::Mutex::new(Chain::new()));
-        let chain = entry.lock().expect("chain poisoned");
+        let mut chain = entry.lock().expect("chain poisoned");
         chain
             .append(payload)
             .map_err(|e| ChainRegistryError::Append(format!("{e:?}")))?;
