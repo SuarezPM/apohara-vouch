@@ -59,7 +59,10 @@ async fn cross_account_post_kills_10_of_10() {
             .await;
 
         match cross {
-            Err(BandError::CrossTenantPost { tenant, target_tenant }) => {
+            Err(BandError::CrossTenantPost {
+                tenant,
+                target_tenant,
+            }) => {
                 assert_eq!(tenant, "stark-ent");
                 assert_eq!(target_tenant, "wayne-ent");
                 cross_tenant_errors += 1;
@@ -68,9 +71,7 @@ async fn cross_account_post_kills_10_of_10() {
                 "run {run_idx}: cross-account post was accepted; \
                  the BandRoom trait failed to enforce tenant isolation"
             ),
-            Err(other) => panic!(
-                "run {run_idx}: expected CrossTenantPost, got {other:?}"
-            ),
+            Err(other) => panic!("run {run_idx}: expected CrossTenantPost, got {other:?}"),
         }
 
         // The rejected message MUST NOT appear in the room's history
@@ -103,18 +104,9 @@ async fn cross_account_post_kills_10_of_10() {
 async fn scripted_room_enforces_cross_account_kill() {
     let room = themis_orchestrator::room::ScriptedBandRoom::new();
     let arc: Arc<dyn BandRoom> = room.into_arc();
-    let room_id = arc
-        .open("tenant-a", "inv-001")
-        .await
-        .expect("open");
+    let room_id = arc.open("tenant-a", "inv-001").await.expect("open");
     let cross = arc
-        .post_message(
-            room_id,
-            "tenant-b",
-            "agent",
-            "body",
-            vec![],
-        )
+        .post_message(room_id, "tenant-b", "agent", "body", vec![])
         .await;
     assert!(
         matches!(cross, Err(BandError::CrossTenantPost { .. })),
@@ -128,10 +120,7 @@ async fn scripted_room_enforces_cross_account_kill() {
 #[tokio::test]
 async fn same_tenant_posts_succeed_after_rejections() {
     let room: Arc<dyn BandRoom> = MockBandRoom::new().into_arc();
-    let room_id = room
-        .open("wayne-ent", "inv-mixed")
-        .await
-        .unwrap();
+    let room_id = room.open("wayne-ent", "inv-mixed").await.unwrap();
 
     for i in 0..N_RUNS {
         // Even-indexed iterations: cross-account (must fail).

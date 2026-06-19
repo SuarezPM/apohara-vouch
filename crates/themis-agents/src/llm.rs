@@ -1597,8 +1597,8 @@ mod tests {
             )
         });
 
-        let model_id = model_id_for_agent("gaap_classifier")
-            .expect("gaap_classifier must have a model id");
+        let model_id =
+            model_id_for_agent("gaap_classifier").expect("gaap_classifier must have a model id");
         assert_eq!(
             model_id, "meta-llama/Llama-3.3-70B-Instruct",
             "gaap_classifier lineage must be Llama-3.3-70B-Instruct"
@@ -1733,10 +1733,7 @@ mod tests {
         for agent in llm_agents {
             let model = model_id_for_agent(agent)
                 .unwrap_or_else(|| panic!("{agent} must have a model id in the routing table"));
-            assert!(
-                !model.is_empty(),
-                "{agent} resolved to an empty model id"
-            );
+            assert!(!model.is_empty(), "{agent} resolved to an empty model id");
         }
         // Heterogeneous-routing invariant: the two core agents
         // MUST use different lineages (anti-consensus-trap).

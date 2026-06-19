@@ -109,7 +109,10 @@ async fn evidence_endpoint_returns_pdf_under_2s() {
         .get("content-type")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
-    assert!(ct.starts_with("application/pdf"), "expected PDF, got {ct:?}");
+    assert!(
+        ct.starts_with("application/pdf"),
+        "expected PDF, got {ct:?}"
+    );
     let body = resp.bytes().await.expect("body");
     assert!(body.starts_with(b"%PDF-"), "must be a valid PDF");
     assert!(

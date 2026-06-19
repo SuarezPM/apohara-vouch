@@ -15,24 +15,21 @@ use axum::Router;
 use tempfile::tempdir;
 use tokio::net::TcpListener;
 use tokio::time::timeout;
+use vouch_frontend::cost_calculator::RateTable;
 use vouch_frontend::cost_log_schema::CostLogRow;
 use vouch_frontend::evidence_cache::EvidenceCache;
 use vouch_frontend::sse::{sse_handler, AppState};
-use vouch_frontend::cost_calculator::RateTable;
 
 async fn spawn_app() -> (SocketAddr, AppState, tempfile::TempDir) {
     let dir = tempdir().expect("tempdir");
     let csv_path = dir.path().join("cost-log.csv");
     // Pre-write one row so the SSE handler has something to replay.
-    let header = "timestamp,agent,provider,model,tokens_in,tokens_out,cached_input_tokens,cost_usd\n";
+    let header =
+        "timestamp,agent,provider,model,tokens_in,tokens_out,cached_input_tokens,cost_usd\n";
     let row = "2026-06-18T12:00:00Z,fraud-auditor,aiml,claude-sonnet-4-6,1500,420,1200,0.010500\n";
     std::fs::write(&csv_path, header.to_string() + row).unwrap();
 
-    let state = AppState::new(
-        csv_path,
-        RateTable::defaults(),
-        EvidenceCache::new(),
-    );
+    let state = AppState::new(csv_path, RateTable::defaults(), EvidenceCache::new());
 
     let app = Router::new()
         .route("/events", get(sse_handler))

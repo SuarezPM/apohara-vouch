@@ -170,23 +170,23 @@ impl EvidencePacket {
             populated,
         };
         vec![
-            f(EU_AI_ACT_ART12_FIELDS[0], !self.start_time.to_rfc3339().is_empty()),
-            f(EU_AI_ACT_ART12_FIELDS[1], !self.end_time.to_rfc3339().is_empty()),
+            f(
+                EU_AI_ACT_ART12_FIELDS[0],
+                !self.start_time.to_rfc3339().is_empty(),
+            ),
+            f(
+                EU_AI_ACT_ART12_FIELDS[1],
+                !self.end_time.to_rfc3339().is_empty(),
+            ),
             f(
                 EU_AI_ACT_ART12_FIELDS[2],
                 !self.reference_database.is_empty(),
             ),
             f(EU_AI_ACT_ART12_FIELDS[3], !self.input_data.is_empty()),
-            f(
-                EU_AI_ACT_ART12_FIELDS[4],
-                self.natural_person_id.is_some(),
-            ),
+            f(EU_AI_ACT_ART12_FIELDS[4], self.natural_person_id.is_some()),
             f(EU_AI_ACT_ART12_FIELDS[5], !self.decision_id.is_empty()),
             f(EU_AI_ACT_ART12_FIELDS[6], !self.policy_version.is_empty()),
-            f(
-                EU_AI_ACT_ART12_FIELDS[7],
-                !self.hash_chain_prev.is_empty(),
-            ),
+            f(EU_AI_ACT_ART12_FIELDS[7], !self.hash_chain_prev.is_empty()),
         ]
     }
 }

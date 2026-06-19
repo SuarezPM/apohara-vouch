@@ -28,7 +28,9 @@ async fn main() -> anyhow::Result<()> {
     // Tracing (best-effort; if the subscriber is already set elsewhere we
     // simply skip).
     let _ = tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
+        )
         .try_init();
 
     // Bind address. 0.0.0.0:7879 is the demo port (per S-10 spec).
@@ -55,8 +57,8 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|_| PathBuf::from("cost-log.csv"));
 
     // Load rate table (defaults if file missing). Fail loud on parse errors.
-    let rate_table = cost_calculator::RateTable::load_or_default()
-        .context("loading cost rate table")?;
+    let rate_table =
+        cost_calculator::RateTable::load_or_default().context("loading cost rate table")?;
 
     // In-memory evidence cache (case_id -> bytes). The production wiring
     // populates this via the orchestrator's render_memo_pdf callback;
@@ -115,7 +117,10 @@ async fn serve_index(
         Ok(html) => axum::response::Html(html).into_response(),
         Err(e) => (
             axum::http::StatusCode::NOT_FOUND,
-            [(axum::http::header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+            [(
+                axum::http::header::CONTENT_TYPE,
+                "text/plain; charset=utf-8",
+            )],
             format!("index.html missing at {p:?}: {e}"),
         )
             .into_response(),

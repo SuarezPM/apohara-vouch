@@ -61,12 +61,10 @@ impl RateTable {
         for c in &candidates {
             let p = Path::new(c);
             if p.exists() {
-                let raw = std::fs::read_to_string(p).map_err(|e| {
-                    CostCalculatorError::Io(format!("read {c}: {e}"))
-                })?;
-                return toml::from_str::<RateTable>(&raw).map_err(|e| {
-                    CostCalculatorError::Parse(format!("parse {c}: {e}"))
-                });
+                let raw = std::fs::read_to_string(p)
+                    .map_err(|e| CostCalculatorError::Io(format!("read {c}: {e}")))?;
+                return toml::from_str::<RateTable>(&raw)
+                    .map_err(|e| CostCalculatorError::Parse(format!("parse {c}: {e}")));
             }
         }
         Ok(Self::defaults())
@@ -194,14 +192,9 @@ mod tests {
         // AC-10.3: cost panel reads from cost-log.csv with non-zero
         // spend on AI/ML API and Featherless.
         let table = RateTable::defaults();
-        let aiml_cost = CostCalculator::call_cost(
-            &table,
-            "aiml",
-            "claude-sonnet-4-6",
-            1_500_000,
-            420_000,
-        )
-        .unwrap();
+        let aiml_cost =
+            CostCalculator::call_cost(&table, "aiml", "claude-sonnet-4-6", 1_500_000, 420_000)
+                .unwrap();
         assert!(aiml_cost > 0.0, "AIML spend must be > 0");
         // 1.5M * $3 + 0.42M * $15 = $4.5 + $6.3 = $10.8
         assert!((aiml_cost - 10.80).abs() < 0.01);
@@ -221,14 +214,7 @@ mod tests {
     #[test]
     fn call_cost_handles_zero_tokens() {
         let table = RateTable::defaults();
-        let cost = CostCalculator::call_cost(
-            &table,
-            "aiml",
-            "claude-sonnet-4-6",
-            0,
-            0,
-        )
-        .unwrap();
+        let cost = CostCalculator::call_cost(&table, "aiml", "claude-sonnet-4-6", 0, 0).unwrap();
         assert_eq!(cost, 0.0);
     }
 

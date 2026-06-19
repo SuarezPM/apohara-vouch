@@ -72,7 +72,8 @@ impl CostLogRow {
     pub fn to_csv_row(&self) -> String {
         format!(
             "{},{},{},{},{},{},{},{:.6}",
-            self.timestamp.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+            self.timestamp
+                .to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
             self.agent,
             self.provider,
             self.model,

@@ -128,9 +128,8 @@ impl RekorClient for RekorV2Client {
         // the same baked key (deterministic for fixture tenants
         // stark/wayne) so a separate verifier with the matching
         // tenant public key can validate offline.
-        let signer = crate::signer::SignerService::for_tenant(tenant_id).map_err(|e| {
-            RekorError::Transport(format!("signer for tenant {tenant_id}: {e}"))
-        })?;
+        let signer = crate::signer::SignerService::for_tenant(tenant_id)
+            .map_err(|e| RekorError::Transport(format!("signer for tenant {tenant_id}: {e}")))?;
         let ed25519_sig = signer.sign(&hash_bytes);
         let pubkey_bytes = hex::decode(signer.public_key_hex())
             .map_err(|e| RekorError::Transport(format!("signer pubkey not hex: {e}")))?;

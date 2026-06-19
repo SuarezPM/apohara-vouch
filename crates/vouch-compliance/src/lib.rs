@@ -17,9 +17,9 @@ pub use themis_compliance::{
 // Concrete framework mappers (re-exported for direct construction).
 pub use themis_compliance::dora::DoraMapper;
 pub use themis_compliance::eu_ai_act::EuAiActMapper;
+pub use themis_compliance::iso_42001::Iso42001Mapper;
 pub use themis_compliance::nist_ai_rmf::NistAiRmfMapper;
 pub use themis_compliance::owasp_agentic::OwaspAgenticMapper;
-pub use themis_compliance::iso_42001::Iso42001Mapper;
 
 #[cfg(test)]
 mod tests {
@@ -33,10 +33,12 @@ mod tests {
     #[test]
     fn framework_enum_has_four_supported_frameworks() {
         // DORA, EU AI Act, NIST AI RMF, OWASP Agentic (plus ISO 42001).
-        let f = [Framework::Dora,
+        let f = [
+            Framework::Dora,
             Framework::EuAiAct,
             Framework::NistAiRmf,
-            Framework::OwaspAgentic];
+            Framework::OwaspAgentic,
+        ];
         assert_eq!(f.len(), 4);
     }
 }

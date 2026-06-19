@@ -205,7 +205,8 @@ fn verify(packet: &PacketFile) -> Result<Vec<Step>, VerifyError> {
         } else {
             steps.push(Step::Fail(
                 "ed25519_signature",
-                "signature did not verify against signed_payload, hash bytes, or canonical payload".into(),
+                "signature did not verify against signed_payload, hash bytes, or canonical payload"
+                    .into(),
             ));
         }
     }
@@ -292,10 +293,7 @@ fn verify(packet: &PacketFile) -> Result<Vec<Step>, VerifyError> {
         let der = hex::decode(der_hex)?;
         // RFC 3161 timestamp responses are always > 0 bytes.
         if der.is_empty() {
-            steps.push(Step::Fail(
-                "rfc3161_timestamp",
-                "empty DER".into(),
-            ));
+            steps.push(Step::Fail("rfc3161_timestamp", "empty DER".into()));
         } else {
             // The structural check is sufficient for the offline
             // verifier (real verification uses FreeTSA root + certs).
@@ -334,10 +332,7 @@ fn verify(packet: &PacketFile) -> Result<Vec<Step>, VerifyError> {
             }
         }
     } else {
-        steps.push(Step::Skipped(
-            "tenant_key_match",
-            "no tenant_id in packet",
-        ));
+        steps.push(Step::Skipped("tenant_key_match", "no tenant_id in packet"));
     }
 
     Ok(steps)
@@ -362,8 +357,12 @@ fn run() -> Result<ExitCode, VerifyError> {
     let bytes = fs::read(&path)?;
     let packet: PacketFile = serde_json::from_slice(&bytes)?;
     let steps = verify(&packet)?;
-    let all_passed = steps.iter().all(|s| s.passed() || matches!(s, Step::Skipped(_, _)));
-    let any_failed = steps.iter().any(|s| !s.passed() && !matches!(s, Step::Skipped(_, _)));
+    let all_passed = steps
+        .iter()
+        .all(|s| s.passed() || matches!(s, Step::Skipped(_, _)));
+    let any_failed = steps
+        .iter()
+        .any(|s| !s.passed() && !matches!(s, Step::Skipped(_, _)));
 
     println!("vouch-verify: {}", path.display());
     print_steps(&steps);
@@ -474,7 +473,10 @@ mod tests {
             hash_chain_link: None,
             reference_database: Some("stanford-invoicenet-50".into()),
             policy_version: Some("apohara-vouch-1".into()),
-            natural_person_id: Some(std::env::var("VOUCH_OPERATOR_EMAIL").unwrap_or_else(|_| "test-operator@example.com".to_string())),
+            natural_person_id: Some(
+                std::env::var("VOUCH_OPERATOR_EMAIL")
+                    .unwrap_or_else(|_| "test-operator@example.com".to_string()),
+            ),
             decision_id: Some("00000000-0000-0000-0000-000000000001".into()),
             hash_chain_prev: Some("0".repeat(64)),
             start_time: Some("2026-06-18T12:00:00Z".parse().unwrap()),

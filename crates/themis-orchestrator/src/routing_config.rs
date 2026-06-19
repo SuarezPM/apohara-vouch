@@ -156,10 +156,7 @@ mod tests {
             cfg.gaap_classifier_featherless_model(),
             crate::routing::GAAP_CLASSIFIER_FEATHERLESS_MODEL
         );
-        assert_eq!(
-            cfg.aiml_api_model(),
-            crate::routing::AIML_API_MODEL
-        );
+        assert_eq!(cfg.aiml_api_model(), crate::routing::AIML_API_MODEL);
     }
 
     #[test]

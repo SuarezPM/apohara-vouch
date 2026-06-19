@@ -152,8 +152,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // "live · 0 calls"). We construct the handle FIRST so the
     // backend and the AppState share the SAME `Arc` (counter
     // consistency invariant).
-    let featherless_metrics =
-        themis_orchestrator::routing::new_shared_featherless_metrics();
+    let featherless_metrics = themis_orchestrator::routing::new_shared_featherless_metrics();
     if let Some(_backend) = themis_agents::llm::FeatherlessBackend::from_env(
         themis_orchestrator::routing::FRAUD_AUDITOR_FEATHERLESS_MODEL,
     )

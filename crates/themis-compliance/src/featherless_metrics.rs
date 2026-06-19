@@ -298,7 +298,11 @@ mod tests {
         assert!((s.avg_latency_ms - 100.0).abs() < 0.001);
         assert!((s.p95_latency_ms - 100.0).abs() < 0.001);
         // Cost: 5000 / 1e6 * 0.5 + 2000 / 1e6 * 1.5 = 0.0025 + 0.003 = 0.0055
-        assert!((s.total_cost_usd - 0.0055).abs() < 1e-9, "cost={}", s.total_cost_usd);
+        assert!(
+            (s.total_cost_usd - 0.0055).abs() < 1e-9,
+            "cost={}",
+            s.total_cost_usd
+        );
         assert_eq!(s.model, "Qwen/Qwen3-Coder-30B-A3B-Instruct");
     }
 
@@ -343,9 +347,17 @@ mod tests {
         });
         let s = m.snapshot();
         // avg = (19*50 + 1000) / 20 = 1950/20 = 97.5
-        assert!((s.avg_latency_ms - 97.5).abs() < 0.001, "avg={}", s.avg_latency_ms);
+        assert!(
+            (s.avg_latency_ms - 97.5).abs() < 0.001,
+            "avg={}",
+            s.avg_latency_ms
+        );
         // p95 with n=20, floor(0.95*20)=19, samples[19]=slow
-        assert!((s.p95_latency_ms - 1_000.0).abs() < 0.001, "p95={}", s.p95_latency_ms);
+        assert!(
+            (s.p95_latency_ms - 1_000.0).abs() < 0.001,
+            "p95={}",
+            s.p95_latency_ms
+        );
     }
 
     #[test]

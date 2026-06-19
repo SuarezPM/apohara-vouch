@@ -106,10 +106,7 @@ fn anchor_signature_payload_round_trips_through_proto_shapes() {
     // A separate verifier with only the wire bytes (and the tenant
     // baked pubkey baked at compile time) must reconstruct and
     // verify.
-    let pk = VerifyingKey::from_bytes(
-        wire_pubkey_bytes.as_slice().try_into().unwrap(),
-    )
-    .unwrap();
+    let pk = VerifyingKey::from_bytes(wire_pubkey_bytes.as_slice().try_into().unwrap()).unwrap();
     let recovered_sig = DalekSig::from_bytes(wire_sig_bytes.as_slice().try_into().unwrap());
     assert!(
         pk.verify(&hash_bytes, &recovered_sig).is_ok(),

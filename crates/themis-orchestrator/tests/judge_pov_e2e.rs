@@ -38,14 +38,15 @@ async fn judge_pov_stark_001_halts_with_verifiable_pdf() {
     // 1. Wire the orchestrator the same way `themis-orchestrator`
     //    does at startup, but with the mock LLM (no keys needed).
     let mock_llm: Arc<dyn themis_agents::llm::LlmBackend> = Arc::new(
-        themis_agents::llm::MockLlmProvider::new("judge-demo-mock")
-            .with_default(themis_agents::llm::LlmResponse {
+        themis_agents::llm::MockLlmProvider::new("judge-demo-mock").with_default(
+            themis_agents::llm::LlmResponse {
                 text: serde_json::json!({"stub": "ok"}).to_string(),
                 input_tokens: 64,
                 output_tokens: 32,
                 model_id: "judge-demo-mock".to_string(),
                 finish_reason: themis_agents::llm::FinishReason::Stop,
-            }),
+            },
+        ),
     );
     let mut dispatch: HashMap<String, Arc<dyn themis_agents::llm::LlmBackend>> = HashMap::new();
     for name in [
@@ -139,12 +140,33 @@ async fn judge_pov_stark_001_halts_with_verifiable_pdf() {
             "SealedPacket must carry a non-empty `{field}` for offline verification"
         );
     }
-    let sig_hex = sealed.get("signature_hex").and_then(|v| v.as_str()).unwrap();
-    assert_eq!(sig_hex.len(), 128, "Ed25519 signature must be 64 bytes hex (128 chars); got {}", sig_hex.len());
-    let pub_hex = sealed.get("public_key_hex").and_then(|v| v.as_str()).unwrap();
-    assert_eq!(pub_hex.len(), 64, "Ed25519 public key must be 32 bytes hex (64 chars); got {}", pub_hex.len());
+    let sig_hex = sealed
+        .get("signature_hex")
+        .and_then(|v| v.as_str())
+        .unwrap();
+    assert_eq!(
+        sig_hex.len(),
+        128,
+        "Ed25519 signature must be 64 bytes hex (128 chars); got {}",
+        sig_hex.len()
+    );
+    let pub_hex = sealed
+        .get("public_key_hex")
+        .and_then(|v| v.as_str())
+        .unwrap();
+    assert_eq!(
+        pub_hex.len(),
+        64,
+        "Ed25519 public key must be 32 bytes hex (64 chars); got {}",
+        pub_hex.len()
+    );
     let hash_hex = sealed.get("hash").and_then(|v| v.as_str()).unwrap();
-    assert_eq!(hash_hex.len(), 64, "BLAKE3 hash must be 32 bytes hex (64 chars); got {}", hash_hex.len());
+    assert_eq!(
+        hash_hex.len(),
+        64,
+        "BLAKE3 hash must be 32 bytes hex (64 chars); got {}",
+        hash_hex.len()
+    );
 
     // EU AI Act Art. 12 fields (AC15): ≥7/8 populated.
     let art12_fields = [
@@ -208,7 +230,10 @@ async fn judge_pov_stark_001_halts_with_verifiable_pdf() {
     let out_dir = std::env::var("JUDGE_POV_OUT_DIR")
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| {
-            std::path::PathBuf::from(format!("{}/Escritorio", std::env::var("HOME").unwrap_or_default()))
+            std::path::PathBuf::from(format!(
+                "{}/Escritorio",
+                std::env::var("HOME").unwrap_or_default()
+            ))
         });
     std::fs::create_dir_all(&out_dir).expect("create out dir");
     let pdf_path = out_dir.join("apohara-vouch-judge-demo.pdf");

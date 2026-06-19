@@ -31,7 +31,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use themis_agents::llm::{FeatherlessBackend, LlmBackend, LlmRequest};
-use themis_compliance::featherless_metrics::{FeatherlessMetricsInner, FeatherlessMetricsHandle};
+use themis_compliance::featherless_metrics::{FeatherlessMetricsHandle, FeatherlessMetricsInner};
 use themis_orchestrator::routing::{
     backend_for_agent, build_routed_dispatch, AgentBackend, FRAUD_AUDITOR_FEATHERLESS_MODEL,
 };
@@ -186,7 +186,9 @@ async fn routing_fraud_auditor_uses_featherless() {
     // Sonnet model.
     let metrics: FeatherlessMetricsHandle = Arc::new(FeatherlessMetricsInner::new());
     let dispatch = build_routed_dispatch(metrics);
-    let fa = dispatch.get("fraud_auditor").expect("dispatch has fraud_auditor");
+    let fa = dispatch
+        .get("fraud_auditor")
+        .expect("dispatch has fraud_auditor");
     assert_eq!(
         fa.model_id(),
         FRAUD_AUDITOR_FEATHERLESS_MODEL,

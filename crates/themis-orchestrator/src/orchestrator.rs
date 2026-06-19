@@ -729,8 +729,7 @@ mod tests {
         // Match any "Assess this" prompt — the agent's user_prompt is
         // "Assess this invoice (tenant=...)" so "Assess this" is the
         // common substring across all 10 iterations.
-        MockLlmProvider::new("mock-baar-deterministic")
-            .with_response("Assess this", resp)
+        MockLlmProvider::new("mock-baar-deterministic").with_response("Assess this", resp)
     }
 
     fn good_decision(tenant: &str, dt: DecisionType) -> AgentDecision {
@@ -906,16 +905,46 @@ mod tests {
         let mut halt_count = 0;
         // 10 synthetic invoices — varied vendor + amount + id.
         let synthetic_invoices: Vec<(&str, Vec<u8>)> = vec![
-            ("inv-001-aurora", b"vendor=Acme Corp; amount=1234.56; line=widget".to_vec()),
-            ("inv-002-bedrock", b"vendor=Globex; amount=99999.00; line=consulting".to_vec()),
-            ("inv-003-cyberdyne", b"vendor=Initech; amount=42.00; line=paper".to_vec()),
-            ("inv-004-dunder", b"vendor=Pied Piper; amount=7500.50; line=compression".to_vec()),
-            ("inv-005-ecorp", b"vendor=Stark Ind; amount=100000.00; line=arc_reactor".to_vec()),
-            ("inv-006-fsociety", b"vendor=Evil Corp; amount=1.00; line=tape".to_vec()),
-            ("inv-007-gringotts", b"vendor=Ollivanders; amount=17.99; line=wand".to_vec()),
-            ("inv-008-hooli", b"vendor=Hooli; amount=5000000.00; line=datacenter".to_vec()),
-            ("inv-009-umbrella", b"vendor=Umbrella Corp; amount=666.66; line=pharma".to_vec()),
-            ("inv-010-vehement", b"vendor=Wayne Enterprises; amount=31415.92; line=batmobile".to_vec()),
+            (
+                "inv-001-aurora",
+                b"vendor=Acme Corp; amount=1234.56; line=widget".to_vec(),
+            ),
+            (
+                "inv-002-bedrock",
+                b"vendor=Globex; amount=99999.00; line=consulting".to_vec(),
+            ),
+            (
+                "inv-003-cyberdyne",
+                b"vendor=Initech; amount=42.00; line=paper".to_vec(),
+            ),
+            (
+                "inv-004-dunder",
+                b"vendor=Pied Piper; amount=7500.50; line=compression".to_vec(),
+            ),
+            (
+                "inv-005-ecorp",
+                b"vendor=Stark Ind; amount=100000.00; line=arc_reactor".to_vec(),
+            ),
+            (
+                "inv-006-fsociety",
+                b"vendor=Evil Corp; amount=1.00; line=tape".to_vec(),
+            ),
+            (
+                "inv-007-gringotts",
+                b"vendor=Ollivanders; amount=17.99; line=wand".to_vec(),
+            ),
+            (
+                "inv-008-hooli",
+                b"vendor=Hooli; amount=5000000.00; line=datacenter".to_vec(),
+            ),
+            (
+                "inv-009-umbrella",
+                b"vendor=Umbrella Corp; amount=666.66; line=pharma".to_vec(),
+            ),
+            (
+                "inv-010-vehement",
+                b"vendor=Wayne Enterprises; amount=31415.92; line=batmobile".to_vec(),
+            ),
         ];
         for (invoice_id, raw_payload) in &synthetic_invoices {
             let mut agents: HashMap<String, Arc<dyn Agent>> = HashMap::new();

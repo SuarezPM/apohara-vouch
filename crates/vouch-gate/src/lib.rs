@@ -200,10 +200,7 @@ mod tests {
     fn halts_on_low_coherence() {
         let mut i = benign();
         i.coherence_score = 0.29;
-        assert_eq!(
-            should_halt(&i),
-            Verdict::Halt(BaaarReason::CoherenceTooLow)
-        );
+        assert_eq!(should_halt(&i), Verdict::Halt(BaaarReason::CoherenceTooLow));
     }
 
     #[test]

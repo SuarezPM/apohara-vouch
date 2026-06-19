@@ -41,17 +41,13 @@ async fn band_hello_world_echo() {
         );
         return;
     }
-    let python_bin =
-        std::env::var("THEMIS_BAND_PYTHON").unwrap_or_else(|_| "python3".to_string());
+    let python_bin = std::env::var("THEMIS_BAND_PYTHON").unwrap_or_else(|_| "python3".to_string());
     let shim_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("scripts")
         .join("run_agent.py");
     let agent_id = std::env::var("BAND_AGENT_EXTRACTOR_ID").unwrap();
     let api_key = std::env::var("BAND_AGENT_EXTRACTOR_API_KEY").unwrap();
-    let room_id = format!(
-        "themis-test-{}",
-        uuid::Uuid::new_v4().simple()
-    );
+    let room_id = format!("themis-test-{}", uuid::Uuid::new_v4().simple());
 
     let mut handle = SocketHandle::spawn(
         &python_bin,
@@ -108,10 +104,7 @@ async fn band_hello_world_echo() {
                         .unwrap_or("");
                     if body.contains("hello from themis-band-client") {
                         echoed = true;
-                        eprintln!(
-                            "[band_hello_world] received echo: ts_ms={}",
-                            ev.ts_ms
-                        );
+                        eprintln!("[band_hello_world] received echo: ts_ms={}", ev.ts_ms);
                         break;
                     }
                 }

@@ -13,8 +13,13 @@ pub fn version() -> &'static str {
     "vouch-orchestrator"
 }
 
+pub use vouch_aibom::{to_cyclonedx_1_6, Aibom};
 /// Re-exported surface for downstream crates.
 pub use vouch_chain::{Chain, ChainEntry as VouchChainEntry, ChainError as VouchChainError};
+pub use vouch_compliance::{
+    ComplianceMap, ComplianceMapper, ComplianceReport, ComplianceService, DoraMapper,
+    EuAiActMapper, Framework, NistAiRmfMapper, OwaspAgenticMapper,
+};
 pub use vouch_evidence::{
     C2paReceipt, EvidenceService, FreeTSAAuthority, MockTimestampAuthority, SealedPacket,
     SignerError, SignerService, TimestampAuthority,
@@ -23,11 +28,6 @@ pub use vouch_gate::{should_halt, GateInput, Verdict};
 pub use vouch_receipt::{
     packet::{AgentOutput, EvidencePacket},
     Art12Coverage, C2paManifest, EU_AI_ACT_ART12_FIELDS,
-};
-pub use vouch_aibom::{to_cyclonedx_1_6, Aibom};
-pub use vouch_compliance::{
-    ComplianceMap, ComplianceMapper, ComplianceReport, ComplianceService, DoraMapper,
-    EuAiActMapper, Framework, NistAiRmfMapper, OwaspAgenticMapper,
 };
 
 #[cfg(test)]

@@ -102,7 +102,11 @@ fn verify_strict_rejects_empty_der() {
         raw_der: Vec::new(),
     };
     let result = tsa.verify_strict(&resp, &FIXTURE_HASH);
-    assert!(result.is_err(), "expected error on empty DER, got {:?}", result);
+    assert!(
+        result.is_err(),
+        "expected error on empty DER, got {:?}",
+        result
+    );
 }
 
 #[test]

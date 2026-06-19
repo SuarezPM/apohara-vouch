@@ -64,7 +64,9 @@ pub fn stub_pdf(case_id: &str) -> Vec<u8> {
     let text = format!("EVIDENCE PACKET - case {}", case_id);
     let stream = format!(
         "BT /F1 24 Tf 60 720 Td ({}) Tj ET",
-        text.replace('\\', "\\\\").replace('(', "\\(").replace(')', "\\)")
+        text.replace('\\', "\\\\")
+            .replace('(', "\\(")
+            .replace(')', "\\)")
     );
     let body = format!(
         "%PDF-1.4\n\
@@ -134,6 +136,9 @@ mod tests {
         let start = std::time::Instant::now();
         let _ = stub_pdf("case-perf-test");
         let elapsed = start.elapsed();
-        assert!(elapsed.as_millis() < 100, "stub generation took {elapsed:?}");
+        assert!(
+            elapsed.as_millis() < 100,
+            "stub generation took {elapsed:?}"
+        );
     }
 }

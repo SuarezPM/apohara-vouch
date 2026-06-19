@@ -4,9 +4,7 @@
 //! module is a stable alias for callers that prefer the
 //! vouch-* import path.
 
-pub use themis_evidence::signer::{
-    KeyPair, SignerError, SignerService, STARK_SEED, WAYNE_SEED,
-};
+pub use themis_evidence::signer::{KeyPair, SignerError, SignerService, STARK_SEED, WAYNE_SEED};
 
 /// Per-tenant signer factory. Alias for
 /// [`themis_evidence::signer::SignerService::for_tenant`].

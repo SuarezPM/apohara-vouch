@@ -325,7 +325,10 @@ mod tests {
         let mut p = EvidencePacket::new("stark", "inv-007", vec![], Outcome::Approve);
         p.attach_peer_verdict(fake_peer_verdict("peer_pydantic_ai", 0.73, "halt"));
         let s = serde_json::to_string(&p).unwrap();
-        assert!(s.contains("\"peer_verdicts\""), "wire format missing peer_verdicts: {s}");
+        assert!(
+            s.contains("\"peer_verdicts\""),
+            "wire format missing peer_verdicts: {s}"
+        );
         assert!(s.contains("\"peer_pydantic_ai\""));
         assert!(s.contains("\"risk_score\":0.73"));
         assert!(s.contains("\"recommendation\":\"halt\""));
@@ -339,7 +342,10 @@ mod tests {
     fn empty_peer_verdicts_skip_in_wire_format() {
         let p = EvidencePacket::new("stark", "inv-empty", vec![], Outcome::Approve);
         let s = serde_json::to_string(&p).unwrap();
-        assert!(!s.contains("peer_verdicts"), "empty peer_verdicts should be elided: {s}");
+        assert!(
+            !s.contains("peer_verdicts"),
+            "empty peer_verdicts should be elided: {s}"
+        );
     }
 
     #[test]

@@ -37,7 +37,7 @@ use cms::content_info::ContentInfo;
 use cms::signed_data::{CertificateSet, SignedData, SignerInfo};
 use x509_cert::attr::Attribute;
 use x509_cert::Certificate;
-use x509_tsp::{TstInfo};
+use x509_tsp::TstInfo;
 
 // ECDSA signature verification (the FreeTSA fixture uses
 // ecdsa-with-SHA512 over a P-384 public key).
@@ -83,7 +83,10 @@ pub enum TimestampError {
     #[error("X.509 parse error: {0}")]
     X509(String),
     #[error("TSTInfo hash mismatch: expected {expected_hex}, got {got_hex}")]
-    HashMismatch { expected_hex: String, got_hex: String },
+    HashMismatch {
+        expected_hex: String,
+        got_hex: String,
+    },
     #[error("signer certificate not found in trust list or CMS")]
     SignerCertMissing,
     #[error("signer certificate not issued by trusted root: {0}")]
@@ -119,12 +122,10 @@ const OID_AA_SIGNING_CERTIFICATE_V2: ObjectIdentifier =
     ObjectIdentifier::new_unwrap("1.2.840.113549.1.9.16.2.47");
 
 /// OID 1.2.840.113549.1.9.4 — `id-messageDigest` (RFC 5652 §5.4).
-const OID_MESSAGE_DIGEST: ObjectIdentifier =
-    ObjectIdentifier::new_unwrap("1.2.840.113549.1.9.4");
+const OID_MESSAGE_DIGEST: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.113549.1.9.4");
 
 /// OID 1.2.840.10045.4.3.4 — `ecdsa-with-SHA512`.
-const OID_ECDSA_WITH_SHA512: ObjectIdentifier =
-    ObjectIdentifier::new_unwrap("1.2.840.10045.4.3.4");
+const OID_ECDSA_WITH_SHA512: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.10045.4.3.4");
 
 #[async_trait]
 pub trait TimestampAuthority: Send + Sync + 'static {
@@ -437,8 +438,7 @@ fn parse_signed_data(der: &[u8]) -> Result<SignedData, TimestampError> {
         )));
     }
     let sd_bytes = wrap_as_sequence(ci.content.value());
-    SignedData::from_der(&sd_bytes)
-        .map_err(|e| TimestampError::Asn1(format!("SignedData: {e}")))
+    SignedData::from_der(&sd_bytes).map_err(|e| TimestampError::Asn1(format!("SignedData: {e}")))
 }
 
 /// Re-wrap raw value bytes as a DER SEQUENCE TLV: `30 82 <len> <value>`.
@@ -540,7 +540,8 @@ fn verify_signed_data(
 
     // 3. Find the signer cert. Try CMS first; fall back to the
     //    trust list keyed by IssuerAndSerialNumber.
-    let signer_cert = locate_signer_cert(sd.certificates.as_ref(), signer_info, trusted_signer_certs)?;
+    let signer_cert =
+        locate_signer_cert(sd.certificates.as_ref(), signer_info, trusted_signer_certs)?;
 
     // 4. ESS `SigningCertificate` / `SigningCertificateV2` binding
     //    (CVE-2026-33753 mitigation). The cert hash in the
@@ -632,9 +633,7 @@ fn cert_matches_signer(cert: &Certificate, signer_info: &SignerInfo) -> bool {
             let ski_oid = const_oid::db::rfc5280::ID_CE_SUBJECT_KEY_IDENTIFIER;
             for ext in cert.tbs_certificate.extensions.iter().flatten() {
                 if ext.extn_id == ski_oid {
-                    if let Ok(ski_ext) =
-                        SubjectKeyIdentifier::from_der(ext.extn_value.as_bytes())
-                    {
+                    if let Ok(ski_ext) = SubjectKeyIdentifier::from_der(ext.extn_value.as_bytes()) {
                         if ski_ext.0.as_bytes() == ski.0.as_bytes() {
                             return true;
                         }
@@ -832,18 +831,16 @@ fn extract_ess_cert_hash_v2(set_value: &[u8]) -> Option<&[u8]> {
 fn der_to_ecdsa_p384_signature(der: &[u8]) -> Result<p384::ecdsa::Signature, TimestampError> {
     use elliptic_curve::generic_array::GenericArray;
     // SEQUENCE { INTEGER r, INTEGER s }
-    let (_, outer_tag) = read_tlv(der).ok_or_else(|| {
-        TimestampError::SignatureInvalid("DER sig: missing SEQUENCE".into())
-    })?;
+    let (_, outer_tag) = read_tlv(der)
+        .ok_or_else(|| TimestampError::SignatureInvalid("DER sig: missing SEQUENCE".into()))?;
     if outer_tag != 0x30 {
         return Err(TimestampError::SignatureInvalid(format!(
             "DER sig: expected SEQUENCE, got 0x{outer_tag:02x}"
         )));
     }
     let mut p = tlv_value_bytes(der);
-    let (r_tlv, r_tag) = read_tlv(p).ok_or_else(|| {
-        TimestampError::SignatureInvalid("DER sig: missing r".into())
-    })?;
+    let (r_tlv, r_tag) =
+        read_tlv(p).ok_or_else(|| TimestampError::SignatureInvalid("DER sig: missing r".into()))?;
     if r_tag != 0x02 {
         return Err(TimestampError::SignatureInvalid(format!(
             "DER sig: r not INTEGER, got 0x{r_tag:02x}"
@@ -853,9 +850,8 @@ fn der_to_ecdsa_p384_signature(der: &[u8]) -> Result<p384::ecdsa::Signature, Tim
     let r_hdr = r_tlv.len() - r_value_len;
     let r_bytes = &p[r_hdr..r_hdr + r_value_len];
     p = skip_tlv(p);
-    let (s_tlv, s_tag) = read_tlv(p).ok_or_else(|| {
-        TimestampError::SignatureInvalid("DER sig: missing s".into())
-    })?;
+    let (s_tlv, s_tag) =
+        read_tlv(p).ok_or_else(|| TimestampError::SignatureInvalid("DER sig: missing s".into()))?;
     if s_tag != 0x02 {
         return Err(TimestampError::SignatureInvalid(format!(
             "DER sig: s not INTEGER, got 0x{s_tag:02x}"
@@ -942,10 +938,7 @@ fn verify_cms_signature_p384_sha512(
 /// signature. Supports both ECDSA-P-384 (FreeTSA's signer) and
 /// RSA (FreeTSA's root) as the root's key type. The signer's
 /// signature algorithm is taken from the cert itself.
-fn verify_chain(
-    signer: &Certificate,
-    trusted_roots: &[Certificate],
-) -> Result<(), TimestampError> {
+fn verify_chain(signer: &Certificate, trusted_roots: &[Certificate]) -> Result<(), TimestampError> {
     for root in trusted_roots {
         if signer.tbs_certificate.issuer != root.tbs_certificate.subject {
             continue;
@@ -1137,14 +1130,14 @@ fn read_tlv(input: &[u8]) -> Option<(&[u8], u8)> {
 
 fn skip_tlv(input: &[u8]) -> &[u8] {
     let Some((tlv, _tag)) = read_tlv(input) else {
-        return &[]
+        return &[];
     };
     &input[tlv.len()..]
 }
 
 fn tlv_value_bytes(input: &[u8]) -> &[u8] {
     let Some((tlv, _tag)) = read_tlv(input) else {
-        return &[]
+        return &[];
     };
     let value_len = tlv_value_len(input);
     let header_len = tlv.len() - value_len;

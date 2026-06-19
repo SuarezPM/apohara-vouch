@@ -359,9 +359,21 @@ fn aiml_real_provider_smoke() {
         );
     }
 
-    let precision = if tp + fp > 0 { tp as f64 / (tp + fp) as f64 } else { 0.0 };
-    let recall = if tp + fn_ > 0 { tp as f64 / (tp + fn_) as f64 } else { 0.0 };
-    let fpr = if fp + tn > 0 { fp as f64 / (fp + tn) as f64 } else { 0.0 };
+    let precision = if tp + fp > 0 {
+        tp as f64 / (tp + fp) as f64
+    } else {
+        0.0
+    };
+    let recall = if tp + fn_ > 0 {
+        tp as f64 / (tp + fn_) as f64
+    } else {
+        0.0
+    };
+    let fpr = if fp + tn > 0 {
+        fp as f64 / (fp + tn) as f64
+    } else {
+        0.0
+    };
     println!();
     println!("--- summary ---");
     println!("TP={} FP={} FN={} TN={}", tp, fp, fn_, tn);
@@ -375,6 +387,12 @@ fn aiml_real_provider_smoke() {
     // only (the LLM provider's response shape is non-deterministic
     // across model versions and the bench's value is the captured
     // transcript, not a hardcoded metric).
-    assert!(total_in > 0, "no input tokens billed — provider didn't actually call the model");
-    assert!(total_out > 0, "no output tokens billed — provider didn't actually call the model");
+    assert!(
+        total_in > 0,
+        "no input tokens billed — provider didn't actually call the model"
+    );
+    assert!(
+        total_out > 0,
+        "no output tokens billed — provider didn't actually call the model"
+    );
 }

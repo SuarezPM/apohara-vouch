@@ -134,11 +134,7 @@ impl BandFleet {
 
     /// Spawn one `run_agent.py` subprocess per agent and join
     /// the shared `room_id`.
-    pub fn spawn_all(
-        python_bin: &str,
-        shim_path: &str,
-        room_id: &str,
-    ) -> Result<Self, FleetError> {
+    pub fn spawn_all(python_bin: &str, shim_path: &str, room_id: &str) -> Result<Self, FleetError> {
         let configs = Self::configs_from_env()?;
         let ws_url = std::env::var("BAND_WS_URL").unwrap_or_else(|_| BAND_WS_URL.to_string());
         let mut handles = Vec::with_capacity(configs.len());
@@ -187,22 +183,15 @@ impl BandFleet {
             )));
         }
         let ws_url = std::env::var("BAND_WS_URL").unwrap_or_else(|_| BAND_WS_URL.to_string());
-        let handle = SocketHandle::spawn(
-            python_bin,
-            shim_path,
-            &agent_id,
-            &api_key,
-            room_id,
-            &ws_url,
-        )
-        .map_err(|e| FleetError::SpawnFailed(name.to_string(), e.to_string()))?;
+        let handle =
+            SocketHandle::spawn(python_bin, shim_path, &agent_id, &api_key, room_id, &ws_url)
+                .map_err(|e| FleetError::SpawnFailed(name.to_string(), e.to_string()))?;
         Ok((name.to_string(), handle))
     }
 
     /// Number of currently-connected agent handles.
     pub fn agents_connected(&self) -> usize {
-        self.agents_connected_override
-            .unwrap_or(self.handles.len())
+        self.agents_connected_override.unwrap_or(self.handles.len())
     }
 
     /// Snapshot of `/metrics/band` telemetry.
@@ -215,9 +204,7 @@ impl BandFleet {
             let name = AGENT_NAMES.get(i).copied().unwrap_or("?");
             per_agent.insert(name.to_string(), n);
         }
-        let agents_connected = self
-            .agents_connected_override
-            .unwrap_or(self.handles.len());
+        let agents_connected = self.agents_connected_override.unwrap_or(self.handles.len());
         FleetMetrics {
             ws_events_total: total,
             agents_connected,

@@ -18,32 +18,32 @@ pub fn version() -> &'static str {
     "vouch-evidence"
 }
 
-pub mod signer;
 pub mod packet;
+pub mod signer;
 
-pub use themis_evidence::{
-    chain, persistence, rekor, rekor_v2, sealchain_wrap, timestamp,
-};
+pub use themis_evidence::{chain, persistence, rekor, rekor_v2, sealchain_wrap, timestamp};
 
 // Re-export the most-used public types so callers can `use
 // vouch_evidence::{SignerService, SealedPacket, ...}` without
 // reaching into deep modules.
-pub use themis_evidence::signer::{KeyPair, SignerError, SignerService, STARK_SEED, WAYNE_SEED};
+pub use themis_evidence::chain::{
+    ChainEntry as EvChainEntry, ChainError as EvChainError, HashChain, RetentionPolicy,
+};
 pub use themis_evidence::packet::{
     DsseEnvelope, DsseSignature, EvError, EvidenceService, SealedPacket,
 };
-pub use themis_evidence::timestamp::{
-    FreeTSAAuthority, MockTimestampAuthority, Timestamp, TimestampAuthority, TimestampError,
-    TimestampResponse, TsError,
-};
+pub use themis_evidence::persistence::{ChainStore, ChainStoreError};
 pub use themis_evidence::rekor::{
     CosignRekorClient, MockRekorClient, RekorClient, RekorEntry, RekorError,
     SigstoreVerifyRekorClient,
 };
 pub use themis_evidence::rekor_v2::RekorV2Client;
 pub use themis_evidence::sealchain_wrap::{C2paReceipt, SealChainError, SealChainWrapper};
-pub use themis_evidence::persistence::{ChainStore, ChainStoreError};
-pub use themis_evidence::chain::{ChainEntry as EvChainEntry, ChainError as EvChainError, HashChain, RetentionPolicy};
+pub use themis_evidence::signer::{KeyPair, SignerError, SignerService, STARK_SEED, WAYNE_SEED};
+pub use themis_evidence::timestamp::{
+    FreeTSAAuthority, MockTimestampAuthority, Timestamp, TimestampAuthority, TimestampError,
+    TimestampResponse, TsError,
+};
 
 /// SignerService factory alias — kept as a stable surface
 /// for `vouch-orchestrator` and `bin/vouch-verify`.

@@ -62,9 +62,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use themis_agents::fraud_auditor::{FraudAuditor, FraudAuditorOutput};
-use themis_agents::llm::{
-    FinishReason, LlmBackend, LlmResponse, MockLlmProvider,
-};
+use themis_agents::llm::{FinishReason, LlmBackend, LlmResponse, MockLlmProvider};
 use themis_agents::traits::{Agent, AgentContext};
 
 #[derive(Debug, Clone)]
@@ -97,57 +95,257 @@ struct BenchmarkResult {
 fn gold_labels() -> Vec<GoldLabel> {
     vec![
         // --- 25 FRAUD ---
-        GoldLabel { invoice_id: "INV-2024-001001".into(), is_fraud: true,  fraud_type: Some("po_mismatch".into()) },
-        GoldLabel { invoice_id: "INV-2024-001012".into(), is_fraud: true,  fraud_type: Some("po_mismatch".into()) },
-        GoldLabel { invoice_id: "INV-2024-001034".into(), is_fraud: true,  fraud_type: Some("po_mismatch".into()) },
-        GoldLabel { invoice_id: "INV-2024-001045".into(), is_fraud: true,  fraud_type: Some("shell_vendor".into()) },
-        GoldLabel { invoice_id: "INV-2024-001067".into(), is_fraud: true,  fraud_type: Some("shell_vendor".into()) },
-        GoldLabel { invoice_id: "INV-2024-001089".into(), is_fraud: true,  fraud_type: Some("shell_vendor".into()) },
-        GoldLabel { invoice_id: "INV-2024-001102".into(), is_fraud: true,  fraud_type: Some("over_limit".into()) },
-        GoldLabel { invoice_id: "INV-2024-001123".into(), is_fraud: true,  fraud_type: Some("over_limit".into()) },
-        GoldLabel { invoice_id: "INV-2024-001145".into(), is_fraud: true,  fraud_type: Some("over_limit".into()) },
-        GoldLabel { invoice_id: "INV-2024-001167".into(), is_fraud: true,  fraud_type: Some("duplicate_invoice".into()) },
-        GoldLabel { invoice_id: "INV-2024-001189".into(), is_fraud: true,  fraud_type: Some("duplicate_invoice".into()) },
-        GoldLabel { invoice_id: "INV-2024-001201".into(), is_fraud: true,  fraud_type: Some("duplicate_invoice".into()) },
-        GoldLabel { invoice_id: "INV-2024-001223".into(), is_fraud: true,  fraud_type: Some("sanctioned_vendor".into()) },
-        GoldLabel { invoice_id: "INV-2024-001245".into(), is_fraud: true,  fraud_type: Some("sanctioned_vendor".into()) },
-        GoldLabel { invoice_id: "INV-2024-001267".into(), is_fraud: true,  fraud_type: Some("sanctioned_vendor".into()) },
-        GoldLabel { invoice_id: "INV-2024-001289".into(), is_fraud: true,  fraud_type: Some("po_mismatch".into()) },
-        GoldLabel { invoice_id: "INV-2024-001302".into(), is_fraud: true,  fraud_type: Some("shell_vendor".into()) },
-        GoldLabel { invoice_id: "INV-2024-001324".into(), is_fraud: true,  fraud_type: Some("over_limit".into()) },
-        GoldLabel { invoice_id: "INV-2024-001346".into(), is_fraud: true,  fraud_type: Some("duplicate_invoice".into()) },
-        GoldLabel { invoice_id: "INV-2024-001368".into(), is_fraud: true,  fraud_type: Some("sanctioned_vendor".into()) },
-        GoldLabel { invoice_id: "INV-2024-001381".into(), is_fraud: true,  fraud_type: Some("po_mismatch".into()) },
-        GoldLabel { invoice_id: "INV-2024-001403".into(), is_fraud: true,  fraud_type: Some("shell_vendor".into()) },
-        GoldLabel { invoice_id: "INV-2024-001425".into(), is_fraud: true,  fraud_type: Some("over_limit".into()) },
-        GoldLabel { invoice_id: "INV-2024-001447".into(), is_fraud: true,  fraud_type: Some("duplicate_invoice".into()) },
-        GoldLabel { invoice_id: "INV-2024-001469".into(), is_fraud: true,  fraud_type: Some("sanctioned_vendor".into()) },
+        GoldLabel {
+            invoice_id: "INV-2024-001001".into(),
+            is_fraud: true,
+            fraud_type: Some("po_mismatch".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001012".into(),
+            is_fraud: true,
+            fraud_type: Some("po_mismatch".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001034".into(),
+            is_fraud: true,
+            fraud_type: Some("po_mismatch".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001045".into(),
+            is_fraud: true,
+            fraud_type: Some("shell_vendor".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001067".into(),
+            is_fraud: true,
+            fraud_type: Some("shell_vendor".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001089".into(),
+            is_fraud: true,
+            fraud_type: Some("shell_vendor".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001102".into(),
+            is_fraud: true,
+            fraud_type: Some("over_limit".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001123".into(),
+            is_fraud: true,
+            fraud_type: Some("over_limit".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001145".into(),
+            is_fraud: true,
+            fraud_type: Some("over_limit".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001167".into(),
+            is_fraud: true,
+            fraud_type: Some("duplicate_invoice".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001189".into(),
+            is_fraud: true,
+            fraud_type: Some("duplicate_invoice".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001201".into(),
+            is_fraud: true,
+            fraud_type: Some("duplicate_invoice".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001223".into(),
+            is_fraud: true,
+            fraud_type: Some("sanctioned_vendor".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001245".into(),
+            is_fraud: true,
+            fraud_type: Some("sanctioned_vendor".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001267".into(),
+            is_fraud: true,
+            fraud_type: Some("sanctioned_vendor".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001289".into(),
+            is_fraud: true,
+            fraud_type: Some("po_mismatch".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001302".into(),
+            is_fraud: true,
+            fraud_type: Some("shell_vendor".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001324".into(),
+            is_fraud: true,
+            fraud_type: Some("over_limit".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001346".into(),
+            is_fraud: true,
+            fraud_type: Some("duplicate_invoice".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001368".into(),
+            is_fraud: true,
+            fraud_type: Some("sanctioned_vendor".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001381".into(),
+            is_fraud: true,
+            fraud_type: Some("po_mismatch".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001403".into(),
+            is_fraud: true,
+            fraud_type: Some("shell_vendor".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001425".into(),
+            is_fraud: true,
+            fraud_type: Some("over_limit".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001447".into(),
+            is_fraud: true,
+            fraud_type: Some("duplicate_invoice".into()),
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-001469".into(),
+            is_fraud: true,
+            fraud_type: Some("sanctioned_vendor".into()),
+        },
         // --- 25 LEGIT ---
-        GoldLabel { invoice_id: "INV-2024-002001".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002023".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002045".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002067".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002089".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002102".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002124".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002146".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002168".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002181".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002203".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002225".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002247".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002269".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002282".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002304".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002326".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002348".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002361".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002383".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002405".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002427".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002449".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002462".into(), is_fraud: false, fraud_type: None },
-        GoldLabel { invoice_id: "INV-2024-002484".into(), is_fraud: false, fraud_type: None },
+        GoldLabel {
+            invoice_id: "INV-2024-002001".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002023".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002045".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002067".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002089".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002102".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002124".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002146".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002168".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002181".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002203".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002225".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002247".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002269".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002282".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002304".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002326".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002348".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002361".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002383".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002405".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002427".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002449".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002462".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
+        GoldLabel {
+            invoice_id: "INV-2024-002484".into(),
+            is_fraud: false,
+            fraud_type: None,
+        },
     ]
 }
 
@@ -167,7 +365,10 @@ fn build_synthetic_invoice_ctx(gold: &GoldLabel) -> AgentContext {
     AgentContext::new("stark", gold.invoice_id.clone())
         .with_raw_invoice(body.clone(), "application/json")
         .with_meta("gold_is_fraud", gold.is_fraud.to_string())
-        .with_meta("gold_fraud_type", gold.fraud_type.clone().unwrap_or_default())
+        .with_meta(
+            "gold_fraud_type",
+            gold.fraud_type.clone().unwrap_or_default(),
+        )
 }
 
 /// Render the invoice body for a gold label. The shape encodes the
@@ -252,12 +453,14 @@ fn render_invoice_json(gold: &GoldLabel) -> Vec<u8> {
 /// Cargo feature + AIML_API_KEY env var).
 fn canned_assessment(gold: &GoldLabel) -> String {
     let body = render_invoice_json(gold);
-    let v: serde_json::Value =
-        serde_json::from_slice(&body).unwrap_or(serde_json::json!({}));
+    let v: serde_json::Value = serde_json::from_slice(&body).unwrap_or(serde_json::json!({}));
     let po_number = v.get("po_number").and_then(|x| x.as_str()).unwrap_or("");
     let amount = v.get("amount_eur").and_then(|x| x.as_i64()).unwrap_or(0);
     let vendor = v.get("vendor_name").and_then(|x| x.as_str()).unwrap_or("");
-    let line_total = v.get("line_items_total_eur").and_then(|x| x.as_i64()).unwrap_or(0);
+    let line_total = v
+        .get("line_items_total_eur")
+        .and_then(|x| x.as_i64())
+        .unwrap_or(0);
 
     let mut risk_score = 0.0_f64;
     if po_number == "PO-NONE-ON-FILE" {
@@ -335,8 +538,8 @@ async fn real_themis_predictions(
             .process(ctx)
             .await
             .expect("FraudAuditor::process should succeed for canned mock LLM");
-        let payload: FraudAuditorOutput = serde_json::from_value(decision.payload)
-            .expect("FraudAuditor payload shape is stable");
+        let payload: FraudAuditorOutput =
+            serde_json::from_value(decision.payload).expect("FraudAuditor payload shape is stable");
         // Map Outcome → is_fraud. Halt(Reason) means the gate fired
         // (fraud caught); Approve means the gate cleared the invoice
         // (legit). This is the only "is this fraud?" signal the
@@ -364,7 +567,10 @@ fn run_bench(
 
     // THEMIS confusion matrix
     for label in gold {
-        let pred = themis_predictions.get(&label.invoice_id).copied().unwrap_or(false);
+        let pred = themis_predictions
+            .get(&label.invoice_id)
+            .copied()
+            .unwrap_or(false);
         match (pred, label.is_fraud) {
             (true, true) => tp += 1,
             (true, false) => fp += 1,
@@ -383,7 +589,10 @@ fn run_bench(
     let mut baseline_fp = 0_usize;
     let mut baseline_fn = 0_usize;
     for label in gold {
-        let pred = baseline_predictions.get(&label.invoice_id).copied().unwrap_or(false);
+        let pred = baseline_predictions
+            .get(&label.invoice_id)
+            .copied()
+            .unwrap_or(false);
         match (pred, label.is_fraud) {
             (true, true) => baseline_tp += 1,
             (true, false) => baseline_fp += 1,
@@ -568,7 +777,10 @@ fn baseline_confusion(
     let mut tn = 0;
     let mut fn_ = 0;
     for label in gold {
-        let pred = baseline_predictions.get(&label.invoice_id).copied().unwrap_or(false);
+        let pred = baseline_predictions
+            .get(&label.invoice_id)
+            .copied()
+            .unwrap_or(false);
         match (pred, label.is_fraud) {
             (true, true) => tp += 1,
             (true, false) => fp += 1,
@@ -593,7 +805,11 @@ fn gold_labels_are_balanced_and_unique() {
 
     let mut seen = std::collections::HashSet::new();
     for l in &gold {
-        assert!(seen.insert(l.invoice_id.clone()), "duplicate invoice_id: {}", l.invoice_id);
+        assert!(
+            seen.insert(l.invoice_id.clone()),
+            "duplicate invoice_id: {}",
+            l.invoice_id
+        );
     }
 }
 
@@ -612,9 +828,14 @@ async fn invoicenet_50_bench_writes_results_json() {
 
     println!();
     println!("=== InvoiceNet-50 gold-label benchmark (FIX-7) ===");
-    println!("THEMIS  TP={} FP={} TN={} FN={}", themis.tp, themis.fp, themis.tn, themis.fn_);
-    println!("  recall={:.3}  FPR={:.3}  FP_reduction={:.3}  FN_reduction={:.3}",
-        themis.recall, themis.fpr, themis.fp_reduction, themis.fn_reduction);
+    println!(
+        "THEMIS  TP={} FP={} TN={} FN={}",
+        themis.tp, themis.fp, themis.tn, themis.fn_
+    );
+    println!(
+        "  recall={:.3}  FPR={:.3}  FP_reduction={:.3}  FN_reduction={:.3}",
+        themis.recall, themis.fpr, themis.fp_reduction, themis.fn_reduction
+    );
     println!("Baseline  TP={b_tp} FP={b_fp} TN={b_tn} FN={b_fn}");
     println!("===================================================");
     println!();

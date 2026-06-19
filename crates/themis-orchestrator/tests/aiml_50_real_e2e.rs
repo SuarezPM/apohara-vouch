@@ -38,7 +38,8 @@ use themis_compliance::aiml_metrics::AimlApiMetricsHandle;
 /// for a total budget of ~$0.05-0.10.
 fn cheap_request(i: usize) -> LlmRequest {
     LlmRequest {
-        system_prompt: "You are a precise counter. Reply with the integer you are given.".to_string(),
+        system_prompt: "You are a precise counter. Reply with the integer you are given."
+            .to_string(),
         user_prompt: format!("Reply with the integer {i}."),
         max_tokens: 8,
         temperature: 0.0,
@@ -62,14 +63,12 @@ async fn fifty_real_calls_to_aimlapi() {
     };
 
     // 2. Shared metrics handle.
-    let handle: AimlApiMetricsHandle =
-        themis_compliance::aiml_metrics::new_shared();
+    let handle: AimlApiMetricsHandle = themis_compliance::aiml_metrics::new_shared();
     // The AIML backend accepts `Arc<dyn LlmMetricsSink>`; wrap
     // the handle (which impls LlmMetricsSink via the blanket
     // impl in aiml_metrics.rs).
     let sink: Arc<dyn LlmMetricsSink> = handle.clone();
-    let backend = AIMLAPIBackend::new(api_key, "anthropic/claude-sonnet-4.5")
-        .with_metrics(sink);
+    let backend = AIMLAPIBackend::new(api_key, "anthropic/claude-sonnet-4.5").with_metrics(sink);
 
     // 3. Make 50 sequential calls. Exp backoff on per-call
     //    rate-limit final-failure.
@@ -83,9 +82,7 @@ async fn fifty_real_calls_to_aimlapi() {
             match backend.complete(req.clone()).await {
                 Ok(_) => break,
                 Err(themis_agents::decision::AgentError::RateLimited { .. }) => {
-                    eprintln!(
-                        "[aiml_50_real_e2e] call {i}: 429 backoff {attempt_backoff_ms}ms"
-                    );
+                    eprintln!("[aiml_50_real_e2e] call {i}: 429 backoff {attempt_backoff_ms}ms");
                     tokio::time::sleep(Duration::from_millis(attempt_backoff_ms)).await;
                     attempt_backoff_ms = (attempt_backoff_ms * 2).min(8_000);
                     // The backend's internal backoff already retried;
@@ -115,7 +112,10 @@ async fn fifty_real_calls_to_aimlapi() {
     eprintln!("\n[aiml_50_real_e2e] === FINAL SNAPSHOT ===");
     eprintln!("  calls            : {}", snap.calls);
     eprintln!("  successes        : {}", snap.successes);
-    eprintln!("  success rate     : {:.1}%", 100.0 * snap.successes as f64 / snap.calls.max(1) as f64);
+    eprintln!(
+        "  success rate     : {:.1}%",
+        100.0 * snap.successes as f64 / snap.calls.max(1) as f64
+    );
     eprintln!("  avg latency (ms) : {:.0}", snap.avg_latency_ms);
     eprintln!("  p95 latency (ms) : {:.0}", snap.p95_latency_ms);
     eprintln!("  total tokens in  : {}", snap.total_tokens_in);
@@ -133,9 +133,16 @@ async fn fifty_real_calls_to_aimlapi() {
         "expected at least {SUCCESS_THRESHOLD} successes (90% of {N}), got {}",
         snap.successes
     );
-    assert!(snap.total_cost_usd > 0.0, "expected positive cost, got {}", snap.total_cost_usd);
+    assert!(
+        snap.total_cost_usd > 0.0,
+        "expected positive cost, got {}",
+        snap.total_cost_usd
+    );
     assert!(snap.total_cost_usd.is_finite());
-    assert!(!snap.model.is_empty(), "model id should be set after first record_call");
+    assert!(
+        !snap.model.is_empty(),
+        "model id should be set after first record_call"
+    );
 
     // Manually exercise the bare record_call API so the public
     // CallOutcome surface is in fact used and increments.
@@ -148,5 +155,9 @@ async fn fifty_real_calls_to_aimlapi() {
         model: "anthropic/claude-sonnet-4.5",
     });
     let after = handle.snapshot();
-    assert_eq!(after.calls, snap.calls + 1, "manual record_call increments calls");
+    assert_eq!(
+        after.calls,
+        snap.calls + 1,
+        "manual record_call increments calls"
+    );
 }

@@ -128,7 +128,11 @@ impl BandLiveState {
 fn locate_run_agent_shim() -> Result<String, themis_band_client::fleet::FleetError> {
     let p = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
-        .map(|p| p.join("themis-band-client").join("scripts").join("run_agent.py"));
+        .map(|p| {
+            p.join("themis-band-client")
+                .join("scripts")
+                .join("run_agent.py")
+        });
     let path = match p {
         Some(p) => p,
         None => {
@@ -144,14 +148,12 @@ fn locate_run_agent_shim() -> Result<String, themis_band_client::fleet::FleetErr
             format!("run_agent.py not found at {}", path.display()),
         ));
     }
-    path.to_str()
-        .map(|s| s.to_string())
-        .ok_or_else(|| {
-            themis_band_client::fleet::FleetError::SpawnFailed(
-                "extractor".to_string(),
-                "run_agent.py path is not valid UTF-8".to_string(),
-            )
-        })
+    path.to_str().map(|s| s.to_string()).ok_or_else(|| {
+        themis_band_client::fleet::FleetError::SpawnFailed(
+            "extractor".to_string(),
+            "run_agent.py path is not valid UTF-8".to_string(),
+        )
+    })
 }
 
 /// Request body for `POST /band/start-room`. Optional
@@ -169,7 +171,9 @@ pub async fn post_band_start_room(
     State(state): State<Arc<crate::http::AppState>>,
     Json(req): Json<StartRoomRequest>,
 ) -> Response {
-    let room_id = req.room_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    let room_id = req
+        .room_id
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
     let live = match state.band_live.as_ref() {
         Some(l) => l,
         None => {
@@ -202,9 +206,7 @@ pub async fn post_band_start_room(
 }
 
 /// `GET /metrics/band` — JSON `{ ws_events_total, agents_connected, room_id }`.
-pub async fn get_metrics_band(
-    State(state): State<Arc<crate::http::AppState>>,
-) -> Response {
+pub async fn get_metrics_band(State(state): State<Arc<crate::http::AppState>>) -> Response {
     match state.band_live.as_ref() {
         Some(live) => {
             let m = live.metrics().await;
@@ -228,9 +230,7 @@ pub async fn get_metrics_band(
 
 /// `GET /band-live` — SSE stream of `BandSocketEvent`s from the
 /// 6-agent fleet.
-pub async fn get_band_live_sse(
-    State(state): State<Arc<crate::http::AppState>>,
-) -> Response {
+pub async fn get_band_live_sse(State(state): State<Arc<crate::http::AppState>>) -> Response {
     let rx = match state.band_live.as_ref() {
         Some(live) => live.tx.subscribe(),
         None => {

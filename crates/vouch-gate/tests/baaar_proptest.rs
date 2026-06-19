@@ -8,7 +8,7 @@ use vouch_gate::{should_halt, BaaarReason, Finding, FindingKind, GateInput, Verd
 
 fn input_strategy() -> impl Strategy<Value = GateInput> {
     (
-        0.0f32..1.0f32,                       // risk_score
+        0.0f32..1.0f32, // risk_score
         proptest::collection::vec(
             (0..6u8).prop_map(|k| Finding {
                 kind: match k {
@@ -23,9 +23,9 @@ fn input_strategy() -> impl Strategy<Value = GateInput> {
             }),
             0..4,
         ),
-        0.0f32..1.0f32,                       // coherence_score
-        0u32..10,                              // debate_rounds
-        proptest::bool::ANY,                  // explicit_halt_requested
+        0.0f32..1.0f32,      // coherence_score
+        0u32..10,            // debate_rounds
+        proptest::bool::ANY, // explicit_halt_requested
     )
         .prop_map(|(risk, findings, coherence, rounds, halt)| GateInput {
             risk_score: risk,

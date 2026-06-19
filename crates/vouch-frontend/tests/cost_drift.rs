@@ -12,8 +12,7 @@ use std::time::Duration;
 
 use vouch_frontend::cost_calculator::{CostCalculator, RateTable};
 
-const AIML_PRICING_URL: &str =
-    "https://api.aimlapi.com/v1/pricing"; // fallback; the public pricing page is HTML
+const AIML_PRICING_URL: &str = "https://api.aimlapi.com/v1/pricing"; // fallback; the public pricing page is HTML
 const FEATHERLESS_PRICING_URL: &str = "https://api.featherless.ai/v1/pricing";
 const DRIFT_THRESHOLD: f64 = 0.05;
 
@@ -111,7 +110,10 @@ fn drift_math_agrees_with_threshold() {
         }]
     });
     let drift = max_drift(&table, &live);
-    assert!(drift > DRIFT_THRESHOLD, "+10% drift should fail, got {drift:.4}");
+    assert!(
+        drift > DRIFT_THRESHOLD,
+        "+10% drift should fail, got {drift:.4}"
+    );
 }
 
 #[test]
@@ -122,7 +124,12 @@ fn cost_calculator_returns_nonzero_for_all_shipped_models() {
     let table = RateTable::defaults();
     for entry in &table.entries {
         let cost = CostCalculator::call_cost(&table, &entry.provider, &entry.model, 1000, 100);
-        assert!(cost.is_some(), "{}/{} has no rate entry", entry.provider, entry.model);
+        assert!(
+            cost.is_some(),
+            "{}/{} has no rate entry",
+            entry.provider,
+            entry.model
+        );
         assert!(
             cost.unwrap() >= 0.0,
             "{}/{} cost must be >= 0",

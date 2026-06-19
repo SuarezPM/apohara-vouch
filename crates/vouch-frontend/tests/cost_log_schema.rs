@@ -26,10 +26,12 @@ const ALL_AGENTS: &[&str] = &[
 fn sample_row_for(agent: &str) -> String {
     // Match the Python COST_LOG_HEADERS exactly.
     let (provider, model) = match agent {
-        "fraud-auditor" | "finance-risk-analyst" | "legal-policy-checker"
-        | "vendor-intake" | "red-team-auditor" | "evidence-clerk" => {
-            ("aiml", "claude-sonnet-4-6")
-        }
+        "fraud-auditor"
+        | "finance-risk-analyst"
+        | "legal-policy-checker"
+        | "vendor-intake"
+        | "red-team-auditor"
+        | "evidence-clerk" => ("aiml", "claude-sonnet-4-6"),
         "approval-manager" => ("aiml", "claude-sonnet-4-6"),
         _ => ("aiml", "claude-sonnet-4-6"),
     };
@@ -43,8 +45,8 @@ fn sample_row_for(agent: &str) -> String {
 fn every_agent_writes_eight_column_rows() {
     for agent in ALL_AGENTS {
         let line = sample_row_for(agent);
-        let n = validate_column_count(&line)
-            .unwrap_or_else(|_| panic!("{agent} row did not validate"));
+        let n =
+            validate_column_count(&line).unwrap_or_else(|_| panic!("{agent} row did not validate"));
         assert_eq!(n, 8, "{agent} should have 8 columns, got {n}");
     }
 }
@@ -70,7 +72,8 @@ fn featherless_provider_is_also_valid_in_schema() {
     // a free-form string. But the cost calculator uses it as a lookup
     // key. AC-10.3 says non-zero spend on AIML + Featherless, so
     // we ensure a Featherless row also parses cleanly.
-    let line = "2026-06-18T12:34:56Z,red-team-auditor,featherless,qwen3-coder-30b,800,200,0,0.000100";
+    let line =
+        "2026-06-18T12:34:56Z,red-team-auditor,featherless,qwen3-coder-30b,800,200,0,0.000100";
     let row = CostLogRow::from_csv_line(line).expect("featherless row parses");
     assert_eq!(row.provider, "featherless");
     assert_eq!(row.model, "qwen3-coder-30b");

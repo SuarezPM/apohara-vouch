@@ -8,7 +8,7 @@
 //! through vouch-orchestrator + produces fresh chain entries
 //! that are appended and re-verified end-to-end.
 
-use vouch_chain::{Chain, ChainError, compute_hash};
+use vouch_chain::{compute_hash, Chain, ChainError};
 use vouch_evidence::{MockTimestampAuthority, TimestampAuthority};
 
 #[test]
@@ -31,9 +31,7 @@ fn rfc3161_timestamp_metadata_carries_url() {
 fn rfc3161_chain_appends_multiple_entries() {
     let mut chain = Chain::new();
     for i in 0..6 {
-        chain
-            .append(&format!("timestamp-{i}"))
-            .expect("append ok");
+        chain.append(&format!("timestamp-{i}")).expect("append ok");
     }
     assert_eq!(chain.len(), 6);
     chain.verify().expect("chain verifies");

@@ -77,10 +77,7 @@ impl<'a> Ctx<'a> {
         let (page_idx, _layer_idx) = self.doc.add_page(Mm(210.0), Mm(297.0), layer_name);
 
         // Layer 1: white paper background.
-        let bg_layer = self
-            .doc
-            .get_page(page_idx)
-            .add_layer("Background");
+        let bg_layer = self.doc.get_page(page_idx).add_layer("Background");
         bg_layer.set_fill_color(Color::Rgb(brand::rgb(brand::PAPER)));
         let ring = vec![
             (Point::new(Mm(0.0), Mm(0.0)), false),
@@ -96,10 +93,7 @@ impl<'a> Ctx<'a> {
         bg_layer.add_polygon(poly);
 
         // Layer 2: content layer.
-        let content_layer = self
-            .doc
-            .get_page(page_idx)
-            .add_layer("Content");
+        let content_layer = self.doc.get_page(page_idx).add_layer("Content");
         content_layer.set_fill_color(Color::Rgb(brand::rgb(brand::INK_LIGHT)));
         Page {
             layer: content_layer,
@@ -115,10 +109,7 @@ impl<'a> Ctx<'a> {
         let (page_idx, _layer_idx) = self.doc.add_page(Mm(210.0), Mm(297.0), layer_name);
 
         // Background layer: white paper.
-        let bg_layer = self
-            .doc
-            .get_page(page_idx)
-            .add_layer("Background");
+        let bg_layer = self.doc.get_page(page_idx).add_layer("Background");
         bg_layer.set_fill_color(Color::Rgb(brand::rgb(brand::PAPER)));
         let ring = vec![
             (Point::new(Mm(0.0), Mm(0.0)), false),
@@ -134,10 +125,7 @@ impl<'a> Ctx<'a> {
         bg_layer.add_polygon(poly);
 
         // Content layer.
-        let content_layer = self
-            .doc
-            .get_page(page_idx)
-            .add_layer("Content");
+        let content_layer = self.doc.get_page(page_idx).add_layer("Content");
         content_layer.set_fill_color(Color::Rgb(brand::rgb(brand::INK_LIGHT)));
         Page {
             layer: content_layer,
@@ -147,7 +135,11 @@ impl<'a> Ctx<'a> {
     }
 
     pub fn write(&self, page: &Page, text: &str, x: f32, y: f32, size: f32, bold: bool) {
-        let font = if bold { self.font_bold } else { self.font_regular };
+        let font = if bold {
+            self.font_bold
+        } else {
+            self.font_regular
+        };
         page.layer.use_text(text, size, Mm(x), Mm(y), font);
     }
 

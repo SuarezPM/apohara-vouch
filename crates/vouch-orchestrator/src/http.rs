@@ -27,9 +27,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::{
-    C2paManifest, Chain, SignerService, EU_AI_ACT_ART12_FIELDS,
-};
+use crate::{C2paManifest, Chain, SignerService, EU_AI_ACT_ART12_FIELDS};
 
 /// Maximum request body size (4 MiB).
 pub const MAX_BODY_BYTES: usize = 4 * 1024 * 1024;
@@ -358,6 +356,9 @@ mod tests {
         req.case_id = String::new();
         let result = seal(State(state), Json(req)).await;
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), SealError::MissingField("case_id")));
+        assert!(matches!(
+            result.unwrap_err(),
+            SealError::MissingField("case_id")
+        ));
     }
 }

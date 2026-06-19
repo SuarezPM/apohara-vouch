@@ -25,10 +25,7 @@ pub fn format_baaar_reason(reason: BaaarReason) -> &'static str {
 
 /// One row of the BAAAR matrix. Returns `(label, formatted_line)`
 /// where `label == "fired"` marks the bold row.
-pub fn condition_row<F: FnOnce(bool) -> String>(
-    tripped: bool,
-    line: F,
-) -> (&'static str, String) {
+pub fn condition_row<F: FnOnce(bool) -> String>(tripped: bool, line: F) -> (&'static str, String) {
     (if tripped { "fired" } else { "" }, line(tripped))
 }
 
@@ -169,10 +166,7 @@ mod tests {
 
     #[test]
     fn extract_assessment_returns_none_when_no_fraud_auditor() {
-        let decisions = vec![decision_with_assessment(
-            "extractor",
-            serde_json::json!({}),
-        )];
+        let decisions = vec![decision_with_assessment("extractor", serde_json::json!({}))];
         let (r, c, d, h) = extract_assessment(&decisions);
         assert!(r.is_none());
         assert!(c.is_none());

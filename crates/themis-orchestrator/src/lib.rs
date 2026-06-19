@@ -32,10 +32,6 @@ pub fn version() -> &'static str {
 }
 
 pub mod art50;
-/// Band live room integration (Story Ola-A): the HTTP handlers
-/// for `GET /band-live` (SSE), `GET /metrics/band` (JSON), and
-/// `POST /band/start-room` (spawns the 6-agent WebSocket fleet).
-pub mod band_live;
 /// BAAAR determinism proptest harness (Story C-09 / G29 / AC9).
 ///
 /// The original spec called for a Z3-proved determinism proof ported
@@ -45,6 +41,10 @@ pub mod band_live;
 /// conditions plus a 1210-case proptest asserting same-input → same
 /// output. See `tests/baaar_z3_1210.rs` for the harness.
 pub mod baaar_z3;
+/// Band live room integration (Story Ola-A): the HTTP handlers
+/// for `GET /band-live` (SSE), `GET /metrics/band` (JSON), and
+/// `POST /band/start-room` (spawns the 6-agent WebSocket fleet).
+pub mod band_live;
 /// Circuit breaker + exponential backoff for the agent call loop
 /// (Story C-05 / G21 / AC5 — ASI08 Cascading Failures defense).
 /// 3-state breaker (`Closed` / `Open` / `HalfOpen`), threshold=5
@@ -65,14 +65,6 @@ pub mod events;
 pub mod featherless_openclaw;
 pub mod fixtures;
 pub mod http;
-/// TOML override layer on top of `routing.rs`. See
-/// `routing_config.rs` for the schema.
-pub mod routing_config;
-/// Per-agent LLM backend routing (Story Ola-C). Maps each
-/// agent name to its provider: `fraud_auditor` → Featherless
-/// (Qwen3-Coder-30B-A3B-Instruct); the other 5 LLM-driven
-/// agents → AIML API. See `routing.rs` for the full table.
-pub mod routing;
 /// Alert-fatigue detector — Story C-06 / G22 / AC6 (ASI09
 /// Human-Agent Trust Exploitation defense). Suspends HITL when
 /// the human approves more than 5 BAAAR HALT overrides in 60s;
@@ -100,6 +92,14 @@ pub mod retry;
 /// messages without `@mention`-ing another agent.
 pub mod rogue_monitor;
 pub mod room;
+/// Per-agent LLM backend routing (Story Ola-C). Maps each
+/// agent name to its provider: `fraud_auditor` → Featherless
+/// (Qwen3-Coder-30B-A3B-Instruct); the other 5 LLM-driven
+/// agents → AIML API. See `routing.rs` for the full table.
+pub mod routing;
+/// TOML override layer on top of `routing.rs`. See
+/// `routing_config.rs` for the schema.
+pub mod routing_config;
 /// AgentGuard subprocess sandbox (Story C-02). Owns the
 /// `apohara-agentguard` firewall integration — do NOT modify
 /// outside the C-02 story scope.

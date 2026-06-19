@@ -134,7 +134,10 @@ impl std::fmt::Debug for PythonBandBridge {
         f.debug_struct("PythonBandBridge")
             .field("sdk_module", &self.sdk_module)
             .field("running", &self.child.lock().unwrap().is_some())
-            .field("requests_total", &self.stats_requests.load(Ordering::Relaxed))
+            .field(
+                "requests_total",
+                &self.stats_requests.load(Ordering::Relaxed),
+            )
             .field("errors_total", &self.stats_errors.load(Ordering::Relaxed))
             .finish()
     }
@@ -172,7 +175,8 @@ impl PythonBandBridge {
 
         // Background stderr drain: keeps the pipe buffer empty and
         // retains the last `STDERR_RING_BYTES` for diagnostics.
-        let stderr_tail: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::with_capacity(STDERR_RING_BYTES)));
+        let stderr_tail: Arc<Mutex<Vec<u8>>> =
+            Arc::new(Mutex::new(Vec::with_capacity(STDERR_RING_BYTES)));
         let stderr_tail_clone = stderr_tail.clone();
         std::thread::Builder::new()
             .name("band-bridge-stderr".to_string())

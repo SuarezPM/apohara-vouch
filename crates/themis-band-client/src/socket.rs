@@ -160,18 +160,11 @@ impl SocketHandle {
             .stderr(Stdio::piped())
             .spawn()
             .map_err(|e| SocketError::Spawn(format!("{python_bin} {shim_path}: {e}")))?;
-        let stdin = child
-            .stdin
-            .take()
-            .ok_or(SocketError::NoStdin)?;
-        let stdout = child
-            .stdout
-            .take()
-            .ok_or(SocketError::NoStdout)?;
+        let stdin = child.stdin.take().ok_or(SocketError::NoStdin)?;
+        let stdout = child.stdout.take().ok_or(SocketError::NoStdout)?;
         let (tx, rx) = mpsc::channel(256);
         let events_observed = Arc::new(std::sync::atomic::AtomicU64::new(0));
-        let pending_requests: Arc<Mutex<Vec<PendingRequest>>> =
-            Arc::new(Mutex::new(Vec::new()));
+        let pending_requests: Arc<Mutex<Vec<PendingRequest>>> = Arc::new(Mutex::new(Vec::new()));
         let events_observed_reader = events_observed.clone();
         let pending_reader = pending_requests.clone();
         // Drain stdout in a dedicated OS thread (synchronous read).
@@ -189,20 +182,15 @@ impl SocketHandle {
                     Ok(v) => v,
                     Err(_) => continue,
                 };
-                events_observed_reader
-                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                events_observed_reader.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 // Correlate phx_reply with the matching pending request.
                 if ev.event == "phx_reply" {
-                    let reply_ref = ev
-                        .payload
-                        .get("ref")
-                        .and_then(|r| r.as_u64())
-                        .or_else(|| {
-                            ev.payload
-                                .get("ref")
-                                .and_then(|r| r.as_str())
-                                .and_then(|s| s.parse::<u64>().ok())
-                        });
+                    let reply_ref = ev.payload.get("ref").and_then(|r| r.as_u64()).or_else(|| {
+                        ev.payload
+                            .get("ref")
+                            .and_then(|r| r.as_str())
+                            .and_then(|s| s.parse::<u64>().ok())
+                    });
                     if let Some(r) = reply_ref {
                         let pending = pending_reader.lock().ok().and_then(|mut g| {
                             let pos = g.iter().position(|p| p.ref_id == r);
@@ -251,9 +239,7 @@ impl SocketHandle {
             "op": "join_room",
             "room_id": room_id,
         });
-        let resp = tokio::task::block_in_place(|| {
-            self.send_request_raw_blocking(&req, 30)
-        })?;
+        let resp = tokio::task::block_in_place(|| self.send_request_raw_blocking(&req, 30))?;
         let join: JoinResponse = serde_json::from_value(resp)
             .map_err(|e| SocketError::Parse(format!("join_room: {e}")))?;
         Ok(join)
@@ -266,7 +252,8 @@ impl SocketHandle {
 
     /// How many WebSocket events this handle has observed.
     pub fn events_observed(&self) -> u64 {
-        self.events_observed.load(std::sync::atomic::Ordering::Relaxed)
+        self.events_observed
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// Send a JSON control request and wait for the matching
@@ -296,19 +283,14 @@ impl SocketHandle {
                 .pending_requests
                 .lock()
                 .map_err(|e| SocketError::ShimError(format!("pending lock: {e}")))?;
-            g.push(PendingRequest {
-                ref_id,
-                reply: tx,
-            });
+            g.push(PendingRequest { ref_id, reply: tx });
         }
         {
             let mut stdin_guard = self
                 .stdin
                 .lock()
                 .map_err(|e| SocketError::Stdin(format!("lock: {e}")))?;
-            let mut stdin = stdin_guard
-                .take()
-                .ok_or(SocketError::ShutDown)?;
+            let mut stdin = stdin_guard.take().ok_or(SocketError::ShutDown)?;
             let line = format!("{}\n", serde_json::to_string(&req).unwrap_or_default());
             stdin
                 .write_all(line.as_bytes())
@@ -340,10 +322,7 @@ impl SocketHandle {
         req: &serde_json::Value,
     ) -> Result<serde_json::Value, SocketError> {
         let resp = tokio::task::block_in_place(|| self.send_request_raw_blocking(req, 10))?;
-        let status = resp
-            .get("status")
-            .and_then(|s| s.as_str())
-            .unwrap_or("");
+        let status = resp.get("status").and_then(|s| s.as_str()).unwrap_or("");
         if status != "ok" {
             return Err(SocketError::ShimError(format!(
                 "status={status} payload={resp}"
@@ -376,7 +355,10 @@ impl Drop for SocketHandle {
 /// Trait extension on `Child` (not provided by std): wait up to
 /// `Duration` for the child to exit.
 trait ChildWaitTimeout {
-    fn wait_timeout(&mut self, timeout: Duration) -> std::io::Result<Option<std::process::ExitStatus>>;
+    fn wait_timeout(
+        &mut self,
+        timeout: Duration,
+    ) -> std::io::Result<Option<std::process::ExitStatus>>;
 }
 
 impl ChildWaitTimeout for Child {
@@ -413,7 +395,8 @@ mod tests {
 
     #[test]
     fn band_socket_event_deserializes_minimal() {
-        let json = r#"{"event":"room:new_msg","payload":{"body":"hello"},"ts_ms":1,"agent_id":"a"}"#;
+        let json =
+            r#"{"event":"room:new_msg","payload":{"body":"hello"},"ts_ms":1,"agent_id":"a"}"#;
         let ev: BandSocketEvent = serde_json::from_str(json).unwrap();
         assert_eq!(ev.event, "room:new_msg");
         assert_eq!(ev.payload["body"], "hello");

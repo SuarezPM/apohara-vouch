@@ -24,10 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 i += 2;
             }
             "--seconds" => {
-                seconds = args
-                    .get(i + 1)
-                    .and_then(|s| s.parse().ok())
-                    .unwrap_or(60);
+                seconds = args.get(i + 1).and_then(|s| s.parse().ok()).unwrap_or(60);
                 i += 2;
             }
             "--help" | "-h" => {
@@ -44,9 +41,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-    let room_id = room_id.ok_or_else(|| {
-        Box::<dyn std::error::Error>::from("--room-id is required")
-    })?;
+    let room_id =
+        room_id.ok_or_else(|| Box::<dyn std::error::Error>::from("--room-id is required"))?;
 
     let shim_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("scripts")

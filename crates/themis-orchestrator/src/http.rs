@@ -102,9 +102,8 @@ pub struct AppState {
     /// and serves them as JSON. `None` for tests that don't
     /// exercise the Featherless path (or when `FEATHERLESS_API_KEY`
     /// is unset — the binary never panics on a missing key).
-    pub featherless_metrics: Option<
-        themis_compliance::featherless_metrics::FeatherlessMetricsHandle,
-    >,
+    pub featherless_metrics:
+        Option<themis_compliance::featherless_metrics::FeatherlessMetricsHandle>,
     /// AI/ML API live-call metrics (Story Ola-B). The
     /// `AIMLAPIBackend` accumulates counters here on every
     /// call; `GET /metrics/aiml` snapshots and serves them as
@@ -557,11 +556,19 @@ async fn get_room_transcript(
 // --- Helpers ---
 
 fn html_response(s: &str) -> Result<Response, Infallible> {
-    build_response(StatusCode::OK, "text/html; charset=utf-8", Body::from(s.to_string()))
+    build_response(
+        StatusCode::OK,
+        "text/html; charset=utf-8",
+        Body::from(s.to_string()),
+    )
 }
 
 fn css_response(s: &str) -> Result<Response, Infallible> {
-    build_response(StatusCode::OK, "text/css; charset=utf-8", Body::from(s.to_string()))
+    build_response(
+        StatusCode::OK,
+        "text/css; charset=utf-8",
+        Body::from(s.to_string()),
+    )
 }
 
 fn js_response(s: &str) -> Result<Response, Infallible> {
@@ -737,7 +744,9 @@ async fn get_packet_json(
     let start_ms = end_ms - 90_000;
     let to_iso = |ms: i64| -> serde_json::Value {
         chrono::DateTime::<chrono::Utc>::from_timestamp_millis(ms)
-            .map(|dt| serde_json::Value::String(dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)))
+            .map(|dt| {
+                serde_json::Value::String(dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true))
+            })
             .unwrap_or(serde_json::Value::Null)
     };
     flat.insert("start_time".into(), to_iso(start_ms));
@@ -841,9 +850,9 @@ async fn get_packet_json(
     flat.insert(
         "signed_payload_b64".into(),
         match p.to_canonical_json() {
-            Ok(bytes) => serde_json::Value::String(
-                base64::engine::general_purpose::STANDARD.encode(&bytes),
-            ),
+            Ok(bytes) => {
+                serde_json::Value::String(base64::engine::general_purpose::STANDARD.encode(&bytes))
+            }
             Err(_) => serde_json::Value::Null,
         },
     );
@@ -1294,7 +1303,16 @@ mod tests {
             serde_json::from_slice(&to_bytes(resp.into_body(), 1024 * 1024).await.unwrap())
                 .unwrap();
         // The Ola-C widget reads calls/successes/p95/cost/model.
-        for key in ["calls", "successes", "avg_latency_ms", "p95_latency_ms", "total_cost_usd", "total_tokens_in", "total_tokens_out", "model"] {
+        for key in [
+            "calls",
+            "successes",
+            "avg_latency_ms",
+            "p95_latency_ms",
+            "total_cost_usd",
+            "total_tokens_in",
+            "total_tokens_out",
+            "model",
+        ] {
             assert!(v.get(key).is_some(), "missing key: {key}");
         }
         assert_eq!(v["calls"], 0);

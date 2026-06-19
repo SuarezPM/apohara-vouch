@@ -85,7 +85,14 @@ fn render_receipt(
 
     // ── Top bar: numerator (left) + seal id (right) ───────────────
     page.set_fill(accent);
-    ctx.write(page, "01 / 01 \u{2014} EVIDENCE RECEIPT", 15.0, 285.0, 7.0, true);
+    ctx.write(
+        page,
+        "01 / 01 \u{2014} EVIDENCE RECEIPT",
+        15.0,
+        285.0,
+        7.0,
+        true,
+    );
     page.reset_color();
     // Right-aligned seal id, computed so it never overflows
     // x=210mm (page right margin). At 7pt bold Helvetica, each
@@ -98,7 +105,14 @@ fn render_receipt(
 
     // ── Brand tag ────────────────────────────────────────────────
     page.set_fill(accent);
-    ctx.write(page, "APOHARA \u{00B7} VOUCH", 15.0, page.cursor_y, 8.0, true);
+    ctx.write(
+        page,
+        "APOHARA \u{00B7} VOUCH",
+        15.0,
+        page.cursor_y,
+        8.0,
+        true,
+    );
     page.reset_color();
     page.cursor_y -= 4.0;
     page.set_fill(muted);
@@ -151,7 +165,14 @@ fn render_receipt(
     if let Outcome::Halt(_) = p.bbaaar_outcome {
         let matrix = build_condition_matrix(&p.agent_decisions);
         page.set_fill(muted);
-        ctx.write(page, "BAAAR CONDITIONS (halt trigger)", 15.0, page.cursor_y, 7.0, true);
+        ctx.write(
+            page,
+            "BAAAR CONDITIONS (halt trigger)",
+            15.0,
+            page.cursor_y,
+            7.0,
+            true,
+        );
         page.reset_color();
         page.cursor_y -= 4.0;
         for (i, (label, value)) in matrix.iter().enumerate() {
@@ -210,7 +231,10 @@ fn render_receipt(
         page.set_fill(ink);
         ctx.write(
             page,
-            &format!("{} \u{00B7} idx {} \u{00B7} ts {}", entry.uuid, entry.log_index, entry.integrated_time),
+            &format!(
+                "{} \u{00B7} idx {} \u{00B7} ts {}",
+                entry.uuid, entry.log_index, entry.integrated_time
+            ),
             50.0,
             page.cursor_y,
             6.5,
@@ -263,7 +287,14 @@ fn render_receipt(
             ink
         };
         page.set_fill(muted);
-        ctx.write(page, &format!("{:>2}", i + 1), 15.0, page.cursor_y, 6.5, false);
+        ctx.write(
+            page,
+            &format!("{:>2}", i + 1),
+            15.0,
+            page.cursor_y,
+            6.5,
+            false,
+        );
         page.reset_color();
         page.set_fill(ink);
         ctx.write(page, &d.agent_id, 25.0, page.cursor_y, 6.5, false);
@@ -272,7 +303,14 @@ fn render_receipt(
         ctx.write(page, agent_verdict, 95.0, page.cursor_y, 6.5, true);
         page.reset_color();
         page.set_fill(muted);
-        ctx.write(page, &format!("{}%", conf_pct), 145.0, page.cursor_y, 6.5, false);
+        ctx.write(
+            page,
+            &format!("{}%", conf_pct),
+            145.0,
+            page.cursor_y,
+            6.5,
+            false,
+        );
         page.reset_color();
         page.set_fill(muted);
         ctx.write(
@@ -312,12 +350,23 @@ fn render_receipt(
     ];
     let mut x = 15.0;
     for (name, ok, ratio) in compacts.iter() {
-        let color = if *ok { brand::GREEN_LIGHT } else { brand::RED_LIGHT };
+        let color = if *ok {
+            brand::GREEN_LIGHT
+        } else {
+            brand::RED_LIGHT
+        };
         page.set_fill(color);
         ctx.write(page, "\u{2713}", x, page.cursor_y, 8.0, true);
         page.reset_color();
         page.set_fill(ink);
-        ctx.write(page, &format!(" {} {}", name, ratio), x + 4.5, page.cursor_y, 7.0, false);
+        ctx.write(
+            page,
+            &format!(" {} {}", name, ratio),
+            x + 4.5,
+            page.cursor_y,
+            7.0,
+            false,
+        );
         page.reset_color();
         x += 38.0;
     }
@@ -354,11 +403,7 @@ fn render_receipt(
 }
 
 /// Render the QR code in the top-right corner of the body.
-fn render_qr(
-    ctx: &Ctx,
-    packet: &SignedPacket,
-    page: &Page,
-) {
+fn render_qr(ctx: &Ctx, packet: &SignedPacket, page: &Page) {
     let verify_url = format!(
         "https://vouch.apohara.dev/verify?packet={}&tenant={}",
         packet.packet.packet_id, packet.packet.tenant_id
@@ -468,7 +513,11 @@ mod tests {
     fn renders_to_non_empty_bytes() {
         let sp = sample_packet();
         let bytes = render_packet_pdf(&sp).expect("render");
-        assert!(bytes.len() > 2048, "PDF should be >2KB, got {}", bytes.len());
+        assert!(
+            bytes.len() > 2048,
+            "PDF should be >2KB, got {}",
+            bytes.len()
+        );
         assert_eq!(&bytes[..5], b"%PDF-");
     }
 }
