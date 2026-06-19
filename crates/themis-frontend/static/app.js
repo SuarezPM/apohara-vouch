@@ -664,9 +664,9 @@
           if (t) t.dataset.state = 'fulfilled';
         }
         const eu = document.getElementById('reg-eu-v');
-        if (eu) eu.textContent = '8 / 8 ✓';
+        if (eu) eu.textContent = '8 / 8 ok';
         const nist = document.getElementById('reg-nist-v');
-        if (nist) nist.textContent = '4 / 4 ✓';
+        if (nist) nist.textContent = '4 / 4 ok';
       } catch (_e) {
         // Malformed payload — ignore.
       }
