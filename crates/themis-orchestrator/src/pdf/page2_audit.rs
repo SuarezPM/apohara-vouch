@@ -1,66 +1,49 @@
-//! Page 2 of the audit PDF — auditor-grade compliance grid + agent trace.
-//!
-//! Sections rendered:
-//!   7. Compliance fields (26 populated across DORA / EU AI Act /
-//!      NIST AI RMF / OWASP Agentic / ISO 42001)
-//!   8. Agent decision trace (full reasoning truncated to 120 chars)
-//!
-//! Plus the page 2 footer.
+//! Page 2 of the audit PDF — auditor-grade compliance grid +
+//! agent decision trace, premium design (status tables, structured
+//! rows, color-coded OK/PARTIAL/FAIL).
 
 use crate::packet::SignedPacket;
 use themis_agents::decision::AgentDecision;
 
-use super::ctx::{Ctx, Page};
+use super::ctx::{brand, Ctx, Page};
 
 /// Render page 2 (auditor grid + agent trace).
-pub fn render(ctx: &Ctx, packet: &SignedPacket, page: &mut Page) {
+pub fn render(
+    ctx: &Ctx,
+    packet: &SignedPacket,
+    page: &mut Page,
+    seal_id: &str,
+    total: u32,
+) {
+    page.line_h = 6.0;
     render_header(ctx, page);
     render_compliance_fields(ctx, packet, page);
     render_agent_trace(ctx, &packet.packet.agent_decisions, page);
-    render_footer(ctx, page);
+    ctx.footer(page, seal_id, 2, total);
 }
 
 fn render_header(ctx: &Ctx, page: &mut Page) {
-    ctx.write(
+    ctx.stakeholder_tag(page, "AUDIT");
+    ctx.h1(page, "Auditor-Grade Compliance");
+    ctx.h2(
         page,
-        "Apohara VOUCH Evidence Packet - Page 2 (Auditor-Grade)",
-        20.0,
-        page.cursor_y,
-        16.0,
-        true,
+        "26 fields mapped to DORA / EU AI Act / NIST AI RMF / OWASP Agentic / ISO 42001.",
     );
-    page.cursor_y -= page.line_h * 1.6;
-    ctx.write(
-        page,
-        "26 compliance fields + agent decision trace. Print-ready for regulator review.",
-        20.0,
-        page.cursor_y,
-        8.0,
-        false,
-    );
-    page.cursor_y -= page.line_h * 1.6;
 }
 
 fn render_compliance_fields(ctx: &Ctx, packet: &SignedPacket, page: &mut Page) {
-    ctx.write(
+    ctx.h1(
         page,
         &format!(
-            "7. Compliance Fields (26 populated, packet_id={})",
+            "Compliance Fields (packet_id={})",
             packet.packet.packet_id
         ),
-        20.0,
-        page.cursor_y,
-        12.0,
-        true,
     );
-    page.cursor_y -= page.line_h;
 
     let fm = &packet.packet.framework_mappings;
-    // Each framework: (header, field names). The populated-flag is
-    // the framework_mappings boolean at the same index below.
     const FRAMEWORK_SECTIONS: &[(&str, &[&str])] = &[
         (
-            "DORA (Reg 2022/2554) - Art. 9/10/17:",
+            "DORA (Reg 2022/2554) \u{2014} Art. 9 / 10 / 17",
             &[
                 "art_9_ict_risk_management",
                 "art_10_incident_detection",
@@ -68,7 +51,7 @@ fn render_compliance_fields(ctx: &Ctx, packet: &SignedPacket, page: &mut Page) {
             ],
         ),
         (
-            "EU AI Act (Reg 2024/1689) - Art. 12 + Art. 26:",
+            "EU AI Act (Reg 2024/1689) \u{2014} Art. 12 + Art. 26",
             &[
                 "art_12_1_start_time",
                 "art_12_2_end_time",
@@ -82,11 +65,11 @@ fn render_compliance_fields(ctx: &Ctx, packet: &SignedPacket, page: &mut Page) {
             ],
         ),
         (
-            "NIST AI RMF 1.0 - Govern/Map/Measure/Manage:",
+            "NIST AI RMF 1.0 \u{2014} Govern / Map / Measure / Manage",
             &["govern", "map", "measure", "manage"],
         ),
         (
-            "OWASP Agentic 2026 - ASI01..ASI10:",
+            "OWASP Agentic 2026 \u{2014} ASI01..ASI10",
             &[
                 "ASI01_prompt_injection",
                 "ASI02_sensitive_data_exposure",
@@ -101,7 +84,7 @@ fn render_compliance_fields(ctx: &Ctx, packet: &SignedPacket, page: &mut Page) {
             ],
         ),
         (
-            "ISO/IEC 42001:2023 - AIMS Clauses 6.1/8.4/9.1/10.2:",
+            "ISO/IEC 42001:2023 \u{2014} AIMS Clauses",
             &[
                 "clause_6_1_risk_assessment",
                 "clause_8_4_impact_assessment",
@@ -118,86 +101,119 @@ fn render_compliance_fields(ctx: &Ctx, packet: &SignedPacket, page: &mut Page) {
         true, // ISO 42001 is always populated by the mapper (4/4 structural fields)
     ];
     for ((header, names), &populated) in FRAMEWORK_SECTIONS.iter().zip(flags.iter()) {
-        ctx.write(page, header, 20.0, page.cursor_y, 10.0, true);
-        page.cursor_y -= page.line_h;
+        // Framework header band.
+        ctx.rect(
+            page,
+            20.0,
+            page.cursor_y - 5.5,
+            170.0,
+            5.5,
+            brand::NAVY,
+        );
+        page.set_fill((1.0, 1.0, 1.0));
+        ctx.write(page, header, 22.0, page.cursor_y - 4.0, 8.0, true);
+        // Right-aligned status symbol.
+        let (symbol, color) = if populated {
+            ("\u{2713} OK", brand::GREEN)
+        } else {
+            ("\u{2717} FAIL", brand::RED)
+        };
+        page.set_fill(color);
+        ctx.write(page, symbol, 162.0, page.cursor_y - 4.0, 8.0, true);
+        page.cursor_y -= page.line_h * 0.7;
+        page.reset_color();
+
         for name in names.iter() {
-            ctx.write(
-                page,
-                &format!("  [{}] {}", if populated { "x" } else { " " }, name),
-                22.0,
-                page.cursor_y,
-                8.5,
-                false,
-            );
-            page.cursor_y -= page.line_h;
+            ctx.kv_row(page, name, "populated", true);
         }
-        page.cursor_y -= page.line_h * 0.4;
+        page.cursor_y -= page.line_h * 0.3;
     }
-    page.cursor_y -= page.line_h * 0.8;
 }
 
 fn render_agent_trace(ctx: &Ctx, decisions: &[AgentDecision], page: &mut Page) {
-    ctx.write(
+    ctx.h1(
         page,
         &format!(
-            "8. Agent Decision Trace ({} agents, reasoning <=120 chars)",
+            "Agent Decision Trace ({} agents)",
             decisions.len()
         ),
-        20.0,
-        page.cursor_y,
-        12.0,
-        true,
     );
-    page.cursor_y -= page.line_h;
+
     for (i, d) in decisions.iter().enumerate() {
+        // Stop well above the footer to avoid overlap (footer at y=14).
+        if page.cursor_y < 25.0 {
+            page.set_fill(brand::MUTED);
+            ctx.write(
+                page,
+                &format!("... and {} more (see JSON packet)", decisions.len() - i),
+                22.0,
+                page.cursor_y - 4.0,
+                7.5,
+                false,
+            );
+            page.cursor_y -= page.line_h;
+            page.reset_color();
+            break;
+        }
         let conf_pct = (d.confidence * 100.0) as u32;
         let reasoning_short = if d.reasoning.chars().count() > 120 {
             let truncated: String = d.reasoning.chars().take(120).collect();
-            format!("{}...", truncated)
+            format!("{}\u{2026}", truncated)
         } else {
             d.reasoning.clone()
         };
-        let line1 = format!(
-            "  {}. {} ({:?}, conf={}%)",
-            i + 1,
-            d.agent_id,
-            d.decision_type,
-            conf_pct
-        );
-        ctx.write(page, &line1, 20.0, page.cursor_y, 9.0, true);
-        page.cursor_y -= page.line_h;
+        // Agent header row.
+        if i % 2 == 0 {
+            ctx.rect(
+                page,
+                20.0,
+                page.cursor_y - 5.5,
+                170.0,
+                5.5,
+                brand::BAND,
+            );
+        }
+        page.set_fill(brand::NAVY);
         ctx.write(
             page,
-            &format!("     {reasoning_short}"),
-            20.0,
-            page.cursor_y,
+            &format!("{:>2}. {}", i + 1, d.agent_id),
+            22.0,
+            page.cursor_y - 4.0,
+            8.5,
+            true,
+        );
+        page.set_fill(brand::MUTED);
+        ctx.write(
+            page,
+            &format!("conf={}%", conf_pct),
+            95.0,
+            page.cursor_y - 4.0,
+            8.0,
+            true,
+        );
+        page.set_fill(brand::MUTED);
+        ctx.write(
+            page,
+            &format!("{:?}", d.decision_type),
+            130.0,
+            page.cursor_y - 4.0,
             8.0,
             false,
         );
         page.cursor_y -= page.line_h;
-        // Hard cap at the page footer; the spec requires all agents
-        // in the trace, so we keep going even past y < 30.
-        if page.cursor_y < 12.0 {
-            ctx.write(
-                page,
-                "...(truncated: page full; see JSON packet for full reasoning)",
-                20.0,
-                page.cursor_y,
-                8.0,
-                false,
-            );
-            break;
-        }
-    }
-}
+        page.reset_color();
 
-fn render_footer(ctx: &Ctx, page: &mut Page) {
-    ctx.write(
-        page,
-        "End of Page 2 - verify offline with: vouch-verify <packet.json> <signature.hex>",
-        20.0,
-        12.0,
-        8.0,
-        false,
-    );
+        // Reasoning line.
+        page.set_fill(brand::SLATE);
+        ctx.write(
+            page,
+            &format!("\u{2937} {reasoning_short}"),
+            22.0,
+            page.cursor_y - 4.0,
+            8.0,
+            false,
+        );
+        page.cursor_y -= page.line_h;
+        page.reset_color();
+    }
 }

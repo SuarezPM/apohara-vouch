@@ -68,6 +68,11 @@ pub fn render_packet_pdf(packet: &SignedPacket) -> Result<Vec<u8>, PdfError> {
         font_bold: &font_bold,
     };
 
+    // Stable seal id derived from the packet's first 8 hex chars
+    // (the BLAKE3 hash prefix). The footer prints it on every page
+    // so a judge can correlate paper ↔ JSON by eye.
+    let seal_id = format!("VOUCH-{}", &packet.blake3_hash_hex[..8]);
+
     // Resolve the page-1 layer into a `Page` we hand to the renderer.
     let layer1 = doc.get_page(page1).get_layer(layer1);
     let mut page1_state = Page {
@@ -75,14 +80,14 @@ pub fn render_packet_pdf(packet: &SignedPacket) -> Result<Vec<u8>, PdfError> {
         cursor_y: 280.0,
         line_h: 7.0,
     };
-    page1_summary::render(&ctx, packet, &mut page1_state)?;
+    page1_summary::render(&ctx, packet, &mut page1_state, &seal_id, 6)?;
 
     let mut page2_state = ctx.add_a4_page("Layer 2");
     // Tighter line spacing on the auditor grid page.
     page2_state.line_h = 6.5;
-    page2_audit::render(&ctx, packet, &mut page2_state);
+    page2_audit::render(&ctx, packet, &mut page2_state, &seal_id, 6);
 
-    stakeholders::render(&ctx, packet);
+    stakeholders::render(&ctx, packet, &seal_id);
 
     let mut buf: Vec<u8> = Vec::new();
     {

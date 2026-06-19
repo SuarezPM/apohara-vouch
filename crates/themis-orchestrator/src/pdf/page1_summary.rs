@@ -1,300 +1,304 @@
-//! Page 1 of the audit PDF — summary view.
+//! Page 1 of the audit PDF — summary view, premium design.
 //!
 //! Sections rendered:
-//!   1. Identifiers (tenant, invoice_id, packet_id, generated_at)
-//!   2. BAAAR outcome (HALT stamp + reason matrix, or APPROVED)
-//!   3. Cryptographic integrity (BLAKE3 + Ed25519 + public key)
-//!   4. Agent decisions (preview, truncates if too many for the page)
-//!   5. Framework compliance (DORA / EU AI Act / NIST / OWASP)
-//!   6. Rekor transparency-log anchor (if present)
-//!
-//! Plus the page footer: QR code (encodes the verify URL) + offline-
-//! verify hint.
+//!   - Hero band (navy with gold rule + APOHARA VOUCH brand mark)
+//!   - Verdict hero (large APPROVED / HALT / REVIEW pill, color-coded)
+//!   - Identifiers (tenant, invoice, packet id, generated_at) in kv rows
+//!   - Cryptographic integrity (BLAKE3 + Ed25519 + pubkey in chips)
+//!   - Agent decisions (compact color-coded trace)
+//!   - Framework compliance (table with status symbols)
+//!   - Rekor transparency-log anchor (if present)
+//!   - QR code (PNG, real bitmap, bottom-right)
+//!   - Footer (seal id + page number + disclaimer)
 
 use crate::packet::SignedPacket;
 use themis_agents::baaar::Outcome;
 use themis_agents::decision::AgentDecision;
 
 use super::baaar::{build_condition_matrix, format_baaar_reason};
-use super::ctx::{Ctx, Page};
+use super::ctx::{brand, Ctx, Page};
 
-/// Render all 6 sections of page 1 + the footer (QR + verify hint).
-pub fn render(ctx: &Ctx, packet: &SignedPacket, page: &mut Page) -> Result<(), super::PdfError> {
-    render_header(ctx, page);
+/// Render the full page 1.
+pub fn render(
+    ctx: &Ctx,
+    packet: &SignedPacket,
+    page: &mut Page,
+    seal_id: &str,
+    total: u32,
+) -> Result<(), super::PdfError> {
+    ctx.hero_band(page, 190.0);
+    render_verdict_hero(ctx, packet, page);
     render_identifiers(ctx, packet, page);
-    render_baaar_outcome(ctx, packet, page);
     render_crypto(ctx, packet, page);
     render_agent_decisions(ctx, &packet.packet.agent_decisions, page);
     render_framework_compliance(ctx, packet, page);
     render_rekor_anchor(ctx, packet, page);
-    render_footer_qr(ctx, packet, page)
+    render_qr(ctx, packet, page)?;
+    ctx.footer(page, seal_id, 1, total);
+    Ok(())
 }
 
-fn render_header(ctx: &Ctx, page: &mut Page) {
-    ctx.write(
-        page,
-        "Apohara VOUCH Evidence Packet",
-        20.0,
-        page.cursor_y,
-        18.0,
-        true,
-    );
-    page.cursor_y -= page.line_h * 1.5;
-    ctx.write(
-        page,
-        "DORA Art. 17 + EU AI Act Art. 12 compliant receipt",
-        20.0,
-        page.cursor_y,
-        9.0,
-        false,
-    );
-    page.cursor_y -= page.line_h * 2.0;
-}
+/// Top-of-page verdict: large pill in the verdict color.
+fn render_verdict_hero(ctx: &Ctx, packet: &SignedPacket, page: &mut Page) {
+    // Mini-label uppercase (FOR-style).
+    page.set_fill(brand::BLUE);
+    ctx.write(page, "BAAAR OUTCOME", 20.0, page.cursor_y - 1.0, 7.5, true);
+    page.cursor_y -= page.line_h * 0.7;
+    page.reset_color();
 
-fn render_identifiers(ctx: &Ctx, packet: &SignedPacket, page: &mut Page) {
-    ctx.write(page, "1. Identifiers", 20.0, page.cursor_y, 12.0, true);
-    page.cursor_y -= page.line_h;
-    for (label, value) in [
-        ("Tenant", packet.packet.tenant_id.as_str()),
-        ("Invoice ID", packet.packet.invoice_id.as_str()),
-        ("Packet ID", &packet.packet.packet_id.to_string()),
-        ("Generated at", &format!("{} ms", packet.packet.generated_at_ms)),
-    ] {
-        ctx.write(
-            page,
-            &format!("{label:<16}{value}"),
-            20.0,
-            page.cursor_y,
-            10.0,
-            false,
-        );
-        page.cursor_y -= page.line_h;
-    }
-    page.cursor_y -= page.line_h * 0.5;
-}
-
-fn render_baaar_outcome(ctx: &Ctx, packet: &SignedPacket, page: &mut Page) {
-    ctx.write(page, "2. BAAAR Outcome", 20.0, page.cursor_y, 12.0, true);
-    page.cursor_y -= page.line_h;
     match packet.packet.bbaaar_outcome {
         Outcome::Halt(reason) => {
-            set_red(page);
-            ctx.write(page, "HALT", 20.0, page.cursor_y, 24.0, true);
-            page.cursor_y -= page.line_h * 2.0;
-            page.reset_color();
-
-            ctx.write(
-                page,
-                &format!("REASON: {}", format_baaar_reason(reason)),
-                20.0,
-                page.cursor_y,
-                11.0,
-                true,
-            );
-            page.cursor_y -= page.line_h * 1.3;
+            ctx.verdict_hero(page, "HALT", brand::RED);
+            ctx.h1(page, &format!("REASON: {}", format_baaar_reason(reason)));
 
             let matrix = build_condition_matrix(&packet.packet.agent_decisions);
-            for (label, value) in matrix {
-                ctx.write(page, &value, 20.0, page.cursor_y, 9.0, label == "fired");
-                page.cursor_y -= page.line_h * 0.95;
+            for (i, (label, value)) in matrix.iter().enumerate() {
+                if i == 0 {
+                    page.set_fill(brand::MUTED);
+                    ctx.write(page, "BAAAR CONDITION MATRIX", 20.0, page.cursor_y - 1.0, 7.5, true);
+                    page.cursor_y -= page.line_h * 0.6;
+                    page.reset_color();
+                }
+                ctx.kv_row(page, label, value, i % 2 == 1);
             }
         }
         Outcome::Approve => {
-            set_green(page);
-            ctx.write(page, "APPROVED", 20.0, page.cursor_y, 18.0, true);
-            page.cursor_y -= page.line_h * 1.7;
-            page.reset_color();
-            ctx.write(
-                page,
-                "All 5 BAAAR conditions passed; no halt triggered.",
-                20.0,
-                page.cursor_y,
-                10.0,
-                false,
-            );
+            ctx.verdict_hero(page, "APPROVED", brand::GREEN);
+            ctx.body(page, "All 5 BAAAR conditions passed; no halt triggered.");
         }
     }
-    page.cursor_y -= page.line_h * 1.5;
+    page.cursor_y -= page.line_h * 0.6;
 }
 
-fn render_crypto(ctx: &Ctx, packet: &SignedPacket, page: &mut Page) {
-    ctx.write(page, "3. Cryptographic Integrity", 20.0, page.cursor_y, 12.0, true);
-    page.cursor_y -= page.line_h;
-    ctx.write(
-        page,
-        &format!("BLAKE3 hash:       {}", packet.blake3_hash_hex),
-        20.0,
-        page.cursor_y,
-        9.0,
-        false,
-    );
-    page.cursor_y -= page.line_h;
+/// Identifiers as a structured kv table.
+fn render_identifiers(ctx: &Ctx, packet: &SignedPacket, page: &mut Page) {
+    ctx.h1(page, "Identifiers");
 
-    let sig_preview: &str = if packet.signature_hex.len() >= 32 {
-        &packet.signature_hex[..32]
-    } else {
-        &packet.signature_hex
-    };
-    ctx.write(
+    ctx.kv_row(page, "TENANT", &packet.packet.tenant_id, false);
+    ctx.kv_row(page, "INVOICE ID", &packet.packet.invoice_id, true);
+    ctx.kv_row(page, "PACKET ID", &packet.packet.packet_id.to_string(), false);
+    ctx.kv_row(
         page,
-        &format!(
-            "Ed25519 signature: {}... ({} chars total)",
-            sig_preview,
-            packet.signature_hex.len()
-        ),
-        20.0,
-        page.cursor_y,
-        9.0,
-        false,
-    );
-    page.cursor_y -= page.line_h;
-    ctx.write(
-        page,
-        &format!("Public key:        {}", packet.public_key_hex),
-        20.0,
-        page.cursor_y,
-        9.0,
-        false,
-    );
-    page.cursor_y -= page.line_h * 1.5;
-}
-
-fn render_agent_decisions(ctx: &Ctx, decisions: &[AgentDecision], page: &mut Page) {
-    ctx.write(
-        page,
-        &format!("4. Agent Decisions ({} total)", decisions.len()),
-        20.0,
-        page.cursor_y,
-        12.0,
+        "GENERATED AT",
+        &format!("{} ms", packet.packet.generated_at_ms),
         true,
     );
-    page.cursor_y -= page.line_h;
+
+    page.cursor_y -= page.line_h * 0.4;
+}
+
+/// Crypto values as chip-style rows.
+fn render_crypto(ctx: &Ctx, packet: &SignedPacket, page: &mut Page) {
+    ctx.h1(page, "Cryptographic Integrity");
+
+    ctx.crypto_field(page, "BLAKE3 HASH", &packet.blake3_hash_hex);
+
+    let sig_preview: String = if packet.signature_hex.len() >= 24 {
+        format!("{}\u{2026}", &packet.signature_hex[..24])
+    } else {
+        packet.signature_hex.clone()
+    };
+    ctx.crypto_field(
+        page,
+        "ED25519 SIGNATURE",
+        &format!("{}  ({} chars, truncated for display)", sig_preview, packet.signature_hex.len()),
+    );
+
+    ctx.crypto_field(page, "PUBLIC KEY", &packet.public_key_hex);
+
+    page.cursor_y -= page.line_h * 0.4;
+}
+
+/// Agent decisions as a compact numbered list with verdict color.
+fn render_agent_decisions(ctx: &Ctx, decisions: &[AgentDecision], page: &mut Page) {
+    ctx.h1(
+        page,
+        &format!("Agent Decisions ({} total)", decisions.len()),
+    );
+
+    let verdict_color = match decisions.len() {
+        0 => brand::MUTED,
+        _ => brand::SLATE,
+    };
     for (i, d) in decisions.iter().enumerate() {
-        ctx.write(
-            page,
-            &format!("  {}. {} ({:?})", i + 1, d.agent_id, d.decision_type),
-            20.0,
-            page.cursor_y,
-            8.0,
-            false,
-        );
-        page.cursor_y -= page.line_h * 0.85;
-        if page.cursor_y < 30.0 {
+        // Stop well above the footer to avoid overlap.
+        if page.cursor_y < 80.0 {
+            page.set_fill(brand::MUTED);
             ctx.write(
                 page,
-                &format!("  ... and {} more", decisions.len() - i - 1),
-                20.0,
-                page.cursor_y,
+                &format!("  ... and {} more (see JSON packet)", decisions.len() - i),
+                22.0,
+                page.cursor_y - 4.5,
                 8.0,
                 false,
             );
             page.cursor_y -= page.line_h;
+            page.reset_color();
             break;
         }
-    }
-    page.cursor_y -= page.line_h * 0.5;
-}
-
-fn render_framework_compliance(ctx: &Ctx, packet: &SignedPacket, page: &mut Page) {
-    ctx.write(page, "5. Framework Compliance", 20.0, page.cursor_y, 12.0, true);
-    page.cursor_y -= page.line_h;
-    let fm = &packet.packet.framework_mappings;
-    for (label, populated) in [
-        ("DORA Art. 9", fm.dora_art_9),
-        ("EU AI Act Art. 12", fm.eu_ai_act_art_12),
-        ("NIST AI RMF", fm.nist_ai_rmf),
-        ("OWASP Agentic", fm.owasp_agentic),
-    ] {
-        ctx.write(
-            page,
-            &format!("{label:<24}{}", if populated { "[x]" } else { "[ ]" }),
-            20.0,
-            page.cursor_y,
-            9.0,
-            false,
+        let conf_pct = (d.confidence * 100.0) as u32;
+        let line = format!(
+            "{:>2}.  {:<22} ({:?}, conf={}%)",
+            i + 1,
+            d.agent_id,
+            d.decision_type,
+            conf_pct
         );
-        page.cursor_y -= page.line_h;
+        page.set_fill(verdict_color);
+        ctx.write(page, &line, 22.0, page.cursor_y - 4.5, 8.5, false);
+        page.cursor_y -= page.line_h * 0.9;
     }
-    page.cursor_y -= page.line_h * 0.5;
+    page.cursor_y -= page.line_h * 0.3;
+    page.reset_color();
 }
 
+/// Framework compliance as a status table.
+fn render_framework_compliance(ctx: &Ctx, packet: &SignedPacket, page: &mut Page) {
+    ctx.h1(page, "Framework Compliance");
+
+    let fm = &packet.packet.framework_mappings;
+    let rows: [(&str, bool, &str); 4] = [
+        (
+            "DORA Art. 9",
+            fm.dora_art_9,
+            "ICT risk management system",
+        ),
+        (
+            "EU AI Act Art. 12",
+            fm.eu_ai_act_art_12,
+            "8-field record-keeping",
+        ),
+        (
+            "NIST AI RMF",
+            fm.nist_ai_rmf,
+            "Govern / Map / Measure / Manage",
+        ),
+        (
+            "OWASP Agentic",
+            fm.owasp_agentic,
+            "ASI01..ASI10 threats",
+        ),
+    ];
+    for (i, (label, populated, desc)) in rows.iter().enumerate() {
+        let (symbol, status, color) = if *populated {
+            ("\u{2713}", "OK", brand::GREEN)
+        } else {
+            ("\u{2717}", "FAIL", brand::RED)
+        };
+        // alternating row band
+        if i % 2 == 1 {
+            ctx.rect(
+                page,
+                20.0,
+                page.cursor_y - 5.5,
+                170.0,
+                6.0,
+                brand::BAND,
+            );
+        }
+        ctx.status_row(page, symbol, status, &format!("{label} \u{2014} {desc}"), color);
+    }
+    page.cursor_y -= page.line_h * 0.3;
+}
+
+/// Rekor anchor as a chip-row block.
 fn render_rekor_anchor(ctx: &Ctx, packet: &SignedPacket, page: &mut Page) {
     if let Some(entry) = &packet.rekor_entry {
-        ctx.write(
-            page,
-            "6. Rekor Transparency Log Anchor",
-            20.0,
-            page.cursor_y,
-            12.0,
-            true,
-        );
-        page.cursor_y -= page.line_h;
-        for (label, value) in [
-            ("Rekor UUID", entry.uuid.as_str()),
-            ("Rekor log index", &entry.log_index.to_string()),
-            ("Integrated time", &format!("{} s", entry.integrated_time)),
-            ("Bundle URL", entry.bundle_url.as_str()),
-        ] {
-            ctx.write(
+        // Only render if there's room; the page is content-dense and
+        // the Rekor section is optional.
+        if page.cursor_y > 80.0 {
+            ctx.h1(page, "Rekor Transparency Log Anchor");
+            ctx.crypto_field(page, "REKOR UUID", &entry.uuid);
+            ctx.crypto_field(
                 page,
-                &format!("{label:<16}{value}"),
-                20.0,
-                page.cursor_y,
-                8.5,
-                false,
+                "LOG INDEX",
+                &entry.log_index.to_string(),
             );
-            page.cursor_y -= page.line_h;
+            ctx.crypto_field(
+                page,
+                "INTEGRATED TIME",
+                &format!("{} s", entry.integrated_time),
+            );
+            ctx.crypto_field(page, "BUNDLE URL", &entry.bundle_url);
         }
     }
 }
 
-fn render_footer_qr(ctx: &Ctx, packet: &SignedPacket, page: &mut Page) -> Result<(), super::PdfError> {
+/// QR code rendered as a PNG (real bitmap, scannable).
+fn render_qr(
+    ctx: &Ctx,
+    packet: &SignedPacket,
+    page: &mut Page,
+) -> Result<(), super::PdfError> {
     let verify_url = format!(
         "https://vouch.apohara.dev/verify?packet={}&tenant={}",
         packet.packet.packet_id, packet.packet.tenant_id
     );
     let qr = qrcode::QrCode::new(verify_url.as_bytes())
         .map_err(|e| super::PdfError::Save(format!("QR encode error: {e}")))?;
-    let qr_art: String = qr
-        .render::<qrcode::render::unicode::Dense1x2>()
-        .quiet_zone(true)
-        .build();
 
-    // Each line of qr_art represents 2 source rows of the QR matrix;
-    // 8pt monospace at our line height is ~2.6mm per line.
-    let qr_line_h: f32 = 2.6;
-    let qr_lines: Vec<&str> = qr_art.lines().collect();
-    let qr_total_h = qr_lines.len() as f32 * qr_line_h;
-    let mut qr_y = 18.0 + qr_total_h + 4.0;
-    if qr_y > 60.0 {
-        qr_y = 60.0;
+    // Build a GrayImage (Luma8) from the QR's color matrix.
+    let w = qr.width();
+    let colors = qr.to_colors();
+    let mut img = image::GrayImage::new(w as u32, w as u32);
+    for y in 0..w {
+        for x in 0..w {
+            // qrcode::Color::Dark == foreground module.
+            let is_dark = colors[y * w + x] == qrcode::Color::Dark;
+            let luma = if is_dark { 0u8 } else { 255u8 };
+            img.put_pixel(x as u32, y as u32, image::Luma([luma]));
+        }
     }
-    for line in &qr_lines {
-        ctx.write(page, line, 20.0, qr_y, 8.0, false);
-        qr_y -= qr_line_h;
-    }
-
-    ctx.write(
-        page,
-        "Verify offline with: vouch-verify <packet.json> <signature.hex>",
-        20.0,
-        12.0,
-        8.0,
-        false,
+    // Scale up by 8x for sharp PDF rendering at 22mm width.
+    let scaled = image::imageops::resize(
+        &img,
+        (w as u32) * 8,
+        (w as u32) * 8,
+        image::imageops::Nearest,
     );
+    let dyn_img = image::DynamicImage::ImageLuma8(scaled);
+    let (w_px, h_px) = (dyn_img.width() as usize, dyn_img.height() as usize);
+    // Build a printpdf::ImageXObject directly (greyscale, 8 bits).
+    // We use the raw luma bytes — every pixel is one u8, 0 = black
+    // (qrcode dark), 255 = white (qrcode light).
+    let pixels: Vec<u8> = dyn_img
+        .to_luma8()
+        .pixels()
+        .map(|p| p.0[0])
+        .collect();
+    let xobject = printpdf::ImageXObject {
+        width: printpdf::Px(w_px),
+        height: printpdf::Px(h_px),
+        color_space: printpdf::ColorSpace::Greyscale,
+        bits_per_component: printpdf::ColorBits::Bit8,
+        interpolate: true,
+        image_data: pixels,
+        image_filter: None,
+        clipping_bbox: None,
+        smask: None,
+    };
+    let pdf_image: printpdf::Image = xobject.into();
+
+    // Position the QR at bottom-right, 22mm wide. The image's
+    // intrinsic size at 300dpi is (width_px * 8) pt; we scale to
+    // fit 22mm (= ~62.36 pt) by setting scale_x/scale_y.
+    let qr_pt = 22.0_f32 * 2.834_645_7_f32; // mm -> pt
+    let pdf_w_pt = (w as f32) * 8.0_f32;
+    let scale = qr_pt / pdf_w_pt;
+    let transform = printpdf::ImageTransform {
+        translate_x: Some(printpdf::Mm(160.0)),
+        translate_y: Some(printpdf::Mm(20.0)),
+        scale_x: Some(scale),
+        scale_y: Some(scale),
+        ..Default::default()
+    };
+    pdf_image.add_to_layer(page.layer.clone(), transform);
+
+    // QR caption above the image.
+    page.set_fill(brand::MUTED);
+    ctx.write(page, "SCAN TO VERIFY", 162.0, 45.0, 6.5, true);
+    page.reset_color();
     Ok(())
-}
-
-fn set_red(page: &Page) {
-    use printpdf::{Color, Rgb};
-    page.layer
-        .set_fill_color(Color::Rgb(Rgb::new(0.784, 0.0, 0.0, None)));
-}
-
-fn set_green(page: &Page) {
-    use printpdf::{Color, Rgb};
-    page.layer
-        .set_fill_color(Color::Rgb(Rgb::new(0.0, 0.588, 0.0, None)));
 }
 
 #[cfg(test)]
@@ -305,36 +309,24 @@ mod tests {
     use themis_agents::decision::{AgentDecision, DecisionType};
 
     fn sample_packet() -> SignedPacket {
-        let decisions = vec![
-            AgentDecision {
-                agent_id: "extractor".to_string(),
-                tenant_id: "stark".to_string(),
-                invoice_id: "inv-001".to_string(),
-                decision_type: DecisionType::Extracted,
-                confidence: 0.9,
-                reasoning: "ok".to_string(),
-                timestamp_ms: 0,
-                payload: serde_json::json!({}),
-            },
-            AgentDecision {
-                agent_id: "fraud_auditor".to_string(),
-                tenant_id: "stark".to_string(),
-                invoice_id: "inv-001".to_string(),
-                decision_type: DecisionType::FraudAssessed,
-                confidence: 0.85,
-                reasoning: "ok".to_string(),
-                timestamp_ms: 0,
-                payload: serde_json::json!({}),
-            },
-        ];
+        let decisions = vec![AgentDecision {
+            agent_id: "extractor".to_string(),
+            tenant_id: "stark".to_string(),
+            invoice_id: "inv-001".to_string(),
+            decision_type: DecisionType::Extracted,
+            confidence: 0.9,
+            reasoning: "ok".to_string(),
+            timestamp_ms: 0,
+            payload: serde_json::json!({}),
+        }];
         let packet =
             crate::packet::EvidencePacket::new("stark", "inv-001", decisions, Outcome::Approve);
         SignedPacket::wrap(packet, "00".repeat(64), "11".repeat(32))
     }
 
     #[test]
-    fn render_writes_all_six_sections() {
-        let (doc, page_idx, layer_idx) =
+    fn render_writes_page1() {
+        let (doc, _page_idx, _layer_idx) =
             printpdf::PdfDocument::new("test", printpdf::Mm(210.0), printpdf::Mm(297.0), "L1");
         let font = doc.add_builtin_font(printpdf::BuiltinFont::Helvetica).unwrap();
         let bold = doc.add_builtin_font(printpdf::BuiltinFont::HelveticaBold).unwrap();
@@ -345,8 +337,7 @@ mod tests {
         };
         let mut page = ctx.add_a4_page("L1");
         let sp = sample_packet();
-        render(&ctx, &sp, &mut page).expect("render");
-        // Sanity: the cursor moved down (content was written).
+        render(&ctx, &sp, &mut page, "VOUCH-TEST", 6).expect("render");
         assert!(page.cursor_y < 280.0);
     }
 }

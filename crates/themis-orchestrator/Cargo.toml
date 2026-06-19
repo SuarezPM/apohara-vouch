@@ -34,8 +34,12 @@ hyper = "1"
 futures-util = "0.3"
 base64 = "0.22"
 tokio-stream = { version = "0.1", features = ["sync"] }
-printpdf = "0.7"
+printpdf = { version = "0.7", features = ["embedded_images"] }
 qrcode = "0.14"
+# Image rendering for QR code as PNG in the PDF (premium hero band).
+# Locked at the printpdf-recommended 0.25 series (image::DynamicImage
+# is the input type of printpdf::Image::from_dynamic_image).
+image = { version = "0.25", default-features = false, features = ["png"] }
 parking_lot = "0.12"
 # C-07 / G14 / AC7: redaction patterns for the Dual-LLM split
 # (privileged → quarantined). `regex` is already in the dep tree
