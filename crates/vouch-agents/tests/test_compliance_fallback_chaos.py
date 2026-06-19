@@ -219,6 +219,7 @@ def _run_one_chaos_scenario(run_idx: int) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.chaos
 def test_chaos_harness_fallback_fires_10_of_10() -> None:
     """AC-7b.5: the fallback veto fires in all 10 chaos runs."""
     results = [_run_one_chaos_scenario(i) for i in range(N_RUNS)]
@@ -232,6 +233,7 @@ def test_chaos_harness_fallback_fires_10_of_10() -> None:
     )
 
 
+@pytest.mark.chaos
 def test_chaos_harness_degraded_banner_10_of_10() -> None:
     """AC-7b.5: the DEGRADED banner is set in all 10 chaos runs."""
     results = [_run_one_chaos_scenario(i) for i in range(N_RUNS)]
@@ -244,6 +246,7 @@ def test_chaos_harness_degraded_banner_10_of_10() -> None:
     )
 
 
+@pytest.mark.chaos
 def test_chaos_harness_kill_count_per_run() -> None:
     """AC-7b.5: each scenario observes ≥3 cross-account WS kills."""
     results = [_run_one_chaos_scenario(i) for i in range(N_RUNS)]
@@ -254,6 +257,7 @@ def test_chaos_harness_kill_count_per_run() -> None:
     )
 
 
+@pytest.mark.chaos
 def test_chaos_harness_deterministic() -> None:
     """AC-7b.5: running the harness twice yields identical results."""
     a = [_run_one_chaos_scenario(i) for i in range(N_RUNS)]

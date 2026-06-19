@@ -120,6 +120,31 @@ jobs:
       - name: cargo test --workspace
         run: cargo test --workspace --all-targets
 
+  # Python agent tests + cross-account Compliance Veto chaos
+  # harness. The chaos harness (test_compliance_fallback_chaos.py)
+  # is the audit-flagged differentiator: BAAAR fallback fires 10/10
+  # over 3-kill scenarios, deterministic. No network — every Band
+  # / LLM call is mocked at the test boundary.
+  python-tests:
+    name: python agents + compliance veto chaos (ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-python@a26af6df68f1c9f3812227baa4f9c2e6a1f10c7e # v5.0.0
+        with:
+          python-version: "3.13"
+      - name: Install uv (Python package manager)
+        run: pip install uv
+      - name: Sync vouch-agents deps via uv
+        working-directory: crates/vouch-agents
+        run: uv sync --frozen
+      - name: Run pytest (181 agent tests, excludes @pytest.mark.chaos)
+        working-directory: crates/vouch-agents
+        run: .venv/bin/python -m pytest tests/ -v --tb=short -m "not chaos"
+      - name: Run compliance veto chaos harness (10/10 deterministic)
+        working-directory: crates/vouch-agents
+        run: .venv/bin/python -m pytest tests/ -v --tb=short -m chaos
+
   live-deploy:
     name: live deploy smoke test
     runs-on: ubuntu-latest

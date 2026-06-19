@@ -27,12 +27,19 @@ dependencies = [
     "python-dotenv>=1.0,<2.0",
     "httpx>=0.27,<1.0",
     "pydantic>=2.6,<3.0",
+    "crewai>=1.14,<2.0",
+    "litellm>=1.80,<2.0",
+    # S-05: Finance risk analyst uses Pydantic AI for structured output
+    # (RiskScore) against claude-sonnet-4-6 via AI/ML API.
+    "pydantic-ai>=1.0,<2.0",
 ]
 
 [project.optional-dependencies]
 test = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
+    # S-05: property-based test for monotonicity (AC-5.3).
+    "hypothesis>=6.0",
 ]
 
 [build-system]
@@ -46,6 +53,15 @@ where = ["src"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-v --tb=short"
+# Chaos tests for the cross-account Compliance Veto fallback run
+# 10 deterministic scenarios; CI runs them as a separate job so
+# a regression on the chaos invariant doesn't hide a regression
+# on the 181-test agent suite (and vice versa). Run locally:
+#   uv run pytest -m chaos          # only chaos tests
+#   uv run pytest -m "not chaos"    # only agent tests
+markers = [
+    "chaos: cross-account Compliance Veto fallback (AC-7b.5)",
+]  # noqa: ERA001
 
 # S-01 AC matrix (verified by the ralph verification log under
 # /home/thelinconx/.omc/state/sessions/vouch-pivot-016EF520/verification-log/S-01-AC-*.txt)
