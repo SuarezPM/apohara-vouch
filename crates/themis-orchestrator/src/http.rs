@@ -69,9 +69,13 @@ pub struct AppState {
     /// endpoint serves this directly. Empty when the binary is built
     /// without the evidence wiring (mock-only path).
     pub sealed: DashMap<uuid::Uuid, SealedPacket>,
-    /// C-10: per-packet-id → C2PA receipt produced by the
+    /// C-10: per-packet-id → C2PA-shaped receipt produced by the
     /// SealChain wrapper after the Evidence Packet is sealed. The
-    /// `/packets/:id/c2pa` endpoint serves this directly.
+    /// `/packets/:id/c2pa` endpoint serves this directly. Note:
+    /// this is a deterministic JSON envelope shaped after the C2PA
+    /// manifest schema; it is NOT validated by a c2patool. The
+    /// `/vouch-verify` CLI reads the shape but does not enforce C2PA
+    /// trust chains.
     pub c2pa_receipts: DashMap<uuid::Uuid, C2paReceipt>,
     /// C-10: the SealChain wrapper. `None` when initialization fails
     /// (e.g. read-only filesystem); in that case the wrap step is
@@ -448,12 +452,12 @@ async fn post_invoices(
         packet_id: packet.packet.packet_id,
     });
 
-    // C-10: wrap the SealedPacket as a C2PA-stamped receipt via
+    // C-10: wrap the SealedPacket as a C2PA-shaped receipt via
     // the SealChain wrapper. The wrap step never fails outright
     // (the wrapper falls back to a clearly-labeled mock receipt
     // on any sealchain error). Emitted AFTER the EvidenceSealed
-    // event so the timeline is ordered (Evidence first, C2PA
-    // stamp second).
+    // event so the timeline is ordered (Evidence first, C2PA-shaped
+    // receipt second).
     if let (Some(wrapper), Some(s)) = (state.sealchain_wrapper.as_ref(), sealed.as_ref()) {
         if let Ok(receipt) = wrapper.wrap_packet(s, EU_REGISTRATION_ID) {
             let mock = receipt.mock;
