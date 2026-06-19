@@ -12,7 +12,7 @@
 
 [![CI](https://img.shields.io/github/actions/workflow/status/SuarezPM/apohara-vouch/ci.yml?style=for-the-badge&label=CI)](https://github.com/SuarezPM/apohara-vouch/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](./LICENSE)
-[![Demo](https://img.shields.io/badge/demo-vouch.apohara.dev-10b981?style=for-the-badge)](https://vouch.apohara.dev)
+![Demo: pending Vercel deploy](https://img.shields.io/badge/demo-pending%20deploy-94a3b8?style=for-the-badge)
 [![Tests: 820](https://img.shields.io/badge/tests-820-10b981?style=for-the-badge)](#-numbers)
 [![Audit clean](https://img.shields.io/badge/audit-clean-d4a017?style=for-the-badge)](#-audit)
 
