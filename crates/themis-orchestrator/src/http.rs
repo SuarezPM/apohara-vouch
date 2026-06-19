@@ -238,23 +238,23 @@ pub fn build_router(state: AppState) -> Router {
 
 // --- Handlers ---
 
-async fn get_index() -> Response {
+async fn get_index() -> Result<Response, Infallible> {
     html_response(INDEX_HTML)
 }
 
-async fn get_compliance_dashboard() -> Response {
+async fn get_compliance_dashboard() -> Result<Response, Infallible> {
     html_response(COMPLIANCE_HTML)
 }
 
-async fn get_tokens_css() -> Response {
+async fn get_tokens_css() -> Result<Response, Infallible> {
     css_response(TOKENS_CSS)
 }
 
-async fn get_app_css() -> Response {
+async fn get_app_css() -> Result<Response, Infallible> {
     css_response(APP_CSS)
 }
 
-async fn get_app_js() -> Response {
+async fn get_app_js() -> Result<Response, Infallible> {
     js_response(APP_JS)
 }
 
@@ -550,31 +550,66 @@ async fn get_room_transcript(
 
 // --- Helpers ---
 
-fn html_response(s: &str) -> Response {
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
-        .body(Body::from(s.to_string()))
-        .unwrap()
+fn html_response(s: &str) -> Result<Response, Infallible> {
+    build_response(StatusCode::OK, "text/html; charset=utf-8", Body::from(s.to_string()))
 }
 
-fn css_response(s: &str) -> Response {
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "text/css; charset=utf-8")
-        .body(Body::from(s.to_string()))
-        .unwrap()
+fn css_response(s: &str) -> Result<Response, Infallible> {
+    build_response(StatusCode::OK, "text/css; charset=utf-8", Body::from(s.to_string()))
 }
 
-fn js_response(s: &str) -> Response {
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(
-            header::CONTENT_TYPE,
-            "application/javascript; charset=utf-8",
-        )
-        .body(Body::from(s.to_string()))
-        .unwrap()
+fn js_response(s: &str) -> Result<Response, Infallible> {
+    build_response(
+        StatusCode::OK,
+        "application/javascript; charset=utf-8",
+        Body::from(s.to_string()),
+    )
+}
+
+/// Build an HTTP response with the given status, content type, and body.
+///
+/// Returns `Result<Response, Infallible>` so the caller can use `?`
+/// instead of `.unwrap()`. `Response::builder().body()` only fails if
+/// the header values are invalid, which the hardcoded literals here
+/// never are, so the error type is `Infallible`.
+fn build_response(
+    status: StatusCode,
+    content_type: &'static str,
+    body: Body,
+) -> Result<Response, Infallible> {
+    let resp = Response::builder()
+        .status(status)
+        .header(header::CONTENT_TYPE, content_type)
+        .body(body)
+        .expect("hardcoded status + content type are always valid");
+    Ok(resp)
+}
+
+/// Build an HTTP response with a dynamic `Content-Disposition`
+/// attachment header (used for PDF/JSON downloads where the filename
+/// comes from packet metadata).
+///
+/// Returns `Result<Response, (StatusCode, String)>` so any failure
+/// in `Response::builder().body()` (e.g. an unprintable character in
+/// the filename) maps to a 500 instead of a panic via `.unwrap()`.
+fn build_attachment_response(
+    status: StatusCode,
+    content_type: &'static str,
+    disposition: String,
+    body: Body,
+) -> Result<Response, (StatusCode, String)> {
+    let resp = Response::builder()
+        .status(status)
+        .header(header::CONTENT_TYPE, content_type)
+        .header(header::CONTENT_DISPOSITION, disposition)
+        .body(body)
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("build response: {e}"),
+            )
+        })?;
+    Ok(resp)
 }
 
 fn base64_decode(s: &str) -> Result<Vec<u8>, base64::DecodeError> {
@@ -599,18 +634,16 @@ async fn get_packet_pdf(
             format!("PDF render: {e}"),
         )
     })?;
-    Ok(Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "application/pdf")
-        .header(
-            header::CONTENT_DISPOSITION,
-            format!(
-                "attachment; filename=\"themis-{}-{}.pdf\"",
-                packet.packet.tenant_id, packet.packet.invoice_id
-            ),
-        )
-        .body(Body::from(bytes))
-        .unwrap())
+    let disposition = format!(
+        "attachment; filename=\"themis-{}-{}.pdf\"",
+        packet.packet.tenant_id, packet.packet.invoice_id
+    );
+    build_attachment_response(
+        StatusCode::OK,
+        "application/pdf",
+        disposition,
+        Body::from(bytes),
+    )
 }
 
 /// `GET /packets/:packet_id/json` — return the strict `SealedPacket`
@@ -632,18 +665,16 @@ async fn get_packet_json(
             format!("serialize SealedPacket: {e}"),
         )
     })?;
-    Ok(Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "application/json")
-        .header(
-            header::CONTENT_DISPOSITION,
-            format!(
-                "attachment; filename=\"themis-{}-{}.json\"",
-                sealed.tenant_id, sealed.invoice_id
-            ),
-        )
-        .body(Body::from(bytes))
-        .unwrap())
+    let disposition = format!(
+        "attachment; filename=\"themis-{}-{}.json\"",
+        sealed.tenant_id, sealed.invoice_id
+    );
+    build_attachment_response(
+        StatusCode::OK,
+        "application/json",
+        disposition,
+        Body::from(bytes),
+    )
 }
 
 /// Request body for `POST /packets/:id/override` — a
