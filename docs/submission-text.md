@@ -19,7 +19,7 @@ THEMIS is a 5-agent Rust system for buyer-side AP invoice fraud detection that p
 
 Five agents (Extractor, PO Matcher, Fraud Auditor, GAAP Classifier, Provenance Signer) coordinate through a Band chat room. The BAAAR 5-condition gate fires deterministically (10/10 in tests) on fraud: risk_score > 0.85, secret leak regex, coherence < 0.3, debate deadlock, or explicit halt. Each packet is Ed25519-signed, BLAKE3-chained, RFC 3161-timestamped, and Rekor v2-anchored.
 
-Multi-tenant crypto isolation: 2 baked Ed25519 keypairs survive Vercel's ephemeral FS. Offline verification with the themis-verify binary in 3.73ms. Single 2.1 MB static binary, 298 tests, 0 clippy warnings, MIT-licensed, deployed at themis.apohara.dev.
+Multi-tenant crypto isolation: 2 baked Ed25519 keypairs survive Vercel's ephemeral FS. Offline verification with the vouch-verify binary in 3.73ms. Single 2.1 MB static binary, 298 tests, 0 clippy warnings, MIT-licensed, deployed at themis.apohara.dev.
 
 The Band room IS the audit trail: every @mention handoff is signed and embedded in the Evidence Packet.
 ```

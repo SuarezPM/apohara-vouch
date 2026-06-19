@@ -5,7 +5,7 @@
 //!     `EvidenceService::seal` is called.
 //!   - All 5 fields are present (risk_assessment,
 //!     impact_assessment, monitoring, improvement, lifecycle).
-//!   - The themis-verify binary prints the ISO 42001 summary
+//!   - The vouch-verify binary prints the ISO 42001 summary
 //!     line when the field is populated.
 
 use themis_evidence::packet::EvidenceService;

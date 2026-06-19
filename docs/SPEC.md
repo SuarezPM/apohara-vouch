@@ -42,7 +42,7 @@ Wayne Enterprises).
 - **Real Ed25519**: `Orchestrator::sign` calls
   `SignerService::sign_hex(canonical_payload_bytes)`, producing a
   128-char signature. The PDF and `/packets/:id/json` ship the real
-  signature; `themis-verify` validates offline (AC13).
+  signature; `vouch-verify` validates offline (AC13).
 - **BLAKE3 chain**: sequence-monotonic, `prev_hash` linked, canonic
   encoding. `HashChain` in themis-evidence.
 - **Rekor v2 anchor**: the seal step calls `RekorV2Client::anchor`
@@ -89,7 +89,7 @@ Total: -1534 LOC.
 | AC10 BAAAR HALT visible <90s | ✅ | real gate, real Event::BaaarHalt |
 | AC11 BAAAR HALT deterministic | ✅ | 10/10 via `BaaarGate::check` |
 | AC12 PDF <2s | ✅ | `printpdf` is sync; bench <2s |
-| AC13 themis-verify <30s | ✅ | verified end-to-end on commit b5a079e |
+| AC13 vouch-verify <30s | ✅ | verified end-to-end on commit b5a079e |
 | AC14 multi-tenant isolation | ✅ | real pubkeys, distinct signers |
 | AC15 EU AI Act ≥7/8 | ✅ | 8/8 fields populated |
 | AC16 OWASP Agentic 2026 | ✅ | 3/10 mitigated, 7/10 not_assessed |
@@ -158,7 +158,7 @@ Total: -1534 LOC.
 ```bash
 # Build
 cargo build --release -p themis-orchestrator --bin themis-orchestrator
-cargo build --release -p themis-evidence --bin themis-verify
+cargo build --release -p themis-evidence --bin vouch-verify
 
 # Test
 cargo test --workspace --exclude themis-frontend
@@ -171,7 +171,7 @@ curl -X POST http://127.0.0.1:18765/invoices \
   -d '{"tenant_id":"stark","invoice_id":"inv-001","raw_b64":"..."}'
 
 # Verify offline
-./target/release/themis-verify /tmp/packet.json /tmp/sig.hex
+./target/release/vouch-verify /tmp/packet.json /tmp/sig.hex
 ```
 
 ### Rekor v2 env vars

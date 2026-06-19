@@ -34,12 +34,12 @@ hackathon. This document maps every story to:
 | C-10 | SealChain → C2PA receipt | AC10 | **EU AI Act** (Art 12), C2PA spec, OWASP Agentic (ASI03) | C2paReceipt + eu_registration_id |
 | C-11 | SARIF merger + CodeSearch MCP federation | AC11 | **OWASP Agentic** (cross-cutting), NIST SSDF | sarif_merge.rs |
 | C-12 | PydanticAI + LangGraph + CrewAI peers via A2A | AC12 | **EU AI Act** (Art 9), OWASP Agentic (ASI07) | multiframework fixtures |
-| C-13 | BIP32-style Ed25519 keyring (dynamic tenant keys) | AC13 | **EU AI Act** (Art 12), DORA Art 9, NIST AI RMF | keyring.rs + themis-verify |
+| C-13 | BIP32-style Ed25519 keyring (dynamic tenant keys) | AC13 | **EU AI Act** (Art 12), DORA Art 9, NIST AI RMF | keyring.rs + vouch-verify |
 | C-14 | Honesty Auditor agent (6th, deterministic) | AC14 | **EU AI Act** (Art 14), NIST AI RMF (MEASURE) | honesty_auditor.rs |
 | C-15 | Bench 1K InvoiceNet + cross-domain | AC15 | NIST AI RMF (MEASURE), OWASP Agentic | bench harness (1K invoices) |
 | C-16a | FRIA + AIBOM CycloneDX 1.6 + Art 17 QMS | AC16a | **EU AI Act** (Art 27/17, FRIA), AIBOM | fria.rs, aibom.rs, qms.rs |
 | C-16b | ISO 23894/5469 | AC16b | **ISO/IEC 23894**, **ISO/IEC 5469** | iso_23894.rs (compliance crate) |
-| **C-17** | **Final verification + CI gates + binary size** | **AC17** | **all** | **3 new CI jobs, themis-verify enhancements, COMPLIANCE-FINAL.md** |
+| **C-17** | **Final verification + CI gates + binary size** | **AC17** | **all** | **3 new CI jobs, vouch-verify enhancements, COMPLIANCE-FINAL.md** |
 
 ## 3. Framework coverage at a glance
 
@@ -74,7 +74,7 @@ ISO audits or a fully externalized data-governance pipeline.
 The single artifact a regulator needs is the **Sealed Packet**:
 
 - **Ed25519 signature** over the BLAKE3 hash (offline-verifiable
-  with `themis-verify`, no OpenSSL needed).
+  with `vouch-verify`, no OpenSSL needed).
 - **BLAKE3 hash chain** (sequence-monotonic; tamper-evident).
 - **RFC 3161 timestamp** from the demo's TSA.
 - **Rekor v2 transparency-log anchor** (UUID + log index).
@@ -83,7 +83,7 @@ The single artifact a regulator needs is the **Sealed Packet**:
 - **ISO/IEC 42001 AIMS fields** (5-field flat struct).
 - **31-field compliance dashboard** in the 6-page PRC PDF.
 
-`themis-verify` (the offline binary) prints 9/9 smoke checks:
+`vouch-verify` (the offline binary) prints 9/9 smoke checks:
 Ed25519 sig, BLAKE3 hash, Rekor anchor, DSSE envelope, ISO 42001
 fields, **C2PA SealChain wrap** (C-17), **EU registration id**
 (C-17), Rekor v2 entry, chain length.

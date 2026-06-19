@@ -12,10 +12,6 @@ description = "THEMIS Evidence Packet — Ed25519 signing, BLAKE3 hash chain, RF
 name = "themis_evidence"
 path = "src/lib.rs"
 
-[[bin]]
-name = "themis-verify"
-path = "src/bin/verify.rs"
-
 [dependencies]
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 blake3 = "1"
