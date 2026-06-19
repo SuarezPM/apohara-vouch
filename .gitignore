@@ -80,7 +80,13 @@ yarn-error.log*
 
 # OMC state leakage guard
 crates/themis-evidence/proto/rekor/v2/.omc/
+# All OMC state dirs at any depth
+**/.omc
+**/.omc/**
 # ─── Pre-rename historical docs (kept locally for reference) ─────────
 # docs/THEMIS-3.0-SUPREME-PLAN.md — pre-VOUCH planning artifact, not
 # part of the published surface. Moved to /home/thelinconx/.archive/.
 /docs/THEMIS-3.0-SUPREME-PLAN.md
+# ─── Unrelated side-projects (kept locally, not VOUCH) ──────────────
+# /site/ — landing page experiments for other products
+/site/
