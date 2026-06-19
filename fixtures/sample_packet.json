@@ -1,0 +1,33 @@
+{
+  "case_id": "case-sample",
+  "tenant_id": "stark",
+  "agent_outputs": [
+    {
+      "agent_id": "fraud-auditor",
+      "verdict": "halt",
+      "summary": "secret detected in invoice body",
+      "risk_score": 0.92
+    },
+    {
+      "agent_id": "po-matcher",
+      "verdict": "approve",
+      "summary": "vendor matches PO database",
+      "risk_score": 0.1
+    }
+  ],
+  "hash_chain_link": null,
+  "reference_database": "stanford-invoicenet-50",
+  "policy_version": "apohara-vouch-1",
+  "natural_person_id": "operator@apohara.dev",
+  "decision_id": "00000000-0000-0000-0000-000000000001",
+  "start_time": "2026-06-18T12:00:00Z",
+  "end_time": "2026-06-18T12:01:30Z",
+  "input_data": "inv-sample",
+  "hash_chain_prev": "0000000000000000000000000000000000000000000000000000000000000000",
+  "hash": "a16319985892692a28460f0ffc54864ab6ffe0830a1dc9206dc121b3c68fe0e9",
+  "signature_hex": "a0d9b0bae61fa140203445b2f0e3375578c265d9af33a635840fb157c80c80e4becc89a284b24ea67b3c9e40b8d72b2c96df9174370cad07f11c32cc7e525a09",
+  "public_key_hex": "c676c94efea5c5399de9cf88841cff7468076926dfd114b070c79fc528ff5947",
+  "c2pa_manifest": null,
+  "rfc3161_ts_der_hex": null,
+  "rfc3161_tsa_url": null
+}

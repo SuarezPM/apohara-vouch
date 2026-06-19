@@ -1,0 +1,22 @@
+{
+  "case_id": "PC-2026-0002",
+  "buyer": "Stark Industries EU Sp.z.o.o.",
+  "vendor_name": "Bright Horizon Consulting LLC",
+  "vendor_id": "US-FL-99001234",
+  "amount_eur": 487500.00,
+  "category": "consulting_services",
+  "requested_action": "approve",
+  "attachments": ["s3://vouch-invoices/PC-2026-0002/sow.pdf"],
+  "urgency": "urgent",
+  "raw_procurement_request": "Procurement request PC-2026-0002 — single-source consulting engagement with Bright Horizon Consulting LLC (US-FL-99001234) for EUR 487,500. Marked urgent. Beneficial owner disclosed as Vladimir Petrov. Conflict of interest declaration NOT attached. Vendor registered in Florida 14 days ago (2026-06-01). Three flagged issues: (1) shell-company vendor — FL LLC < 30 days old, (2) sanctions-adjacent beneficial owner — name matches OFAC SDN list partial match, (3) missing conflict-of-interest declaration.",
+  "context": {
+    "source_channel": "email",
+    "submitted_at": "2026-06-17T22:14:55Z",
+    "submitted_by": "pepper.potts@stark-industries.eu"
+  },
+  "expected_violations": [
+    "shell_company_vendor",
+    "sanctions_adjacent_beneficial_owner",
+    "missing_conflict_of_interest_declaration"
+  ]
+}

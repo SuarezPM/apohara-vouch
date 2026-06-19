@@ -1,0 +1,17 @@
+{
+  "case_id": "PC-2026-0001",
+  "buyer": "Stark Industries EU Sp.z.o.o.",
+  "vendor_name": "Acme Office Supplies GmbH",
+  "vendor_id": "DE-271828-BERLIN",
+  "amount_eur": 12450.00,
+  "category": "office_supplies",
+  "requested_action": "approve",
+  "attachments": ["s3://vouch-invoices/PC-2026-0001/quote.pdf", "s3://vouch-invoices/PC-2026-0001/w9.pdf"],
+  "urgency": "standard",
+  "raw_procurement_request": "Procurement request PC-2026-0001 from Stark Industries EU Sp.z.o.o. requesting approval to engage Acme Office Supplies GmbH (DE-271828-BERLIN) for office supplies valued at EUR 12,450.00. Standard 30-day terms. Attachments: quote.pdf and w9.pdf. Urgency: standard.",
+  "context": {
+    "source_channel": "vendor_portal",
+    "submitted_at": "2026-06-15T09:32:11Z",
+    "submitted_by": "tony.stark@stark-industries.eu"
+  }
+}

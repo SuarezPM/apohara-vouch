@@ -1,0 +1,28 @@
+{
+  "vendor_name": "Northbridge Trading Ltd",
+  "profile": {
+    "registration_country": "CY",
+    "ultimate_beneficial_owner": [
+      {
+        "name": "Dmitri Volkov",
+        "ownership_pct": 100.0,
+        "nationality": "RU",
+        "pep_flag": true
+      }
+    ],
+    "sector": "shell_company_trading",
+    "sanctions_hits": [
+      {
+        "list": "OFAC_SDN",
+        "matched_name": "Dmitri Volkov",
+        "listed_on": "2024-11-08"
+      },
+      {
+        "list": "EU_CFSP",
+        "matched_name": "Northbridge Trading Ltd",
+        "listed_on": "2025-03-22"
+      }
+    ],
+    "adverse_media_count": 14
+  }
+}
