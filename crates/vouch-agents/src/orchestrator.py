@@ -40,11 +40,10 @@ import logging
 import os
 import uuid
 from pathlib import Path
-from typing import Annotated, Any, Literal, TypedDict
+from typing import Any, Literal, TypedDict
 
 import httpx
 from dotenv import load_dotenv
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
@@ -68,6 +67,7 @@ ORCHESTRATOR_STATES: tuple[str, ...] = (
     "POLICY",
     "AUDIT",
     "REDTEAM",
+    "COMPLIANCE_ESCALATION",  # S-07b AC-7b.4
     "EVIDENCE",
     "DECISION",
     "DONE",
@@ -263,6 +263,7 @@ class OrchestratorState(TypedDict, total=False):
         "POLICY",
         "AUDIT",
         "REDTEAM",
+        "COMPLIANCE_ESCALATION",
         "EVIDENCE",
         "DECISION",
         "DONE",
@@ -279,6 +280,13 @@ class OrchestratorState(TypedDict, total=False):
     redteam_findings: str
     sealed_packet: dict[str, Any]
     decision_memo: str
+    # S-07b: Compliance Veto decision (set by node_compliance_escalation).
+    # When verdict == "veto" the case routes deterministically to
+    # COMPLIANCE_ESCALATION regardless of any other agent's output.
+    veto_decision: dict[str, Any]
+    # S-07b AC-7b.5: DEGRADED banner flag (true when the fallback path
+    # activated because the cross-account WebSocket was killed).
+    degraded: bool
     # Audit log of every state transition (used by AC-1.3 + AC-1.6 tests).
     transitions: list[dict[str, Any]]
     # Chatroom id loaded from the shared block.
@@ -328,10 +336,7 @@ async def _emit_thought(state: OrchestratorState, content: str) -> None:
         "ts_ms": _now_ms(),
     }
     state.setdefault("transitions", []).append(transition_entry)
-    if tools is None:
-        logger.info("[thought @%s] %s", state.get("state"), content)
-        return
-    send_event = getattr(tools, "send_event", None)
+    send_event = getattr(tools, "send_event", None) if tools is not None else None
     if send_event is None:
         logger.info("[thought @%s] %s", state.get("state"), content)
         return
@@ -481,6 +486,79 @@ async def node_redteam(state: OrchestratorState) -> OrchestratorState:
     return state
 
 
+# ---------------------------------------------------------------------------
+# S-07b: Deterministic routing to COMPLIANCE_ESCALATION (AC-7b.4)
+# ---------------------------------------------------------------------------
+
+
+def _route_to_compliance_escalation(
+    veto_decision: Any,
+    fallback_active: bool = False,
+) -> bool:
+    """Return True iff the case routes to COMPLIANCE_ESCALATION (AC-7b.4).
+
+    Deterministic: True iff the Compliance Veto emits
+    ``verdict == "veto"``. No other agent's output can suppress this
+    routing — the function takes only the veto decision + a
+    fallback flag. The 100/100 Hypothesis proptest
+    (``tests/test_compliance_veto.py::test_deterministic_routing_proptest``)
+    asserts this on random state inputs.
+    """
+    if veto_decision is None:
+        return False
+    if isinstance(veto_decision, dict):
+        verdict = veto_decision.get("verdict")
+    else:
+        verdict = getattr(veto_decision, "verdict", None)
+    if verdict != "veto":
+        return False
+    # ``fallback_active`` is informational here — the route is True
+    # regardless of which transport produced the veto. AC-7b.4 only
+    # requires the routing decision to depend on the verdict.
+    _ = fallback_active
+    return True
+
+
+async def node_compliance_escalation(state: OrchestratorState) -> OrchestratorState:
+    """COMPLIANCE_ESCALATION: deterministic routing on VetoDecision (AC-7b.4).
+
+    Fires UNCONDITIONALLY when the Compliance Veto emits
+    ``verdict="veto"``. Other agents (RedTeam, LegalPolicy, etc.)
+    cannot suppress this routing — see
+    ``_route_to_compliance_escalation`` + the 100/100 proptest.
+
+    The node is registered in the linear graph immediately after
+    ``REDTEAM`` and before ``EVIDENCE`` so the case enters the
+    escalation path BEFORE the Evidence Clerk seals the packet
+    (the sealed packet then carries ``escalation=True`` metadata
+    so the regulator sees the escalation at offline-verification
+    time).
+    """
+    veto = state.get("veto_decision")
+    fallback_active = bool(
+        isinstance(veto, dict) and veto.get("fallback")
+    )
+    routes = _route_to_compliance_escalation(
+        veto, fallback_active=fallback_active
+    )
+    state["state"] = "COMPLIANCE_ESCALATION"
+    if fallback_active:
+        state["degraded"] = True
+    if routes:
+        # Record escalation on the state for the EVIDENCE node to
+        # carry into the sealed packet.
+        if isinstance(veto, dict):
+            veto = dict(veto)
+            veto["escalated"] = True
+            state["veto_decision"] = veto
+    await _emit_thought(
+        state,
+        f"COMPLIANCE_ESCALATION — veto={veto if isinstance(veto, dict) else None} "
+        f"routes={routes} degraded={state.get('degraded', False)}.",
+    )
+    return state
+
+
 async def node_evidence(state: OrchestratorState) -> OrchestratorState:
     """EVIDENCE: call S-03 POST /seal to produce the Evidence Packet.
 
@@ -599,6 +677,7 @@ def build_state_graph() -> StateGraph:
     g.add_node("POLICY", node_policy)
     g.add_node("AUDIT", node_audit)
     g.add_node("REDTEAM", node_redteam)
+    g.add_node("COMPLIANCE_ESCALATION", node_compliance_escalation)
     g.add_node("EVIDENCE", node_evidence)
     g.add_node("DECISION", node_decision)
     g.add_node("DONE", node_done)
@@ -609,7 +688,8 @@ def build_state_graph() -> StateGraph:
     g.add_edge("RISK", "POLICY")
     g.add_edge("POLICY", "AUDIT")
     g.add_edge("AUDIT", "REDTEAM")
-    g.add_edge("REDTEAM", "EVIDENCE")
+    g.add_edge("REDTEAM", "COMPLIANCE_ESCALATION")
+    g.add_edge("COMPLIANCE_ESCALATION", "EVIDENCE")
     g.add_edge("EVIDENCE", "DECISION")
     g.add_edge("DECISION", "DONE")
     g.add_edge("DONE", END)
@@ -739,4 +819,6 @@ __all__ = [
     "load_agent_config",
     "load_chatroom",
     "make_graph_factory",
+    "node_compliance_escalation",
+    "_route_to_compliance_escalation",
 ]
