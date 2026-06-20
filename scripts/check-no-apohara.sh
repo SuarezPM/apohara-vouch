@@ -36,7 +36,11 @@ VIOLATIONS=0
 #    rejected. The allow-list matches both `use` statements and
 #    fully-qualified `apohara_xxx::yyy` paths.
 echo "Checking Rust source for 'use apohara_' imports (allow-list: agentguard, sealchain-core)..."
-FORBIDDEN_IMPORTS=$(grep -rEn '(use[[:space:]]+apohara)|(apohara[_a-zA-Z0-9]*[[:space:]]*::)' crates/ 2>/dev/null \
+FORBIDDEN_IMPORTS=$(grep -rEn '(use[[:space:]]+apohara)|(apohara[_a-zA-Z0-9]*[[:space:]]*::)' crates/ \
+    --exclude-dir=.omc \
+    --exclude-dir=target \
+    --exclude-dir=.venv \
+    --exclude-dir=node_modules 2>/dev/null \
     | grep -Ev 'apohara_(agentguard|sealchain_core)' \
     || true)
 if [ -n "$FORBIDDEN_IMPORTS" ]; then

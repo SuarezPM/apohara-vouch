@@ -101,7 +101,7 @@ agent decision → BLAKE3 chain → Ed25519 tenant signature → RFC 3161 timest
   <img src="assets/slide-06-verify.png" alt="vouch-verify CLI running offline, 26.4 seconds to PASS" width="100%">
 </p>
 
-**No network. No LLM. No platform trust.** A 669 KB static binary that fits on a USB stick and runs on a CISO's air-gapped laptop. Re-hashes the BLAKE3 chain, verifies the Ed25519 signature against the tenant's public key, and checks EU AI Act Art. 12 coverage (≥7/8 fields populated). Result: **PASS** in **26.4 seconds**.
+**No network. No LLM. No platform trust.** A 657 KB single binary (stripped, dynamically linked to glibc ≥2.35) that fits on a USB stick and runs on a CISO's air-gapped laptop. Re-hashes the BLAKE3 chain, verifies the Ed25519 signature against the tenant's public key, and checks EU AI Act Art. 12 coverage (≥7/8 fields populated). Result: **PASS** in milliseconds.
 
 > ⚠️ **What `vouch-verify` does NOT check**: whether the upstream LLM call was correct. **VOUCH vouches the decision, not the LLM.** LLM correctness is the LLM provider's responsibility — enforced by their SLAs. **This is the honesty the brand is built on.**
 
@@ -150,7 +150,7 @@ Plus **4 more frameworks mapped** in `crates/vouch-compliance/src/`: DORA Art. 1
 # 1. Clone the repo
 git clone https://github.com/SuarezPM/apohara-vouch && cd apohara-vouch
 
-# 2. Build the offline verifier (73s, single static binary)
+# 2. Build the offline verifier (73s, single binary)
 cargo build --release -p vouch-verify
 
 # 3. Verify a sample packet — offline, no setup
@@ -205,7 +205,7 @@ open https://vouch.apohara.dev
 runs on an air-gapped laptop to check that the Evidence Packet was signed
 by the tenant's Ed25519 key, hash-chained via BLAKE3, and meets EU AI
 Act Art. 12 coverage (≥7/8 fields populated). No network, no LLM, no
-platform trust. The 669 KB single static binary fits on a USB stick.
+platform trust. The 657 KB single binary fits on a USB stick.
 
 ---
 
@@ -221,7 +221,7 @@ Two independent review passes shaped the public surface. **All findings fixed an
 
 | # | Finding | Fix |
 |---|---|---|
-| Bug bloqueante | `claude-opus-4-7` (ficticio) en `red_team.py:485` | → `claude-opus-4-5` (real) |
+| Bug bloqueante | `claude-opus-4-7` (ficticio) en `crates/vouch-agents/src/red_team.py` | → `claude-opus-4-5` (real, AIML API exposed model id) |
 | Bug bloqueante | `index.html` decía "THEMIS" en 7 lugares | Rebrand completo |
 | Credibilidad | Badge `Tests: 410` mentiroso | → **820 pass / 0 fail** |
 | Credibilidad | C2PA claim sin `c2patool` real | Eliminado + `C2PA-shaped` honesto |
@@ -248,13 +248,20 @@ crates/
 ├── vouch-compliance/      ← DORA / EU AI Act / NIST AI RMF / OWASP Agentic mappers
 ├── vouch-orchestrator/    ← POST /seal HTTP endpoint (Axum 0.7)
 ├── vouch-frontend/        ← SSE + vanilla HTML/JS demo UI at vouch.apohara.dev
-└── bin/vouch-verify/      ← offline CLI for Evidence Packet verification (669 KB)
+├── themis-evidence/       ← legacy alias of vouch-evidence (pre-rebrand, kept for migration)
+├── themis-orchestrator/   ← legacy alias of vouch-orchestrator (still hosts /invoices + PDF + HTTP)
+├── themis-band-client/    ← Band WSS adapter (config in agent-config/agent_config.yaml)
+├── themis-frontend/      ← legacy alias of vouch-frontend (Vercel target)
+├── themis-compliance/     ← 4-framework compliance mapper (DORA / EU AI Act / NIST / OWASP)
+├── themis-compressor/     ← AGORA-like context compressor (compression r=0.5)
+├── themis-bench/          ← invoicenet-50 heuristic benchmark (non-tautological)
+└── bin/vouch-verify/      ← offline CLI for Evidence Packet verification (657 KB stripped)
 
 crates/vouch-agents/      ← 9 Python agents (LangGraph + CrewAI + Pydantic AI + Anthropic SDK)
                             + ComplianceFallback + chaos harness (10/10 over 3-kill scenarios)
 ```
 
-Single Rust binary: **`target/release/vouch-verify` (669 KB)**. Single Python package: **`crates/vouch-agents/`**. One demo surface: **[vouch.apohara.dev](https://vouch.apohara.dev)**.
+Single Rust binary: **`target/release/vouch-verify` (657 KB stripped, dynamically linked to glibc)**. Single Python package: **`crates/vouch-agents/`**. One demo surface: **[vouch.apohara.dev](https://vouch.apohara.dev)**.
 
 ---
 
@@ -262,7 +269,7 @@ Single Rust binary: **`target/release/vouch-verify` (669 KB)**. Single Python pa
 
 - **EU AI Act enforcement** starts **Aug 2026**. **DORA** starts **Jan 2027**. Both require automated evidence-keeping with cryptographic integrity.
 - **First multi-agent substrate** with built-in compliance — the same VOUCH pattern covers hiring compliance, customer escalation, and vendor risk (same substrate, three verticals).
-- **669 KB verifier** = distribution moat (USB-stick deliverable, air-gappable).
+- **657 KB verifier** = distribution moat (USB-stick deliverable, air-gappable).
 
 ---
 
@@ -276,9 +283,9 @@ All 42K LOC Rust + 1K Python + 5K docs are MIT-licensed. Fork, vendor, sell. We 
 
 ## 🤝 Community
 
-- [CONTRIBUTING.md](./CONTRIBUTING.md) — how to add an agent, commit format, pre-commit checklist.
-- [SECURITY.md](./SECURITY.md) — vulnerability disclosure (do **not** file a public issue).
-- [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) — Contributor Covenant 2.1.
+- `CONTRIBUTING.md` — how to add an agent, commit format, pre-commit checklist.
+- `SECURITY.md` — vulnerability disclosure (do **not** file a public issue).
+- `CODE_OF_CONDUCT.md` — Contributor Covenant 2.1.
 
 ---
 
