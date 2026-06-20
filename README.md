@@ -9,7 +9,6 @@
 <p align="center">
   <sub>
     <a href="https://vouch.apohara.dev"><img src="https://img.shields.io/badge/demo-live-10b981?style=for-the-badge" alt="Demo"></a>
-    <a href="https://github.com/SuarezPM/apohara-vouch/actions"><img src="https://img.shields.io/github/actions/workflow/status/SuarezPM/apohara-vouch/ci.yml?style=for-the-badge&label=CI" alt="CI"></a>
     <img src="https://img.shields.io/badge/tests-820%20pass%20%2F%200%20fail-10b981?style=for-the-badge" alt="Tests">
     <img src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge" alt="License">
     <img src="https://img.shields.io/badge/audit%20score-8.6%2F10-d4a017?style=for-the-badge" alt="Audit">
